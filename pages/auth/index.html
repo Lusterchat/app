@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>✨ Luster - Create Account</title>
+    <link rel="stylesheet" href="../../style.css">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        /* Back button */
+        .back-btn {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: white;
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1.3rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s;
+        }
+        
+        .back-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: scale(1.1);
+        }
+        
+        /* Auth container */
+        .auth-container {
+            max-width: 450px;
+            margin: 0 auto;
+            padding: 60px 20px 40px;
+        }
+        
+        /* Header */
+        .auth-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        
+        .auth-logo {
+            font-size: 3.5rem;
+            margin-bottom: 15px;
+        }
+        
+        .auth-title {
+            font-size: 2.2rem;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .auth-subtitle {
+            color: #a0a0c0;
+            font-size: 1.1rem;
+        }
+        
+        /* Form */
+        .auth-form {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 25px;
+            padding: 35px 30px;
+            backdrop-filter: blur(20px);
+            margin-bottom: 30px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+        }
+        
+        .form-group {
+            margin-bottom: 28px;
+        }
+        
+        .form-label {
+            display: block;
+            margin-bottom: 10px;
+            color: white;
+            font-weight: 500;
+            font-size: 1.05rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .form-label-icon {
+            font-size: 1.2rem;
+        }
+        
+        .form-input {
+            width: 100%;
+            padding: 17px 20px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 15px;
+            color: white;
+            font-size: 1.05rem;
+            transition: all 0.3s;
+        }
+        
+        .form-input:focus {
+            outline: none;
+            border-color: #667eea;
+            background: rgba(255, 255, 255, 0.12);
+            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.15);
+            transform: translateY(-2px);
+        }
+        
+        /* Password toggle */
+        .password-input {
+            position: relative;
+        }
+        
+        .password-toggle {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: #a0a0c0;
+            cursor: pointer;
+            font-size: 1.3rem;
+            padding: 5px;
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+        
+        .password-toggle:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+        
+        /* Terms & Privacy */
+        .terms-container {
+            margin: 30px 0;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        .terms-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 15px;
+        }
+        
+        .terms-checkbox input {
+            width: 20px;
+            height: 20px;
+            accent-color: #667eea;
+        }
+        
+        .terms-checkbox label {
+            color: white;
+            font-size: 1rem;
+        }
+        
+        .terms-links {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin-top: 15px;
+        }
+        
+        .terms-link {
+            color: #667eea;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 0.95rem;
+            padding: 8px 16px;
+            border-radius: 10px;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .terms-link:hover {
+            background: rgba(102, 126, 234, 0.1);
+        }
+        
+        /* Error messages */
+        .error-message {
+            color: #ff6b8b;
+            font-size: 0.9rem;
+            margin-top: 8px;
+            display: none;
+            padding-left: 5px;
+        }
+        
+        /* Submit button */
+        .auth-btn {
+            width: 100%;
+            padding: 18px;
+            font-size: 1.15rem;
+            font-weight: 600;
+            border-radius: 15px;
+            margin-top: 10px;
+            transition: all 0.3s;
+        }
+        
+        /* Success message */
+        .success-message {
+            background: rgba(40, 167, 69, 0.1);
+            border: 1px solid rgba(40, 167, 69, 0.3);
+            border-radius: 25px;
+            padding: 40px 30px;
+            text-align: center;
+            animation: fadeIn 0.5s ease;
+            margin-top: 30px;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .success-icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            display: block;
+        }
+        
+        .user-link-box {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 20px;
+            margin: 25px 0;
+            word-break: break-all;
+            text-align: left;
+            position: relative;
+        }
+        
+        .link-label {
+            position: absolute;
+            top: -12px;
+            left: 20px;
+            background: #1a1a2e;
+            padding: 0 10px;
+            color: #667eea;
+            font-size: 0.9rem;
+        }
+        
+        .user-link {
+            font-family: 'Courier New', monospace;
+            color: white;
+            font-size: 1.1rem;
+            display: block;
+            margin-top: 10px;
+        }
+        
+        .copy-btn {
+            background: rgba(102, 126, 234, 0.2);
+            color: #667eea;
+            border: 1px solid rgba(102, 126, 234, 0.4);
+            padding: 12px 30px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 500;
+            transition: all 0.3s;
+            margin: 10px 0;
+        }
+        
+        .copy-btn:hover {
+            background: rgba(102, 126, 234, 0.3);
+        }
+        
+        .copy-btn.copied {
+            background: rgba(40, 167, 69, 0.2);
+            color: #28a745;
+            border-color: rgba(40, 167, 69, 0.4);
+        }
+        
+        .security-note {
+            background: rgba(255, 107, 139, 0.1);
+            border: 1px solid rgba(255, 107, 139, 0.2);
+            border-radius: 12px;
+            padding: 15px;
+            margin: 25px 0;
+            color: #ffb8c6;
+            font-size: 0.9rem;
+        }
+        
+        /* Modal overlay */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(10, 10, 26, 0.95);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            backdrop-filter: blur(10px);
+            animation: fadeIn 0.3s ease;
+        }
+        
+        .modal-content {
+            background: rgba(26, 26, 46, 0.95);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 25px;
+            padding: 35px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            animation: slideUp 0.4s ease;
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.5);
+        }
+        
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+        }
+        
+        .modal-title {
+            font-size: 1.8rem;
+            color: white;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .modal-close {
+            background: none;
+            border: none;
+            color: #a0a0c0;
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 5px;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+        }
+        
+        .modal-close:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+        
+        .modal-body {
+            color: #c0c0e0;
+            line-height: 1.7;
+        }
+        
+        .modal-body h3 {
+            color: white;
+            margin: 20px 0 10px;
+            font-size: 1.2rem;
+        }
+        
+        .modal-body ul {
+            padding-left: 20px;
+            margin: 10px 0;
+        }
+        
+        .modal-body li {
+            margin-bottom: 8px;
+        }
+        
+        /* Responsive */
+        @media (max-width: 480px) {
+            .auth-container {
+                padding: 50px 15px 30px;
+            }
+            
+            .auth-title {
+                font-size: 1.8rem;
+            }
+            
+            .auth-form {
+                padding: 25px 20px;
+            }
+            
+            .modal-content {
+                padding: 25px 20px;
+                width: 95%;
+            }
+            
+            .terms-links {
+                flex-direction: column;
+                gap: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Back Button -->
+    <button class="back-btn" onclick="window.location.href='../../index.html'">←</button>
+    
+    <!-- Auth Container -->
+    <div class="auth-container">
+        <div class="auth-header">
+            <div class="auth-logo">✨</div>
+            <h1 class="auth-title">Join Luster</h1>
+            <p class="auth-subtitle">Create your personal messaging link</p>
+        </div>
+        
+        <form class="auth-form" id="signupForm" onsubmit="handleSignup(event)">
+            <!-- Username -->
+            <div class="form-group">
+                <label class="form-label" for="username">
+                    <span class="form-label-icon">👤</span>
+                    Username
+                </label>
+                <input type="text" id="username" class="form-input" 
+                       placeholder="e.g., alex_john" required
+                       minlength="3" maxlength="20">
+                <div class="error-message" id="usernameError"></div>
+            </div>
+            
+            <!-- Password -->
+            <div class="form-group">
+                <label class="form-label" for="password">
+                    <span class="form-label-icon">🔒</span>
+                    Password
+                </label>
+                <div class="password-input">
+                    <input type="password" id="password" class="form-input" 
+                           placeholder="Create a strong password" required
+                           minlength="6">
+                    <button type="button" class="password-toggle" onclick="togglePassword()">
+                        👁️
+                    </button>
+                </div>
+                <div class="error-message" id="passwordError"></div>
+                <small style="color: #a0a0c0; font-size: 0.85rem; display: block; margin-top: 5px;">
+                    Must be at least 6 characters
+                </small>
+            </div>
+            
+            <!-- Confirm Password -->
+            <div class="form-group">
+                <label class="form-label" for="confirmPassword">
+                    <span class="form-label-icon">✅</span>
+                    Confirm Password
+                </label>
+                <input type="password" id="confirmPassword" class="form-input" 
+                       placeholder="Re-enter your password" required>
+                <div class="error-message" id="confirmError"></div>
+            </div>
+            
+           <!-- Terms & Privacy -->
+<div class="terms-container">
+    <div class="terms-checkbox">
+        <input type="checkbox" id="terms" required>
+        <label for="terms">
+            I agree to the Terms & Conditions and Privacy Policy
+        </label>
+    </div>
+    
+    <div class="terms-buttons">
+        <button type="button" class="terms-btn" onclick="showTerms()">
+            <span class="terms-icon">📄</span>
+            Terms & Conditions
+        </button>
+        <button type="button" class="terms-btn" onclick="showPrivacy()">
+            <span class="terms-icon">🔒</span>
+            Privacy Policy
+        </button>
+    </div>
+</div>
+            <!-- Submit Button -->
+            <button type="submit" class="btn-primary auth-btn" id="submitBtn">
+                Create Account
+            </button>
+        </form>
+    </div>
+    
+    <!-- Success Message Container (Hidden Initially) -->
+    <div id="successContainer" style="display: none;"></div>
+    
+    <!-- Terms Modal -->
+    <div class="modal-overlay" id="termsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">📄 Terms & Conditions</h2>
+                <button class="modal-close" onclick="closeModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <h3>Welcome to Luster!</h3>
+                <p>By creating an account, you agree to these simple terms:</p>
+                
+                <h3>Your Account</h3>
+                <ul>
+                    <li>You must be at least 13 years old to use Luster</li>
+                    <li>Your username must be unique and appropriate</li>
+                    <li>You are responsible for keeping your password secure</li>
+                </ul>
+                
+                <h3>Messaging Rules</h3>
+                <ul>
+                    <li>Be respectful to all users</li>
+                    <li>No harassment, bullying, or hate speech</li>
+                    <li>No spam or unsolicited messages</li>
+                    <li>Respect others' privacy</li>
+                </ul>
+                
+                <div class="security-note">
+                    <strong>⚠️ Important Security Notice:</strong>
+                    <p>Your password cannot be recovered if forgotten. We don't store passwords in a way that allows recovery. Please write it down securely.</p>
+                </div>
+                
+                <h3>Luster's Promise</h3>
+                <p>We provide a secure, simple messaging platform for everyone to connect safely.</p>
+                
+                <p><em>Last updated: Today</em></p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Privacy Modal -->
+    <div class="modal-overlay" id="privacyModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">🔒 Privacy Policy</h2>
+                <button class="modal-close" onclick="closeModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <h3>Your Privacy Matters</h3>
+                <p>At Luster, we believe in simple, transparent privacy.</p>
+                
+                <h3>What We Store</h3>
+                <ul>
+                    <li><strong>Username:</strong> Your chosen display name</li>
+                    <li><strong>Profile Link:</strong> Your unique chat link</li>
+                    <li><strong>Messages:</strong> Only between you and recipients</li>
+                </ul>
+                
+                <h3>What We Don't Store</h3>
+                <ul>
+                    <li>❌ Email addresses</li>
+                    <li>❌ Phone numbers</li>
+                    <li>❌ Location data</li>
+                    <li>❌ Contact lists</li>
+                </ul>
+                
+                <h3>Your Data is Yours</h3>
+                <ul>
+                    <li>Messages are stored only as long as needed</li>
+                    <li>You can delete your account anytime</li>
+                    <li>We don't sell your data to anyone</li>
+                    <li>We don't show ads</li>
+                </ul>
+                
+                <div class="security-note">
+                    <strong>🔐 Security First:</strong>
+                    <p>Luster is built with security in mind. Created by LusterChat to provide safe, private messaging for everyone.</p>
+                </div>
+                
+                <h3>Contact</h3>
+                <p>Questions? We're here to help make Luster safe for you.</p>
+                
+                <p><em>Privacy is not a feature – it's our foundation.</em></p>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script>
+        // Modal functions
+        function showTerms() {
+            document.getElementById('termsModal').style.display = 'flex';
+        }
+        
+        function showPrivacy() {
+            document.getElementById('privacyModal').style.display = 'flex';
+        }
+        
+        function closeModal() {
+            document.getElementById('termsModal').style.display = 'none';
+            document.getElementById('privacyModal').style.display = 'none';
+        }
+        
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const termsModal = document.getElementById('termsModal');
+            const privacyModal = document.getElementById('privacyModal');
+            
+            if (event.target === termsModal) {
+                termsModal.style.display = 'none';
+            }
+            if (event.target === privacyModal) {
+                privacyModal.style.display = 'none';
+            }
+        }
+        
+        // Escape key closes modal
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                closeModal();
+            }
+        });
+        
+        // Toggle password visibility
+                function togglePassword() {
+            const passwordInput = document.getElementById('password');
+            const toggleBtn = document.querySelector('.password-toggle');
+            
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                toggleBtn.textContent = '🙈';
+            } else {
+                passwordInput.type = 'password';
+                toggleBtn.textContent = '👁️';
+            }
+        }
+        
+        // Show success message
+        function showSuccessMessage(user) {
+            const form = document.getElementById('signupForm');
+            const successContainer = document.getElementById('successContainer');
+            
+            // Hide form
+            form.style.display = 'none';
+            
+            // Show success message
+            successContainer.style.display = 'block';
+            successContainer.innerHTML = `
+                <div class="auth-container">
+                    <div class="success-message">
+                        <span class="success-icon">✨</span>
+                        <h2 style="color: #28a745; margin-bottom: 10px;">Account Created</h2>
+                        <p style="color: #c0c0e0;">Welcome to Luster, <strong style="color: white;">${user.username}</strong>!</p>
+                        
+                        <div class="user-link-box">
+                            <div class="link-label">Your Personal Link</div>
+                            <span class="user-link" id="userLink">https://${user.profileLink}</span>
+                        </div>
+                        
+                        <button class="copy-btn" onclick="copyUserLink()" id="copyLinkBtn">
+                            Copy Link
+                        </button>
+                        
+                        <div class="security-note">
+                            <strong>🔐 Remember Your Password</strong>
+                            <p style="margin-top: 8px;">We cannot recover your password if forgotten. Please store it securely.</p>
+                        </div>
+                        
+                        <p style="color: #a0a0c0; margin-top: 25px; font-size: 0.95rem;">
+                            Share your link with friends to start chatting!
+                        </p>
+                    </div>
+                </div>
+            `;
+            
+            // Scroll to success message
+            successContainer.scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        // Copy user link to clipboard
+        function copyUserLink() {
+            const linkText = document.getElementById('userLink').textContent;
+            navigator.clipboard.writeText(linkText)
+                .then(() => {
+                    const copyBtn = document.getElementById('copyLinkBtn');
+                    copyBtn.textContent = '✅ Copied!';
+                    copyBtn.classList.add('copied');
+                    
+                    setTimeout(() => {
+                        copyBtn.textContent = 'Copy Link';
+                        copyBtn.classList.remove('copied');
+                    }, 2000);
+                })
+                .catch(err => {
+                    alert("Could not copy link. Please copy manually.");
+                });
+        }
+    </script>
+</body>
+</html>
