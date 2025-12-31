@@ -1,30 +1,39 @@
-// File: utils/auth.js
-// Authentication functions for Luster
-
+// File: utils/auth.js - SIMPLE VERSION (no real emails needed)
 import { supabase } from './supabase.js'
 
 export const auth = {
   // Sign up new user
   async signUp(username, password, fullName = null) {
     try {
-      // Create email from username
-      const email = `${username}@luster.app`
+      console.log("🔐 Signup for:", username);
       
-      // Sign up with Supabase Auth
+      // Use .local domain (always valid for local/testing)
+      const email = `${username}@luster.local`;
+      
+      // Check if username exists
+      const { data: existingUser } = await supabase
+        .from('profiles')
+        .select('username')
+        .eq('username', username)
+        .maybeSingle();
+      
+      if (existingUser) {
+        throw new Error('Username already taken');
+      }
+      
+      // Create auth account
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: email,
         password: password,
         options: {
-          data: {
-            username: username,
-            full_name: fullName || username
-          }
+          data: { username: username, full_name: fullName || username },
+          emailRedirectTo: `${window.location.origin}/pages/home/index.html`
         }
-      })
+      });
       
-      if (authError) throw authError
+      if (authError) throw authError;
       
-      // Create profile in database
+      // Create profile
       const { error: profileError } = await supabase
         .from('profiles')
         .insert({
@@ -33,110 +42,91 @@ export const auth = {
           full_name: fullName || username,
           avatar_url: `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}&background=random`,
           status: 'online'
-        })
+        });
       
-      if (profileError) {
-        // If profile creation fails, delete the auth user
-        await supabase.auth.admin.deleteUser(authData.user.id)
-        throw profileError
+      if (profileError) throw profileError;
+      
+      // Auto-login
+      const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({
+        email: email,
+        password: password
+      });
+      
+      if (loginError) {
+        console.warn("Auto-login failed:", loginError);
+        // User can login manually
       }
       
       return {
         success: true,
-        user: authData.user,
-        message: 'Account created successfully!'
-      }
+        user: loginData?.user || authData.user,
+        message: 'Account created!'
+      };
       
     } catch (error) {
-      console.error('Signup error:', error)
+      console.error('Signup error:', error);
       return {
         success: false,
         error: error.message,
-        message: this.getErrorMessage(error)
-      }
+        message: error.message.includes('already') ? 
+          'Username taken' : 'Signup failed'
+      };
     }
   },
   
-  // Sign in existing user
+  // Sign in existing user - SIMPLE
   async signIn(username, password) {
     try {
-      const email = `${username}@luster.app`
+      // Try .local domain (what we use for signup)
+      const email = `${username}@luster.local`;
       
       const { data, error } = await supabase.auth.signInWithPassword({
         email: email,
         password: password
-      })
+      });
       
-      if (error) throw error
+      if (error) throw error;
       
       return {
         success: true,
         user: data.user,
         message: 'Login successful!'
-      }
+      };
       
     } catch (error) {
-      console.error('Login error:', error)
+      console.error('Login error:', error);
       return {
         success: false,
         error: error.message,
-        message: this.getErrorMessage(error)
-      }
+        message: 'Invalid username or password'
+      };
     }
   },
   
   // Sign out
   async signOut() {
     try {
-      const { error } = await supabase.auth.signOut()
-      if (error) throw error
-      
-      return { success: true, message: 'Logged out successfully' }
+      await supabase.auth.signOut();
+      return { success: true, message: 'Logged out' };
     } catch (error) {
-      return { success: false, error: error.message }
+      return { success: false, error: error.message };
     }
   },
   
   // Get current user
   async getCurrentUser() {
     try {
-      const { data, error } = await supabase.auth.getUser()
-      if (error) throw error
-      
-      return { success: true, user: data.user }
+      const { data, error } = await supabase.auth.getUser();
+      if (error) throw error;
+      return { success: true, user: data.user };
     } catch (error) {
-      return { success: false, error: error.message }
+      return { success: false, error: error.message };
     }
   },
   
-  // Check if user is logged in
+  // Check if logged in
   async isLoggedIn() {
-    const result = await this.getCurrentUser()
-    return result.success
-  },
-  
-  // Error messages for users
-  getErrorMessage(error) {
-    const message = error.message.toLowerCase()
-    
-    if (message.includes('already registered')) {
-      return 'Username already taken. Please choose another.'
-    }
-    if (message.includes('invalid login')) {
-      return 'Invalid username or password.'
-    }
-    if (message.includes('password')) {
-      return 'Password must be at least 6 characters.'
-    }
-    if (message.includes('email')) {
-      return 'Please enter a valid username.'
-    }
-    
-    return 'Something went wrong. Please try again.'
-  },
-  
-  // Listen for auth changes
-  onAuthStateChange(callback) {
-    return supabase.auth.onAuthStateChange(callback)
+    const result = await this.getCurrentUser();
+    return result.success;
   }
-}
+};
