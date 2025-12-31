@@ -1,5 +1,7 @@
-// Auth page script - Clean and Simple
-console.log("✨ Luster Auth Page Loaded");
+// Auth page script - UPDATED FOR SUPABASE
+import { auth } from '../../utils/auth.js'
+
+console.log("✨ Luster Auth Page Loaded (Supabase Version)");
 
 // Show error message
 function showError(elementId, message) {
@@ -52,169 +54,111 @@ function validateConfirmPassword(password, confirmPassword) {
     return true;
 }
 
-// Generate personal link
-function generatePersonalLink(username) {
-    const randomId = Math.random().toString(36).substr(2, 8);
-    return `luster.chat/${username.toLowerCase()}_${randomId}`;
-}
+// Handle form submission with SUPABASE
+async function handleSignup(event) {
+    event.preventDefault();
 
-// Create user account
-async function createUserAccount(userData) {
+    // Get form values
+    const username = document.getElementById('username').value.trim();
+    const password = document.getElementById('password').value;
+    const confirmPassword = document.getElementById('confirmPassword').value;
+
+    // Validate inputs
+    const isUsernameValid = validateUsername(username);
+    const isPasswordValid = validatePassword(password);
+    const isConfirmValid = validateConfirmPassword(password, confirmPassword);
+
+    if (!isUsernameValid || !isPasswordValid || !isConfirmValid) {
+        return;
+    }
+
+    if (!document.getElementById('terms').checked) {
+        alert('Please agree to Terms & Conditions');
+        return;
+    }
+
     // Show loading
     const submitBtn = document.getElementById('submitBtn');
     const originalText = submitBtn.textContent;
     submitBtn.textContent = 'Creating account...';
     submitBtn.disabled = true;
-    
-    // Simulate API call
-    return new Promise(resolve => {
-        setTimeout(() => {
-            // Generate user ID
-            const userId = 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-            
-            // Create user object
-            const user = {
-                id: userId,
-                username: userData.username,
-                profileLink: generatePersonalLink(userData.username),
-                createdAt: new Date().toISOString(),
-                friends: [],
-                notifications: [],
-                isActive: true
-            };
-            
-            // Save to localStorage
-            localStorage.setItem('luster_user', JSON.stringify(user));
-            
-            // Save to all users list
-            const allUsers = JSON.parse(localStorage.getItem('luster_all_users') || '[]');
-            allUsers.push({
-                username: userData.username,
-                userId: userId,
-                profileLink: user.profileLink,
-                joinedAt: user.createdAt
-            });
-            localStorage.setItem('luster_all_users', JSON.stringify(allUsers));
-            
-            // Reset button
+
+    try {
+        // Use Supabase auth (from utils/auth.js)
+        const result = await auth.signUp(username, password, username);
+        
+        if (result.success) {
+            // Show success
+            showSuccessMessage(result.user.user_metadata.username);
+        } else {
+            showError('usernameError', result.message || 'Signup failed');
             submitBtn.textContent = originalText;
             submitBtn.disabled = false;
-            
-            resolve({
-                success: true,
-                user: user,
-                message: 'Account created successfully!'
-            });
-        }, 1500);
-    });
-}
-
-// Handle form submission
-async function handleSignup(event) {
-    event.preventDefault();
-    
-    // Get form values
-    const username = document.getElementById('username').value.trim();
-    const password = document.getElementById('password').value;
-    const confirmPassword = document.getElementById('confirmPassword').value;
-    
-    // Validate inputs
-    const isUsernameValid = validateUsername(username);
-    const isPasswordValid = validatePassword(password);
-    const isConfirmValid = validateConfirmPassword(password, confirmPassword);
-    
-    if (!isUsernameValid || !isPasswordValid || !isConfirmValid) {
-        return;
-    }
-    
-    // Check if username already exists
-    const existingUsers = JSON.parse(localStorage.getItem('luster_all_users') || '[]');
-    const usernameExists = existingUsers.some(user => 
-        user.username.toLowerCase() === username.toLowerCase()
-    );
-    
-    if (usernameExists) {
-        showError('usernameError', 'Username already taken');
-        return;
-    }
-    
-    // Create user data object
-    const userData = {
-        username: username,
-        password: password
-    };
-    
-    // Create account
-    const result = await createUserAccount(userData);
-    
-    if (result.success) {
-        // Show success message
-        showSuccessMessage(result.user);
+        }
+        
+    } catch (error) {
+        console.error('Error:', error);
+        showError('usernameError', error.message || 'Something went wrong');
+        submitBtn.textContent = originalText;
+        submitBtn.disabled = false;
     }
 }
 
-// Show success message with user link
-function showSuccessMessage(user) {
+// Show success message
+function showSuccessMessage(username) {
     // Hide form
     document.getElementById('signupForm').style.display = 'none';
-    
+
     // Show success message
-    const successHTML = `
-        <div style="background: rgba(40, 167, 69, 0.1); border: 1px solid rgba(40, 167, 69, 0.3); border-radius: 20px; padding: 30px; text-align: center;">
-            <h3 style="margin-bottom: 10px; color: #28a745; font-size: 1.5rem;">Account Created!</h3>
-            <p style="color: #c0c0e0; margin-bottom: 20px;">Welcome to Luster, <strong style="color: white;">${user.username}</strong>!</p>
-            
-            <div style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 15px; padding: 20px; margin: 20px 0; word-break: break-all;">
-                <strong style="color: #667eea; display: block; margin-bottom: 10px;">Your personal link:</strong>
-                <span id="userLink" style="font-family: monospace; color: white; font-size: 1.1rem;">https://${user.profileLink}</span>
-            </div>
-            
-            <button onclick="copyUserLink()" id="copyLinkBtn" style="background: rgba(102, 126, 234, 0.2); color: #667eea; border: 1px solid rgba(102, 126, 234, 0.4); padding: 12px 24px; border-radius: 12px; cursor: pointer; font-size: 1rem; transition: all 0.3s; margin: 10px 0;">
-                Copy Link
-            </button>
-            
-            <div style="margin-top: 25px; color: #a0a0c0; font-size: 0.9rem;">
-                Share this link with friends to start chatting!
-            </div>
+    const successContainer = document.getElementById('successContainer');
+    successContainer.style.display = 'block';
+    successContainer.innerHTML = `
+        <span class="success-icon">✨</span>
+        <h2 style="color: white; margin-bottom: 15px;">Welcome to Luster, ${username}!</h2>
+        <p style="color: #a0a0c0; margin-bottom: 25px;">
+            Your account has been created successfully!
+        </p>
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill"></div>
         </div>
+        <p style="color: #a0a0c0; margin-top: 10px; font-size: 0.9rem;">
+            Redirecting to home page...
+        </p>
     `;
     
-    document.querySelector('.auth-form').insertAdjacentHTML('afterend', successHTML);
+    // Animate progress bar
+    let width = 0;
+    const interval = setInterval(() => {
+        width += 2;
+        document.getElementById('progressFill').style.width = width + '%';
+        if (width >= 100) {
+            clearInterval(interval);
+            window.location.href = '../home/index.html';
+        }
+    }, 50);
 }
 
-// Copy user link to clipboard
-function copyUserLink() {
-    const linkText = document.getElementById('userLink').textContent;
-    navigator.clipboard.writeText(linkText)
-        .then(() => {
-            const copyBtn = document.getElementById('copyLinkBtn');
-            copyBtn.textContent = '✅ Copied!';
-            copyBtn.style.background = 'rgba(40, 167, 69, 0.2)';
-            copyBtn.style.color = '#28a745';
-            copyBtn.style.borderColor = 'rgba(40, 167, 69, 0.4)';
-            
-            setTimeout(() => {
-                copyBtn.textContent = 'Copy Link';
-                copyBtn.style.background = 'rgba(102, 126, 234, 0.2)';
-                copyBtn.style.color = '#667eea';
-                copyBtn.style.borderColor = 'rgba(102, 126, 234, 0.4)';
-            }, 2000);
-        });
-}
-
-// Initialize auth page - SIMPLE VERSION
-function initAuthPage() {
-    console.log("Auth page ready");
+// Initialize auth page
+async function initAuthPage() {
+    console.log("Auth page initialized with Supabase");
+    
+    // Check if user is already logged in
+    const { success } = await auth.getCurrentUser();
+    if (success) {
+        // Redirect to home page
+        window.location.href = '../home/index.html';
+        return;
+    }
     
     // Real-time validation
     document.getElementById('username').addEventListener('input', function() {
         validateUsername(this.value);
     });
-    
+
     document.getElementById('password').addEventListener('input', function() {
         validatePassword(this.value);
     });
-    
+
     document.getElementById('confirmPassword').addEventListener('input', function() {
         const password = document.getElementById('password').value;
         validateConfirmPassword(password, this.value);
