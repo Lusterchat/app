@@ -7,8 +7,8 @@ export const auth = {
     try {
       console.log("🔐 Login attempt:", username);
 
-      // Use @example.com domain (same as signup)
-      const internalEmail = `${username}@example.com`;
+      // Use @luster.test domain (SAME AS CREATE ACCOUNT!)
+      const internalEmail = `${username}@luster.test`;
 
       const { data, error } = await supabase.auth.signInWithPassword({
         email: internalEmail,
@@ -49,7 +49,7 @@ export const auth = {
     try {
       const { data, error } = await supabase.auth.getUser();
       if (error) throw error;
-      
+
       // Also get profile data
       if (data.user) {
         const { data: profile } = await supabase
@@ -57,14 +57,14 @@ export const auth = {
           .select('*')
           .eq('id', data.user.id)
           .maybeSingle();
-        
+
         return { 
           success: true, 
           user: data.user,
           profile: profile
         };
       }
-      
+
       return { success: false, error: 'No user found' };
     } catch (error) {
       return { success: false, error: error.message };
