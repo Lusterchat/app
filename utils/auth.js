@@ -1,16 +1,13 @@
-// File: utils/auth.js - SIMPLE VERSION (no real emails needed)
+// File: utils/auth.js - SIMPLE VERSION (username only)
 import { supabase } from './supabase.js'
 
 export const auth = {
   // Sign up new user
   async signUp(username, password, fullName = null) {
     try {
-      console.log("🔐 Signup for:", username);
+      console.log("🔐 Creating account:", username);
       
-      // Use .local domain (always valid for local/testing)
-      const email = `${username}@luster.local`;
-      
-      // Check if username exists
+      // 1. Check if username exists
       const { data: existingUser } = await supabase
         .from('profiles')
         .select('username')
@@ -21,19 +18,23 @@ export const auth = {
         throw new Error('Username already taken');
       }
       
-      // Create auth account
+      // 2. Create auth account (hidden email: username@luster.local)
+      const email = `${username}@luster.local`;
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: email,
         password: password,
         options: {
-          data: { username: username, full_name: fullName || username },
-          emailRedirectTo: `${window.location.origin}/pages/home/index.html`
+          data: { 
+            username: username, 
+            full_name: fullName || username 
+          }
         }
       });
       
       if (authError) throw authError;
+      console.log("✅ Auth created for:", username);
       
-      // Create profile
+      // 3. Create profile
       const { error: profileError } = await supabase
         .from('profiles')
         .insert({
@@ -45,39 +46,44 @@ export const auth = {
         });
       
       if (profileError) throw profileError;
+      console.log("✅ Profile created for:", username);
       
-      // Auto-login
+      // 4. Auto-login
       const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({
         email: email,
         password: password
       });
       
       if (loginError) {
-        console.warn("Auto-login failed:", loginError);
-        // User can login manually
+        console.log("⚠️ Auto-login failed (user will login manually):", loginError.message);
+      } else {
+        console.log("✅ Auto-login successful");
       }
       
       return {
         success: true,
         user: loginData?.user || authData.user,
-        message: 'Account created!'
+        message: 'Account created successfully!'
       };
       
     } catch (error) {
-      console.error('Signup error:', error);
+      console.error('❌ Signup error:', error.message);
       return {
         success: false,
         error: error.message,
         message: error.message.includes('already') ? 
-          'Username taken' : 'Signup failed'
+          'Username already taken' : 
+          'Could not create account. Please try again.'
       };
     }
   },
   
-  // Sign in existing user - SIMPLE
+  // Sign in existing user
   async signIn(username, password) {
     try {
-      // Try .local domain (what we use for signup)
+      console.log("🔐 Login attempt:", username);
+      
+      // Use .local domain
       const email = `${username}@luster.local`;
       
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -87,6 +93,7 @@ export const auth = {
       
       if (error) throw error;
       
+      console.log("✅ Login successful:", username);
       return {
         success: true,
         user: data.user,
@@ -94,7 +101,7 @@ export const auth = {
       };
       
     } catch (error) {
-      console.error('Login error:', error);
+      console.error('❌ Login error:', error.message);
       return {
         success: false,
         error: error.message,
@@ -107,7 +114,7 @@ export const auth = {
   async signOut() {
     try {
       await supabase.auth.signOut();
-      return { success: true, message: 'Logged out' };
+      return { success: true, message: 'Logged out successfully' };
     } catch (error) {
       return { success: false, error: error.message };
     }
@@ -128,5 +135,22 @@ export const auth = {
   async isLoggedIn() {
     const result = await this.getCurrentUser();
     return result.success;
+  },
+  
+  // Simple error messages
+  getErrorMessage(error) {
+    const msg = error.message.toLowerCase();
+    
+    if (msg.includes('already') || msg.includes('exists')) {
+      return 'Username already taken';
+    }
+    if (msg.includes('invalid') || msg.includes('incorrect')) {
+      return 'Invalid username or password';
+    }
+    if (msg.includes('password')) {
+      return 'Password must be at least 6 characters';
+    }
+    
+    return 'Something went wrong. Please try again.';
   }
 };
