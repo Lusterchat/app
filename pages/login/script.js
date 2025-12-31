@@ -1,7 +1,7 @@
-// Login Page Script - UPDATED FOR SUPABASE
+// Login Page Script - FIXED VALIDATION VERSION
 import { auth } from '../../utils/auth.js'
 
-console.log("✨ Luster Login Page Loaded (Supabase Version)");
+console.log("✨ Luster Login Page Loaded (FIXED Version)");
 
 // DOM Elements
 const loginForm = document.getElementById('loginForm');
@@ -52,21 +52,27 @@ function hideLoading() {
     if (loadingOverlay) loadingOverlay.style.display = 'none';
 }
 
-// Validate login inputs
+// FIXED VALIDATION - MINIMAL REQUIREMENTS
 function validateLogin() {
     let isValid = true;
 
-    // Validate username
-    if (!loginUsername.value.trim() || loginUsername.value.length < 3) {
-        showError(usernameError, 'Username must be at least 3 characters');
+    // Username validation - MINIMAL (only check if not empty)
+    if (!loginUsername.value.trim()) {
+        showError(usernameError, 'Please enter username');
+        isValid = false;
+    } else if (loginUsername.value.trim().length < 1) { // Changed from 3 to 1
+        showError(usernameError, 'Username must be at least 1 character');
         isValid = false;
     } else {
         hideError(usernameError);
     }
 
-    // Validate password
-    if (!loginPassword.value || loginPassword.value.length < 6) {
-        showError(passwordError, 'Password must be at least 6 characters');
+    // Password validation - MINIMAL (only check if not empty)
+    if (!loginPassword.value) {
+        showError(passwordError, 'Please enter password');
+        isValid = false;
+    } else if (loginPassword.value.length < 1) { // Changed from 6 to 1
+        showError(passwordError, 'Password must be at least 1 character');
         isValid = false;
     } else {
         hideError(passwordError);
@@ -75,11 +81,11 @@ function validateLogin() {
     return isValid;
 }
 
-// Handle form submission with SUPABASE
+// Handle form submission - SIMPLIFIED
 async function handleLogin(event) {
     event.preventDefault();
 
-    // Validate inputs
+    // Validate inputs (minimal validation)
     if (!validateLogin()) {
         return;
     }
@@ -88,22 +94,25 @@ async function handleLogin(event) {
     const password = loginPassword.value;
 
     showLoading();
+    console.log("Attempting login for:", username);
 
     try {
         // Use Supabase auth
         const result = await auth.signIn(username, password);
 
         if (result.success) {
+            console.log("✅ Login successful!");
             // Show success
-            showLoginSuccess(result.user.user_metadata.username || username);
+            showLoginSuccess(result.user.user_metadata?.username || username);
         } else {
-            showError(passwordError, result.message || 'Login failed');
+            console.log("❌ Login failed:", result.message);
+            showError(passwordError, result.message || 'Invalid username or password');
             hideLoading();
         }
 
     } catch (error) {
         console.error('Login error:', error);
-        showError(passwordError, error.message || 'Something went wrong');
+        showError(passwordError, 'Login failed. Please try again.');
         hideLoading();
     }
 }
@@ -151,16 +160,32 @@ function showLoginSuccess(username) {
 
 // Initialize login page
 async function initLoginPage() {
-    console.log("✨ Luster Login Page Initialized with Supabase");
+    console.log("✨ Luster Login Page Initialized");
+
+    // Load Supabase directly for testing
+    let supabase = null;
+    try {
+        const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
+        supabase = createClient(
+            'https://blxtldgnssvasuinpyit.supabase.co',
+            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJseHRsZGduc3N2YXN1aW5weWl0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjcwODIxODIsImV4cCI6MjA4MjY1ODE4Mn0.Dv04IOAY76o2ccu5dzwK3fJjzo93BIoK6C2H3uWrlMw'
+        );
+        console.log("✅ Supabase connected");
+    } catch (error) {
+        console.error("❌ Supabase error:", error);
+    }
 
     // Check if user is already logged in
-    const { success } = await auth.getCurrentUser();
-    if (success) {
-        // User is already logged in, redirect to home
-        setTimeout(() => {
-            window.location.href = '../home/index.html';
-        }, 1000);
-        return;
+    if (supabase) {
+        const { data } = await supabase.auth.getSession();
+        if (data.session) {
+            // User is already logged in, redirect to home
+            console.log("User already logged in, redirecting...");
+            setTimeout(() => {
+                window.location.href = '../home/index.html';
+            }, 1000);
+            return;
+        }
     }
 
     // Event listeners
@@ -168,9 +193,10 @@ async function initLoginPage() {
         loginForm.addEventListener('submit', handleLogin);
     }
 
-    // Real-time validation
+    // Real-time validation - REMOVE STRICT VALIDATION
     if (loginUsername) {
         loginUsername.addEventListener('input', function() {
+            // Only hide error if user types something
             if (this.value.trim()) {
                 hideError(usernameError);
             }
@@ -179,12 +205,13 @@ async function initLoginPage() {
 
     if (loginPassword) {
         loginPassword.addEventListener('input', function() {
+            // Only hide error if user types something
             if (this.value) {
                 hideError(passwordError);
             }
         });
     }
-    
+
     // Setup any other event listeners for buttons
     setupButtonListeners();
 }
@@ -193,7 +220,7 @@ async function initLoginPage() {
 function setupButtonListeners() {
     // If you have other buttons in your login page HTML
     // Add their event listeners here
-    
+
     // Example: Forgot password button
     const forgotPasswordBtn = document.getElementById('forgotPasswordBtn');
     if (forgotPasswordBtn) {
@@ -201,7 +228,7 @@ function setupButtonListeners() {
             alert("Password reset feature coming soon!");
         });
     }
-    
+
     // Example: Signup link button
     const signupLinkBtn = document.getElementById('signupLinkBtn');
     if (signupLinkBtn) {
@@ -212,13 +239,12 @@ function setupButtonListeners() {
 }
 
 // ====== MAKE FUNCTIONS AVAILABLE TO HTML ======
-// If your HTML uses onclick="functionName()", add them here
 
 // Toggle password function (for HTML onclick)
 window.togglePassword = function() {
     const passwordInput = document.getElementById('loginPassword');
     const toggleBtn = document.querySelector('#passwordToggle');
-    
+
     if (passwordInput && toggleBtn) {
         if (passwordInput.type === 'password') {
             passwordInput.type = 'text';
