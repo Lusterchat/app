@@ -13,7 +13,7 @@
             padding: 0;
             box-sizing: border-box;
         }
-
+        
         body {
             background: linear-gradient(135deg, #0a0a1a 0%, #1a1a2e 100%);
             color: white;
@@ -143,7 +143,6 @@
             margin-top: 70px; /* Space for fixed header */
             margin-bottom: 80px; /* Space for fixed input */
             min-height: calc(100vh - 150px); /* Viewport minus header+input */
-            scroll-behavior: smooth;
         }
 
         /* Message Bubbles */
@@ -272,7 +271,7 @@
             margin-bottom: 5px;
         }
 
-        .send-btn:hover:not(:disabled) {
+        .send-btn:hover {
             transform: scale(1.08);
             box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
         }
@@ -280,8 +279,8 @@
         .send-btn:disabled {
             opacity: 0.5;
             cursor: not-allowed;
-            transform: none !important;
-            box-shadow: none !important;
+            transform: none;
+            box-shadow: none;
         }
 
         .attach-btn {
@@ -348,11 +347,6 @@
             border-bottom-left-radius: 5px;
             display: none;
             margin-bottom: 10px;
-            margin-left: 20px;
-        }
-
-        .typing-indicator.active {
-            display: block;
         }
 
         .typing-dots {
@@ -415,27 +409,27 @@
                 padding: 12px 16px;
                 height: 65px;
             }
-
+            
             .messages-container {
                 margin-top: 65px;
                 margin-bottom: 75px;
                 padding: 15px 16px;
             }
-
+            
             .empty-chat {
                 margin-top: 65px;
                 margin-bottom: 75px;
             }
-
+            
             .message-input-wrapper {
                 padding: 12px 16px;
             }
-
+            
             .message-input {
                 padding: 12px 16px;
                 min-height: 45px;
             }
-
+            
             .send-btn,
             .attach-btn {
                 width: 46px;
@@ -449,47 +443,47 @@
                 padding: 10px 14px;
                 height: 60px;
             }
-
+            
             .messages-container {
                 margin-top: 60px;
                 margin-bottom: 70px;
                 padding: 12px 14px;
             }
-
+            
             .empty-chat {
                 margin-top: 60px;
                 margin-bottom: 70px;
             }
-
+            
             .message-input-wrapper {
                 padding: 10px 14px;
             }
-
+            
             .message-input-container {
                 gap: 10px;
             }
-
+            
             .message {
                 max-width: 80%;
                 padding: 10px 14px;
             }
-
+            
             .chat-user-avatar {
                 width: 40px;
                 height: 40px;
                 font-size: 1.1rem;
             }
-
+            
             .back-btn,
             .chat-action-btn {
                 width: 36px;
                 height: 36px;
             }
-
+            
             .message-input {
                 font-size: 0.95rem;
             }
-
+            
             .send-btn,
             .attach-btn {
                 width: 44px;
@@ -502,40 +496,40 @@
                 padding: 8px 12px;
                 height: 56px;
             }
-
+            
             .messages-container {
                 margin-top: 56px;
                 margin-bottom: 66px;
                 padding: 10px 12px;
             }
-
+            
             .empty-chat {
                 margin-top: 56px;
                 margin-bottom: 66px;
             }
-
+            
             .message-input-wrapper {
                 padding: 8px 12px;
             }
-
+            
             .message {
                 max-width: 85%;
             }
-
+            
             .chat-user-avatar {
                 width: 36px;
                 height: 36px;
                 font-size: 1rem;
             }
-
+            
             .chat-user-details h3 {
                 font-size: 1.1rem;
             }
-
+            
             .chat-user-status {
                 font-size: 0.8rem;
             }
-
+            
             .send-btn,
             .attach-btn {
                 width: 42px;
@@ -637,8 +631,8 @@
     </div>
 
     <!-- User Info Modal -->
-    <div class="modal-overlay" id="userInfoModal" style="display: none; cursor: pointer;">
-        <div class="modal-content" style="cursor: default;">
+    <div class="modal-overlay" id="userInfoModal" style="display: none;">
+        <div class="modal-content">
             <div class="modal-header">
                 <h2 class="modal-title">User Info</h2>
                 <button class="modal-close" onclick="closeModal()">×</button>
