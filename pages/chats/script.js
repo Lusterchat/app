@@ -1,500 +1,761 @@
+// Home Page Script - FIXED CORE FUNCTIONALITY
 import { auth } from '../../utils/auth.js'
 import { supabase } from '../../utils/supabase.js'
 
-console.log("✨ Chat Loaded - FIXED VERSION");
+console.log("✨ Home Page Loaded");
 
 let currentUser = null;
-let chatFriend = null;
-let chatChannel = null;
-let statusChannel = null;
+let currentProfile = null;
+let requestsChannel = null;
 
-// Initialize
-document.addEventListener('DOMContentLoaded', async () => {
-    try {
-        // Check auth
-        const { success, user } = await auth.getCurrentUser();
-        if (!success || !user) {
-            alert("Please login first!");
-            window.location.href = '../auth/index.html';
-            return;
-        }
+// Initialize home page
+async function initHomePage() {
+    console.log("Initializing home page...");
 
-        currentUser = user;
-        console.log("User:", user.email);
+    // Check if user is logged in  
+    const { success, user } = await auth.getCurrentUser();  
 
-        // Get friend ID
-        const urlParams = new URLSearchParams(window.location.search);
-        const friendId = urlParams.get('friendId');
+    if (!success || !user) {  
+        alert("Please login first!");  
+        window.location.href = '../auth/index.html';  
+        return;  
+    }  
 
-        if (!friendId) {
-            alert("No friend selected!");
-            window.location.href = '../home/index.html';
-            return;
-        }
+    currentUser = user;  
+    console.log("Logged in as:", currentUser.email);  
 
-        // Load friend
-        const { data: friend, error: friendError } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', friendId)
-            .single();
+    // Get user profile  
+    await loadUserProfile();  
 
-        if (friendError) throw friendError;
+    // Update UI  
+    updateWelcomeMessage();  
+    await loadFriends();  
+    await updateNotificationsBadge();  
 
-        chatFriend = friend;
-        document.getElementById('chatUserName').textContent = friend.username;
-        document.getElementById('chatUserAvatar').textContent = friend.username.charAt(0).toUpperCase();
+    // Setup realtime for new friend requests
+    setupRealtime();
 
-        // Update friend status in UI
-        const isOnline = friend.status === 'online';
-        document.getElementById('statusText').textContent = isOnline ? 'Online' : 'Offline';
-        document.getElementById('statusDot').className = isOnline ? 'status-dot' : 'status-dot offline';
+    // Set up event listeners  
+    setupEventListeners();  
 
-        // Load old messages
-        await loadOldMessages(friendId);
+    console.log("Home page initialized for:", currentProfile?.username);
 
-        // Setup realtime
-        setupRealtime(friendId);
-
-        // Setup input listeners
-        setupInputListeners();
-
-        console.log("✅ Chat ready");
-
-    } catch (error) {
-        console.error("Init error:", error);
-        alert("Error loading chat: " + error.message);
-        window.location.href = '../home/index.html';
-    }
-});
-
-// Setup input listeners - FIXED: Send button re-enables properly
-function setupInputListeners() {
-    const input = document.getElementById('messageInput');
-    const sendBtn = document.getElementById('sendBtn');
-    
-    if (!input || !sendBtn) return;
-    
-    input.addEventListener('input', function() {
-        sendBtn.disabled = this.value.trim() === '';
-    });
-    
-    input.addEventListener('paste', function() {
-        setTimeout(() => {
-            sendBtn.disabled = this.value.trim() === '';
-        }, 10);
-    });
-}
-
-// Load old messages - FIXED: Correct SQL query
-async function loadOldMessages(friendId) {
-    try {
-        console.log("Loading messages between:", currentUser.id, "and", friendId);
-
-        // FIXED: Correct Supabase query for messages between two users
-        const { data: messages, error } = await supabase
-            .from('direct_messages')
-            .select('*')
-            .or(`sender_id.eq.${currentUser.id}.and.receiver_id.eq.${friendId},sender_id.eq.${friendId}.and.receiver_id.eq.${currentUser.id}`)
-            .order('created_at', { ascending: true });
-
-        if (error) {
-            console.error("Query error:", error);
-            // Show empty state on error
-            showMessages([]);
-            return;
-        }
-
-        console.log("Loaded", messages?.length || 0, "messages");
-        showMessages(messages || []);
-
-    } catch (error) {
-        console.error("Load error:", error);
-        showMessages([]);
-    }
-}
-
-// Show messages in UI
-function showMessages(messages) {
-    const container = document.getElementById('messagesContainer');
-    if (!container) {
-        console.error("messagesContainer not found!");
-        return;
-    }
-
-    if (!messages || messages.length === 0) {
-        container.innerHTML = `
-            <div class="empty-chat">
-                <div class="empty-chat-icon">💬</div>
-                <h3>No messages yet</h3>
-                <p style="margin-top: 10px;">Say hello to start the conversation!</p>
-            </div>
-        `;
-        return;
-    }
-
-    let html = '';
-    let lastDate = '';
-
-    messages.forEach(msg => {
-        const isSent = msg.sender_id === currentUser.id;
-        const time = new Date(msg.created_at).toLocaleTimeString([], {
-            hour: '2-digit',
-            minute: '2-digit'
-        });
-        const date = new Date(msg.created_at).toLocaleDateString();
-
-        // Add date separator if date changed
-        if (date !== lastDate) {
-            html += `<div class="date-separator"><span>${date}</span></div>`;
-            lastDate = date;
-        }
-
-        html += `
-            <div class="message ${isSent ? 'sent' : 'received'}">
-                <div class="message-content">${msg.content || ''}</div>
-                <div class="message-time">${time}</div>
-            </div>
-        `;
-    });
-
-    container.innerHTML = html;
-
-    // FIXED: Better scroll timing
+    // Hide loading indicator
     setTimeout(() => {
-        container.scrollTop = container.scrollHeight;
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        if (loadingIndicator) {
+            loadingIndicator.classList.add('hidden');
+            setTimeout(() => {
+                loadingIndicator.style.display = 'none';
+            }, 300);
+        }
     }, 100);
 }
 
-// REAL-TIME - FIXED: Working subscription
-function setupRealtime(friendId) {
-    console.log("Setting realtime for friend:", friendId);
+// Load user profile
+async function loadUserProfile() {
+    try {
+        const { data: profile, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', currentUser.id)
+            .single();
 
-    // Clean up old channels properly
-    cleanupChannels();
+        if (error) throw error;  
 
-    // Create message channel - FIXED: Correct filter
-    chatChannel = supabase.channel(`dm:${currentUser.id}:${friendId}`)
+        currentProfile = profile;  
+        console.log("Profile loaded:", profile.username);  
+
+    } catch (error) {  
+        console.error("Error loading profile:", error);  
+        currentProfile = {  
+            username: currentUser.user_metadata?.username || 'User',  
+            full_name: currentUser.user_metadata?.full_name || 'User'  
+        };  
+    }
+}
+
+// Update welcome message
+function updateWelcomeMessage() {
+    if (!currentProfile) return;
+
+    const welcomeElement = document.getElementById('welcomeTitle');  
+    if (welcomeElement) {  
+        welcomeElement.textContent = `Welcome, ${currentProfile.username}!`;  
+    }  
+}
+
+// Load friends list - FIXED: Check your actual table name
+async function loadFriends() {
+    if (!currentUser) return;
+
+    console.log("Loading friends for user:", currentUser.id);  
+
+    const container = document.getElementById('friendsList');  
+    if (!container) {  
+        console.error("Friends list container not found!");  
+        return;  
+    }  
+
+    try {  
+        // FIXED: Try common table names for friends
+        let friends = [];
+        
+        // Try 'friends' table first (most common)
+        const result1 = await supabase  
+            .from('friends')  
+            .select('friend_id')  
+            .eq('user_id', currentUser.id);
+            
+        if (!result1.error && result1.data && result1.data.length > 0) {
+            friends = result1.data;
+        } else {
+            // Try 'friendships' table
+            const result2 = await supabase
+                .from('friendships')
+                .select('user2_id as friend_id')
+                .eq('user1_id', currentUser.id);
+                
+            if (!result2.error && result2.data) {
+                friends = result2.data;
+            } else {
+                // Try reverse
+                const result3 = await supabase
+                    .from('friendships')
+                    .select('user1_id as friend_id')
+                    .eq('user2_id', currentUser.id);
+                    
+                if (!result3.error && result3.data) {
+                    friends = result3.data;
+                }
+            }
+        }
+
+        console.log("Found friend IDs:", friends?.length || 0);  
+
+        if (!friends || friends.length === 0) {  
+            showEmptyFriends(container);  
+            return;  
+        }  
+
+        // Get profiles for each friend  
+        const friendIds = friends.map(f => f.friend_id);  
+        const { data: profiles, error: profilesError } = await supabase  
+            .from('profiles')  
+            .select('id, username, status, last_seen')  
+            .in('id', friendIds);  
+
+        if (profilesError) {  
+            console.error("Error loading profiles:", profilesError);  
+            showEmptyFriends(container);  
+            return;  
+        }  
+
+        let html = '';  
+        profiles.forEach(profile => {  
+            const isOnline = profile.status === 'online';  
+            const lastSeen = profile.last_seen ? new Date(profile.last_seen) : new Date();  
+            const timeAgo = getTimeAgo(lastSeen);  
+            const firstLetter = profile.username ? profile.username.charAt(0).toUpperCase() : '?';  
+
+            html += `  
+                <div class="friend-card" onclick="openChat('${profile.id}')">  
+                    <div class="friend-avatar">  
+                        ${firstLetter}  
+                    </div>  
+                    <div class="friend-info">  
+                        <div class="friend-name">${profile.username || 'Unknown User'}</div>  
+                        <div class="friend-status">  
+                            <span class="status-dot ${isOnline ? '' : 'offline'}"></span>  
+                            ${isOnline ? 'Online' : 'Last seen ' + timeAgo}  
+                        </div>  
+                    </div>  
+                </div>  
+            `;  
+        });  
+
+        container.innerHTML = html;  
+
+    } catch (error) {  
+        console.error("Error loading friends:", error);  
+        showEmptyFriends(container);  
+    }
+}
+
+function showEmptyFriends(container) {
+    container.innerHTML = `  
+        <div class="empty-state">  
+            <div class="empty-icon">👥</div>  
+            <p>No friends yet</p>  
+            <p style="font-size: 0.9rem; margin-top: 10px;">Search for users to add friends</p>  
+        </div>  
+    `;
+}
+
+// Get time ago string - FIXED: Better time handling
+function getTimeAgo(date) {
+    const now = new Date();
+    const past = new Date(date);
+    const diffMs = now - past;
+    const diffMins = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffMins < 1) return 'just now';  
+    if (diffMins < 60) return `${diffMins}m ago`;  
+    if (diffHours < 24) return `${diffHours}h ago`;  
+    if (diffDays === 1) return 'yesterday';  
+    if (diffDays < 7) return `${diffDays}d ago`;  
+    if (diffDays < 30) return `${Math.floor(diffDays/7)}w ago`;  
+    return past.toLocaleDateString();
+}
+
+// Open chat with friend - FIXED: Simple redirect
+async function openChat(friendId) {
+    console.log("Opening chat with:", friendId);
+    window.location.href = `../chats/index.html?friendId=${friendId}`;
+}
+
+// Setup realtime for new friend requests
+function setupRealtime() {
+    if (!currentUser) return;
+    
+    // Remove old channel if exists
+    if (requestsChannel) {
+        supabase.removeChannel(requestsChannel);
+    }
+    
+    // Subscribe to new friend requests
+    requestsChannel = supabase.channel('friend-requests-' + currentUser.id)
         .on('postgres_changes', {
             event: 'INSERT',
             schema: 'public',
-            table: 'direct_messages',
-            filter: `or(sender_id.eq.${currentUser.id},sender_id.eq.${friendId})`
-        }, async (payload) => {
-            const newMsg = payload.new;
+            table: 'friend_requests',
+            filter: `receiver_id=eq.${currentUser.id}`
+        }, async () => {
+            // Update badge when new request arrives
+            await updateNotificationsBadge();
             
-            // Check if this message is between current user and friend
-            if ((newMsg.sender_id === currentUser.id && newMsg.receiver_id === friendId) ||
-                (newMsg.sender_id === friendId && newMsg.receiver_id === currentUser.id)) {
-                
-                console.log("New relevant message:", newMsg);
-                
-                // Add to UI immediately
-                addSingleMessage(newMsg);
-                
-                // Play sound if message is from friend
-                if (newMsg.sender_id === friendId) {
-                    playMessageSound();
-                }
+            // Reload notifications if modal is open
+            const modal = document.getElementById('notificationsModal');
+            if (modal && modal.style.display === 'flex') {
+                await loadNotifications();
             }
         })
-        .subscribe((status) => {
-            console.log("Message channel status:", status);
-        });
-
-    // Create status channel
-    statusChannel = supabase.channel(`status:${friendId}`)
         .on('postgres_changes', {
             event: 'UPDATE',
             schema: 'public',
-            table: 'profiles',
-            filter: `id=eq.${friendId}`
-        }, (payload) => {
-            console.log("Friend status updated:", payload.new.status);
-            chatFriend.status = payload.new.status;
-
-            // Update UI
-            const isOnline = payload.new.status === 'online';
-            document.getElementById('statusText').textContent = isOnline ? 'Online' : 'Offline';
-            document.getElementById('statusDot').className = isOnline ? 'status-dot' : 'status-dot offline';
+            table: 'friend_requests',
+            filter: `receiver_id=eq.${currentUser.id}`
+        }, async () => {
+            await updateNotificationsBadge();
+            
+            const modal = document.getElementById('notificationsModal');
+            if (modal && modal.style.display === 'flex') {
+                await loadNotifications();
+            }
         })
         .subscribe();
 }
 
-// Clean up channels properly
-function cleanupChannels() {
-    if (chatChannel) {
-        try {
-            supabase.removeChannel(chatChannel);
-        } catch (e) {
-            console.log("Error removing chat channel:", e);
-        }
-        chatChannel = null;
-    }
-    if (statusChannel) {
-        try {
-            supabase.removeChannel(statusChannel);
-        } catch (e) {
-            console.log("Error removing status channel:", e);
-        }
-        statusChannel = null;
-    }
-}
-
-// Add single message to UI
-function addSingleMessage(msg) {
-    const container = document.getElementById('messagesContainer');
-    if (!container) return;
-    
-    // Remove empty state if exists
-    const emptyChat = container.querySelector('.empty-chat');
-    if (emptyChat) {
-        emptyChat.remove();
-    }
-    
-    const isSent = msg.sender_id === currentUser.id;
-    const time = new Date(msg.created_at).toLocaleTimeString([], {
-        hour: '2-digit',
-        minute: '2-digit'
-    });
-    
-    const messageHTML = `
-        <div class="message ${isSent ? 'sent' : 'received'}">
-            <div class="message-content">${msg.content || ''}</div>
-            <div class="message-time">${time}</div>
-        </div>
-    `;
-    
-    container.insertAdjacentHTML('beforeend', messageHTML);
-    
-    // Scroll to bottom
-    setTimeout(() => {
-        container.scrollTop = container.scrollHeight;
-    }, 50);
-}
-
-// Play message sound
-function playMessageSound() {
+// Update notifications badge
+async function updateNotificationsBadge() {
     try {
-        // Simple beep
-        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        const oscillator = audioContext.createOscillator();
-        const gainNode = audioContext.createGain();
-        
-        oscillator.connect(gainNode);
-        gainNode.connect(audioContext.destination);
-        
-        oscillator.frequency.value = 800;
-        gainNode.gain.value = 0.1;
-        
-        oscillator.start();
-        setTimeout(() => oscillator.stop(), 100);
-    } catch (e) {
-        // Sound not essential, continue silently
+        const { data: notifications, error } = await supabase
+            .from('friend_requests')
+            .select('id')
+            .eq('receiver_id', currentUser.id)
+            .eq('status', 'pending');
+
+        if (error) {  
+            console.log("Friend requests error:", error.message);  
+            hideNotificationBadge();  
+            return;  
+        }  
+
+        const unreadCount = notifications?.length || 0;  
+        updateBadgeDisplay(unreadCount);  
+
+    } catch (error) {  
+        console.error("Error loading notifications:", error);  
+        hideNotificationBadge();  
     }
 }
 
-// Send message - FIXED: Proper error handling
-async function sendMessage() {
-    const input = document.getElementById('messageInput');
-    const sendBtn = document.getElementById('sendBtn');
-    const text = input?.value.trim();
-
-    if (!text || !chatFriend || !sendBtn) {
-        alert("Please type a message!");
-        return;
-    }
-
-    // Save original state
-    const originalText = sendBtn.textContent;
-    const originalDisabled = sendBtn.disabled;
-    
-    // Show sending state
-    sendBtn.disabled = true;
-    sendBtn.textContent = '...';
-
-    try {
-        console.log("Sending:", text, "to:", chatFriend.id);
-
-        const { data, error } = await supabase
-            .from('direct_messages')
-            .insert({
-                sender_id: currentUser.id,
-                receiver_id: chatFriend.id,
-                content: text,
-                created_at: new Date().toISOString()
-            })
-            .select()
-            .single();
-
-        if (error) {
-            console.error("Send error:", error);
-            alert("Error sending message: " + error.message);
-            throw error;
-        }
-
-        console.log("✅ Message sent:", data);
-        
-        // Clear input and reset height
-        if (input) {
-            input.value = '';
-            input.style.height = 'auto';
-        }
-
-        // Message will appear via real-time
-
-    } catch (error) {
-        console.error("Send failed:", error);
-        // Don't show alert here - already showed above
-    } finally {
-        // Always restore button state
-        if (sendBtn) {
-            sendBtn.disabled = false;
-            sendBtn.textContent = originalText;
-        }
-        if (input) {
-            input.focus();
+function updateBadgeDisplay(count) {
+    const badge = document.getElementById('notificationBadge');
+    if (badge) {
+        if (count > 0) {
+            badge.textContent = count > 9 ? '9+' : count;
+            badge.style.display = 'block';
+        } else {
+            badge.style.display = 'none';
         }
     }
 }
 
-// Handle Enter key
-function handleKeyPress(event) {
-    if (event.key === 'Enter' && !event.shiftKey) {
-        event.preventDefault();
-        const input = document.getElementById('messageInput');
-        if (input && input.value.trim()) {
-            sendMessage();
-        }
+function hideNotificationBadge() {
+    const badge = document.getElementById('notificationBadge');
+    if (badge) {
+        badge.style.display = 'none';
     }
 }
 
-// Auto resize textarea
-function autoResize(textarea) {
-    textarea.style.height = 'auto';
-    const newHeight = Math.min(textarea.scrollHeight, 150);
-    textarea.style.height = newHeight + 'px';
-}
-
-// Go back - FIXED: Proper cleanup
-function goBack() {
-    cleanupChannels();
-    window.location.href = '../home/index.html';
-}
-
-// Show user info modal - FIXED: Working outside click
-window.showUserInfo = function() {
-    if (!chatFriend) {
-        alert("User information not available");
-        return;
-    }
-
-    const modal = document.getElementById('userInfoModal');
-    const content = document.getElementById('userInfoContent');
-    const isOnline = chatFriend.status === 'online';
-
-    content.innerHTML = `
-        <div class="user-info-avatar">
-            ${chatFriend.username.charAt(0).toUpperCase()}
-        </div>
-        <div class="user-info-details">
-            <h3 class="user-info-name">${chatFriend.full_name || chatFriend.username}</h3>
-            <p class="user-info-username">@${chatFriend.username}</p>
-            <div class="user-info-status ${isOnline ? '' : 'offline'}">
-                <span class="status-dot ${isOnline ? '' : 'offline'}"></span>
-                ${isOnline ? 'Online' : 'Offline'}
-            </div>
-        </div>
-        <div class="user-info-actions">
-            <button class="info-action-btn primary" onclick="startVoiceCall()">
-                🎤 Voice Call
-            </button>
-            <button class="info-action-btn secondary" onclick="viewSharedMedia()">
-                📷 Shared Media
-            </button>
-            <button class="info-action-btn danger" onclick="blockUser()">
-                🚫 Block User
-            </button>
-        </div>
-    `;
-
-    modal.style.display = 'flex';
-    
-    // Close on outside click - FIXED
-    const closeOnOutside = function(e) {
-        if (e.target === modal) {
-            closeModal();
-            modal.removeEventListener('click', closeOnOutside);
-        }
-    };
-    modal.addEventListener('click', closeOnOutside);
-};
-
-window.closeModal = function() {
-    const modal = document.getElementById('userInfoModal');
+// Open search modal - FIXED: Clear input on open
+function openSearch() {
+    console.log("Opening search modal");
+    const modal = document.getElementById('searchModal');
     if (modal) {
-        modal.style.display = 'none';
-    }
-};
-
-window.startVoiceCall = function() {
-    alert("Voice call feature coming soon!");
-};
-
-window.viewSharedMedia = function() {
-    alert("Shared media feature coming soon!");
-};
-
-window.blockUser = function() {
-    if (confirm(`Are you sure you want to block ${chatFriend.username}?`)) {
-        alert("User blocked!");
-        goBack();
-    }
-};
-
-window.attachFile = function() {
-    alert("File attachment feature coming soon!");
-};
-
-// Clear chat - FIXED: Working SQL
-window.clearChat = async function() {
-    if (!confirm("Are you sure you want to clear all messages?")) return;
-
-    try {
-        const urlParams = new URLSearchParams(window.location.search);
-        const friendId = urlParams.get('friendId');
-
-        if (!friendId) {
-            alert("Error: No friend ID");
-            return;
-        }
-
-        // FIXED: Correct Supabase delete syntax
-        const { error } = await supabase
-            .from('direct_messages')
-            .delete()
-            .or(`and(sender_id.eq.${currentUser.id},receiver_id.eq.${friendId}),and(sender_id.eq.${friendId},receiver_id.eq.${currentUser.id})`);
-
-        if (error) {
-            console.error("Delete error:", error);
-            alert("Error clearing chat: " + error.message);
-            throw error;
-        }
-
-        alert("Chat cleared!");
-        await loadOldMessages(friendId);
+        modal.style.display = 'flex';
         
-    } catch (error) {
-        console.error("Clear chat error:", error);
-        alert("Failed to clear chat. Please try again.");
+        // Clear search input
+        const searchInput = document.getElementById('searchInput');
+        if (searchInput) {
+            searchInput.value = '';
+            searchInput.focus();
+        }
+        
+        loadSearchResults();
+        
+        // Close on outside click
+        modal.onclick = function(e) {
+            if (e.target === modal) {
+                closeModal();
+            }
+        };
+        
+        // ESC key to close
+        document.addEventListener('keydown', handleEscKey);
     }
-};
+}
 
-// Make functions global
-window.sendMessage = sendMessage;
-window.handleKeyPress = handleKeyPress;
-window.autoResize = autoResize;
-window.goBack = goBack;
+// Open notifications modal
+function openNotifications() {
+    console.log("Opening notifications modal");
+    const modal = document.getElementById('notificationsModal');
+    if (modal) {
+        modal.style.display = 'flex';
+        loadNotifications();
+        
+        // Close on outside click
+        modal.onclick = function(e) {
+            if (e.target === modal) {
+                closeModal();
+            }
+        };
+        
+        // ESC key to close
+        document.addEventListener('keydown', handleEscKey);
+    }
+}
 
-// Clean up on page unload
-window.addEventListener('beforeunload', cleanupChannels);
+// Handle ESC key
+function handleEscKey(e) {
+    if (e.key === 'Escape') {
+        closeModal();
+    }
+}
+
+// Close modal - FIXED: Proper cleanup
+function closeModal() {
+    console.log("Closing modal");
+    const searchModal = document.getElementById('searchModal');
+    const notificationsModal = document.getElementById('notificationsModal');
+
+    if (searchModal) {
+        searchModal.style.display = 'none';
+        searchModal.onclick = null;
+    }
+    if (notificationsModal) {
+        notificationsModal.style.display = 'none';
+        notificationsModal.onclick = null;
+    }
+    
+    // Remove ESC key listener
+    document.removeEventListener('keydown', handleEscKey);
+}
+
+// Load search results - FIXED: Server-side search
+async function loadSearchResults(searchTerm = '') {
+    const container = document.getElementById('searchResults');
+    const searchInput = document.getElementById('searchInput');
+
+    if (!container) {  
+        console.error("Search results container not found!");  
+        return;  
+    }  
+
+    try {  
+        let query = supabase  
+            .from('profiles')  
+            .select('id, username, full_name')  
+            .neq('id', currentUser.id);
+
+        // Server-side search if term provided
+        if (searchTerm.trim()) {
+            query = query.ilike('username', `%${searchTerm}%`);
+        } else {
+            container.innerHTML = `  
+                <div class="empty-state">  
+                    <div class="empty-icon">🔍</div>  
+                    <p>Type to search for users</p>  
+                </div>  
+            `;  
+            return;  
+        }
+
+        const { data: users, error } = await query.limit(20);
+
+        if (error) throw error;  
+
+        await displaySearchResults(users);  
+
+        if (searchInput) {  
+            searchInput.oninput = async function() {  
+                const term = this.value.toLowerCase().trim();  
+                if (term === '') {  
+                    container.innerHTML = `  
+                        <div class="empty-state">  
+                            <div class="empty-icon">🔍</div>  
+                            <p>Type to search for users</p>  
+                        </div>  
+                    `;  
+                    return;  
+                }  
+
+                const { data: filteredUsers, error: searchError } = await supabase  
+                    .from('profiles')  
+                    .select('id, username, full_name')  
+                    .neq('id', currentUser.id)  
+                    .ilike('username', `%${term}%`)  
+                    .limit(20);
+
+                if (!searchError) {  
+                    await displaySearchResults(filteredUsers || []);  
+                }  
+            };  
+        }  
+
+    } catch (error) {  
+        console.error("Error loading users:", error);  
+        container.innerHTML = `  
+            <div class="empty-state">  
+                <div class="empty-icon">⚠️</div>  
+                <p>Error loading users</p>  
+            </div>  
+        `;  
+    }
+}
+
+// Display search results - FIXED: Better friend checking
+async function displaySearchResults(users) {
+    const container = document.getElementById('searchResults');
+
+    if (!container) {  
+        console.error("Search results container not found!");  
+        return;  
+    }  
+
+    if (!users || users.length === 0) {  
+        container.innerHTML = `  
+            <div class="empty-state">  
+                <div class="empty-icon">🔍</div>  
+                <p>No users found</p>  
+            </div>  
+        `;  
+        return;  
+    }  
+
+    try {  
+        // Get current friends
+        const { data: friends } = await supabase  
+            .from('friends')  
+            .select('friend_id')  
+            .eq('user_id', currentUser.id);
+
+        const friendIds = friends?.map(f => f.friend_id) || [];
+
+        // Get pending requests
+        const { data: pendingRequests } = await supabase  
+            .from('friend_requests')  
+            .select('receiver_id, status')  
+            .eq('sender_id', currentUser.id);
+
+        const pendingIds = pendingRequests?.map(r => r.receiver_id) || [];
+
+        let html = '';  
+        users.forEach(user => {  
+            const isFriend = friendIds.includes(user.id);  
+            const requestSent = pendingIds.includes(user.id);  
+            const firstLetter = user.username.charAt(0).toUpperCase();  
+
+            html += `  
+                <div class="search-result">  
+                    <div class="search-avatar">  
+                        ${firstLetter}  
+                    </div>  
+                    <div class="search-info">  
+                        <div class="search-name">${user.username}</div>  
+                        <div class="search-username">${user.full_name || ''}</div>  
+                    </div>  
+                    ${isFriend ? `  
+                        <button class="send-request-btn sent" disabled>  
+                            ✓ Friend  
+                        </button>  
+                    ` : requestSent ? `  
+                        <button class="send-request-btn sent" disabled>  
+                            ✓ Sent  
+                        </button>  
+                    ` : `  
+                        <button class="send-request-btn" onclick="sendFriendRequest('${user.id}', '${user.username}')">  
+                            Add Friend  
+                        </button>  
+                    `}  
+                </div>  
+            `;  
+        });  
+
+        container.innerHTML = html;  
+
+    } catch (error) {  
+        console.error("Error displaying results:", error);  
+    }
+}
+
+// Send friend request - FIXED: Better error handling
+async function sendFriendRequest(toUserId, toUsername) {
+    if (!currentUser) return;
+
+    try {  
+        // Check if request already exists  
+        const { data: existingRequest, error: checkError } = await supabase  
+            .from('friend_requests')  
+            .select('id')  
+            .eq('sender_id', currentUser.id)  
+            .eq('receiver_id', toUserId)  
+            .eq('status', 'pending')  
+            .maybeSingle();  
+
+        if (existingRequest) {  
+            alert(`Friend request already sent to ${toUsername}!`);  
+            return;  
+        }  
+
+        // Create friend request  
+        const { error } = await supabase  
+            .from('friend_requests')  
+            .insert({  
+                sender_id: currentUser.id,  
+                receiver_id: toUserId,  
+                status: 'pending',  
+                created_at: new Date().toISOString()  
+            });  
+
+        if (error) {  
+            console.error("Error sending request:", error);  
+            alert("Could not send friend request.");  
+            return;  
+        }  
+
+        // Update UI  
+        const searchInput = document.getElementById('searchInput');
+        const searchTerm = searchInput ? searchInput.value : '';
+        await loadSearchResults(searchTerm);
+        await updateNotificationsBadge();  
+
+        alert(`Friend request sent to ${toUsername}!`);  
+
+    } catch (error) {  
+        console.error("Error sending friend request:", error);  
+        alert("Could not send friend request. Please try again.");  
+    }
+}
+
+// Load notifications - FIXED: Simple query without complex join
+async function loadNotifications() {
+    const container = document.getElementById('notificationsList');
+
+    if (!container) {  
+        console.error("Notifications container not found!");  
+        return;  
+    }  
+
+    try {  
+        // Get notifications  
+        const { data: notifications, error } = await supabase  
+            .from('friend_requests')  
+            .select('id, sender_id, created_at')  
+            .eq('receiver_id', currentUser.id)  
+            .eq('status', 'pending')  
+            .order('created_at', { ascending: false });  
+
+        if (error) {  
+            console.log("Notifications error:", error.message);  
+            showEmptyNotifications(container);  
+            return;  
+        }  
+
+        if (!notifications || notifications.length === 0) {  
+            showEmptyNotifications(container);  
+            return;  
+        }  
+
+        // Get usernames for each sender  
+        const senderIds = notifications.map(n => n.sender_id);  
+        const { data: profiles, error: profilesError } = await supabase  
+            .from('profiles')  
+            .select('id, username')  
+            .in('id', senderIds);  
+
+        const profileMap = {};  
+        if (!profilesError && profiles) {  
+            profiles.forEach(p => profileMap[p.id] = p.username);  
+        }  
+
+        let html = '';  
+        notifications.forEach(notification => {  
+            const timeAgo = getTimeAgo(notification.created_at);  
+            const senderName = profileMap[notification.sender_id] || 'Unknown User';  
+            const firstLetter = senderName.charAt(0).toUpperCase();  
+
+            html += `  
+                <div class="notification-item">  
+                    <div class="notification-avatar" style="background: linear-gradient(45deg, #667eea, #764ba2);">  
+                        ${firstLetter}  
+                    </div>  
+                    <div class="notification-content">  
+                        <strong>${senderName}</strong> wants to be friends  
+                        <small>${timeAgo}</small>  
+                    </div>  
+                    <div class="notification-actions">  
+                        <button class="accept-btn" onclick="acceptFriendRequest('${notification.id}', '${notification.sender_id}', '${senderName}')">  
+                            ✓  
+                        </button>  
+                        <button class="decline-btn" onclick="declineFriendRequest('${notification.id}')">  
+                            ✗  
+                        </button>  
+                    </div>  
+                </div>  
+            `;  
+        });  
+
+        container.innerHTML = html;  
+
+    } catch (error) {  
+        console.error("Error loading notifications:", error);  
+        showEmptyNotifications(container);  
+    }
+}
+
+function showEmptyNotifications(container) {
+    container.innerHTML = `  
+        <div class="empty-state">  
+            <div class="empty-icon">🔔</div>  
+            <p>No notifications yet</p>  
+        </div>  
+    `;
+}
+
+// Accept friend request with transaction
+async function acceptFriendRequest(requestId, senderId, senderName = 'User') {
+    console.log("Accepting request:", requestId, "from:", senderId);
+
+    try {  
+        // 1. Update friend request status  
+        const { error: updateError } = await supabase  
+            .from('friend_requests')  
+            .update({ status: 'accepted' })  
+            .eq('id', requestId);  
+
+        if (updateError) throw updateError;  
+
+        // 2. Add to friends table (both directions)  
+        const { error: friendError1 } = await supabase  
+            .from('friends')  
+            .insert({   
+                user_id: currentUser.id,   
+                friend_id: senderId,  
+                created_at: new Date().toISOString()  
+            });  
+
+        const { error: friendError2 } = await supabase  
+            .from('friends')  
+            .insert({   
+                user_id: senderId,   
+                friend_id: currentUser.id,  
+                created_at: new Date().toISOString()  
+            });  
+
+        if (friendError1 || friendError2) {  
+            console.log("Friend insertion errors (might already exist):", friendError1?.message, friendError2?.message);  
+            // Continue anyway - might already exist  
+        }  
+
+        // 3. Update UI  
+        await loadNotifications();  
+        await loadFriends();  
+        await updateNotificationsBadge();  
+
+        alert(`You are now friends with ${senderName}!`);  
+
+    } catch (error) {  
+        console.error("Error accepting friend request:", error);  
+        alert("Could not accept friend request.");  
+    }
+}
+
+// Decline friend request
+async function declineFriendRequest(requestId) {
+    try {
+        const { error } = await supabase
+            .from('friend_requests')
+            .update({ status: 'rejected' })
+            .eq('id', requestId);
+
+        if (error) throw error;  
+
+        await loadNotifications();  
+        await updateNotificationsBadge();  
+
+        alert(`Friend request declined.`);  
+
+    } catch (error) {  
+        console.error("Error declining friend request:", error);  
+        alert("Could not decline friend request.");  
+    }
+}
+
+// Set up event listeners
+function setupEventListeners() {
+    console.log("Setting up event listeners...");
+
+    // Clean up on page unload
+    window.addEventListener('beforeunload', () => {
+        if (requestsChannel) {
+            supabase.removeChannel(requestsChannel);
+        }
+    });
+}
+
+// Navigation functions
+function goToHome() {
+    console.log("Already on home page");
+}
+
+function openSettings() {
+    alert("Settings page coming soon!");
+}
+
+// Make functions available globally
+window.openSearch = openSearch;
+window.openNotifications = openNotifications;
+window.closeModal = closeModal;
+window.openChat = openChat;
+window.sendFriendRequest = sendFriendRequest;
+window.acceptFriendRequest = acceptFriendRequest;
+window.declineFriendRequest = declineFriendRequest;
+window.goToHome = goToHome;
+window.openSettings = openSettings;
+
+// Initialize when page loads
+document.addEventListener('DOMContentLoaded', initHomePage);
