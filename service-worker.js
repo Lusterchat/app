@@ -11,7 +11,7 @@ const FOLDERS_TO_CACHE = [
   '/app/opening.css',
   '/app/utils/auth.js',
   '/app/utils/supabase.js',
-  '/app/icons/relay.png',
+  '/app/relay.png',
   '/app/manifest.json',
   '/app/service-worker.js',
   
