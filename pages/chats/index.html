@@ -13,7 +13,7 @@
             padding: 0;
             box-sizing: border-box;
         }
-        
+
         body {
             background: linear-gradient(135deg, #0a0a1a 0%, #1a1a2e 100%);
             color: white;
@@ -97,6 +97,19 @@
             color: #a0a0c0;
         }
 
+        /* Status dot - FIXED */
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #28a745;
+            display: inline-block;
+        }
+
+        .status-dot.offline {
+            background: #6c757d;
+        }
+
         .chat-actions {
             display: flex;
             gap: 10px;
@@ -123,26 +136,25 @@
             color: white;
         }
 
-        /* MAIN CONTENT AREA - SCROLLABLE MESSAGES */
+        /* MAIN CONTENT - SCROLLABLE AREA */
         .main-content {
             flex: 1;
             display: flex;
             flex-direction: column;
+            margin-top: 70px; /* Header height */
+            margin-bottom: 80px; /* Input height */
             overflow: hidden;
-            position: relative;
         }
 
-        /* Messages Container - ONLY THIS SCROLLS */
+        /* Messages Container - FIXED SCROLL */
         .messages-container {
             flex: 1;
             overflow-y: auto;
-            padding: 20px;
+            padding: 20px 20px 10px 20px; /* Reduced bottom padding */
             display: flex;
             flex-direction: column;
             gap: 12px;
-            margin-top: 70px; /* Space for fixed header */
-            margin-bottom: 80px; /* Space for fixed input */
-            min-height: calc(100vh - 150px); /* Viewport minus header+input */
+            min-height: 0; /* IMPORTANT: Allows scrolling */
         }
 
         /* Message Bubbles */
@@ -154,6 +166,7 @@
             animation: fadeIn 0.3s ease;
             word-wrap: break-word;
             line-height: 1.4;
+            word-break: break-word;
         }
 
         @keyframes fadeIn {
@@ -308,7 +321,6 @@
 
         /* Empty Chat State */
         .empty-chat {
-            flex: 1;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -316,9 +328,7 @@
             text-align: center;
             padding: 40px 20px;
             color: #a0a0c0;
-            margin-top: 70px; /* Match header height */
-            margin-bottom: 80px; /* Match input height */
-            height: calc(100vh - 150px);
+            height: 100%;
         }
 
         .empty-chat-icon {
@@ -409,27 +419,25 @@
                 padding: 12px 16px;
                 height: 65px;
             }
-            
+
+            .main-content {
+                margin-top: 65px;
+                margin-bottom: 75px;
+            }
+
             .messages-container {
-                margin-top: 65px;
-                margin-bottom: 75px;
-                padding: 15px 16px;
+                padding: 15px 16px 8px 16px;
             }
-            
-            .empty-chat {
-                margin-top: 65px;
-                margin-bottom: 75px;
-            }
-            
+
             .message-input-wrapper {
                 padding: 12px 16px;
             }
-            
+
             .message-input {
                 padding: 12px 16px;
                 min-height: 45px;
             }
-            
+
             .send-btn,
             .attach-btn {
                 width: 46px;
@@ -443,47 +451,45 @@
                 padding: 10px 14px;
                 height: 60px;
             }
-            
+
+            .main-content {
+                margin-top: 60px;
+                margin-bottom: 70px;
+            }
+
             .messages-container {
-                margin-top: 60px;
-                margin-bottom: 70px;
-                padding: 12px 14px;
+                padding: 12px 14px 6px 14px;
             }
-            
-            .empty-chat {
-                margin-top: 60px;
-                margin-bottom: 70px;
-            }
-            
+
             .message-input-wrapper {
                 padding: 10px 14px;
             }
-            
+
             .message-input-container {
                 gap: 10px;
             }
-            
+
             .message {
                 max-width: 80%;
                 padding: 10px 14px;
             }
-            
+
             .chat-user-avatar {
                 width: 40px;
                 height: 40px;
                 font-size: 1.1rem;
             }
-            
+
             .back-btn,
             .chat-action-btn {
                 width: 36px;
                 height: 36px;
             }
-            
+
             .message-input {
                 font-size: 0.95rem;
             }
-            
+
             .send-btn,
             .attach-btn {
                 width: 44px;
@@ -496,40 +502,38 @@
                 padding: 8px 12px;
                 height: 56px;
             }
-            
+
+            .main-content {
+                margin-top: 56px;
+                margin-bottom: 66px;
+            }
+
             .messages-container {
-                margin-top: 56px;
-                margin-bottom: 66px;
-                padding: 10px 12px;
+                padding: 10px 12px 5px 12px;
             }
-            
-            .empty-chat {
-                margin-top: 56px;
-                margin-bottom: 66px;
-            }
-            
+
             .message-input-wrapper {
                 padding: 8px 12px;
             }
-            
+
             .message {
                 max-width: 85%;
             }
-            
+
             .chat-user-avatar {
                 width: 36px;
                 height: 36px;
                 font-size: 1rem;
             }
-            
+
             .chat-user-details h3 {
                 font-size: 1.1rem;
             }
-            
+
             .chat-user-status {
                 font-size: 0.8rem;
             }
-            
+
             .send-btn,
             .attach-btn {
                 width: 42px;
@@ -538,17 +542,12 @@
             }
         }
 
-        /* Auto-scroll to bottom when new messages arrive */
-        .auto-scroll {
-            scroll-behavior: smooth;
-        }
-
-        /* Ensure proper spacing for last message */
+        /* Ensure last message is visible */
         .messages-container > *:last-child {
-            margin-bottom: 5px;
+            margin-bottom: 20px; /* Space for last message */
         }
 
-        /* Hide scrollbar when not needed */
+        /* Message input scrollbar */
         .message-input::-webkit-scrollbar {
             width: 4px;
         }
@@ -593,12 +592,7 @@
     <main class="main-content">
         <!-- Messages Container - SCROLLABLE -->
         <div class="messages-container" id="messagesContainer">
-            <!-- Messages will be loaded here -->
-            <div class="empty-chat">
-                <div class="empty-chat-icon">💬</div>
-                <h3>No messages yet</h3>
-                <p style="margin-top: 10px;">Start the conversation!</p>
-            </div>
+            <!-- Messages will be loaded here by JavaScript -->
         </div>
 
         <!-- Typing Indicator -->
@@ -631,7 +625,7 @@
     </div>
 
     <!-- User Info Modal -->
-    <div class="modal-overlay" id="userInfoModal" style="display: none;">
+    <div class="modal-overlay" id="userInfoModal">
         <div class="modal-content">
             <div class="modal-header">
                 <h2 class="modal-title">User Info</h2>
