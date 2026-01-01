@@ -3,43 +3,43 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>✨ Luster</title>
+    <title>✨ Relay</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="opening.css">
 </head>
 <body>
     <!-- Opening Animation -->
     <div class="opening-screen" id="openingScreen">
-        <div class="luster-text">Luster</div>
+        <div class="luster-text">✨Relay</div>
     </div>
-    
+
     <!-- Main Content -->
     <div class="main-content" id="mainContent">
         <div class="welcome-container">
             <div class="logo">✨</div>
-            <h1 class="title">Welcome to Luster</h1>
+            <h1 class="title">Welcome to Relay</h1>
             <p class="subtitle">Connect with friends using search & notifications</p>
-            
+
             <div class="features">
                 <div class="feature-card">
                     <div class="feature-icon">🔍</div>
                     <h3>Search & Connect</h3>
                     <p>Find users by username and send requests</p>
                 </div>
-                
+
                 <div class="feature-card">
                     <div class="feature-icon">🔔</div>
                     <h3>Accept/Decline</h3>
                     <p>Manage friend requests with notifications</p>
                 </div>
-                
+
                 <div class="feature-card">
                     <div class="feature-icon">💬</div>
                     <h3>Instant Chat</h3>
                     <p>Message friends in real-time</p>
                 </div>
             </div>
-            
+
             <div class="action-buttons">
                 <button class="btn-primary" onclick="window.location.href='pages/auth/index.html'">
                     Create Account
@@ -48,7 +48,7 @@
                     I Have an Account
                 </button>
             </div>
-            
+
             <p class="footer-note">
                 Simple messaging with personal connections
             </p>
@@ -60,7 +60,7 @@
             // Redirect to login page (auth page handles both signup/login)
             window.location.href = 'pages/login/index.html';
         }
-        
+
         // Check if user is already logged in
         window.addEventListener('DOMContentLoaded', function() {
             const user = JSON.parse(localStorage.getItem('luster_user'));
