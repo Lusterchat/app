@@ -1,50 +1,67 @@
-// Main app script
-console.log("✨ Luster App Loading...");
+// Main app script - SMART ROUTER VERSION
+console.log("✨ Relay App Loading...");
 
 // Navigation functions
 function goToSignup() {
-    // Check if we have folders
-    if (folderStructure === 'with-folders') {
-        window.location.href = 'pages/auth/index.html';
-    } else {
-        window.location.href = 'auth.html';
-    }
+    window.location.href = 'pages/auth/index.html';
 }
 
 function goToLogin() {
-    alert("For now, just click Create Account. We'll add login later!");
+    window.location.href = 'pages/login/index.html';
 }
 
-// Check for existing user
-function checkExistingUser() {
-    const user = localStorage.getItem('luster_user');
-    if (user) {
-        // User exists, maybe redirect to home
-        console.log("User found:", JSON.parse(user).username);
-        return true;
+// Check for existing user - UPDATED
+async function checkExistingUser() {
+    try {
+        // Try Supabase auth first
+        const { auth } = await import('./utils/auth.js');
+        const { success, user } = await auth.getCurrentUser();
+        
+        if (success && user) {
+            console.log("Supabase user found:", user.email);
+            return true;
+        }
+        
+        // Fallback to localStorage
+        const localUser = localStorage.getItem('luster_user');
+        if (localUser) {
+            console.log("LocalStorage user found:", JSON.parse(localUser).username);
+            return true;
+        }
+        
+        return false;
+    } catch (error) {
+        console.error("User check error:", error);
+        return false;
     }
-    return false;
 }
 
-// Initialize app
-function initApp() {
+// Initialize app - UPDATED
+async function initApp() {
     console.log("App initialized!");
     
-    // Check for user
-    const hasUser = checkExistingUser();
+    // Check if user is logged in
+    const hasUser = await checkExistingUser();
     
-    // If user exists and we're on home page, maybe show different UI
-    if (hasUser && window.location.pathname.includes('index.html')) {
-        // Could show "Welcome back" message
+    if (hasUser) {
+        console.log("User is logged in, redirecting to home...");
         setTimeout(() => {
-            const title = document.querySelector('.title');
-            if (title) {
-                const user = JSON.parse(localStorage.getItem('luster_user'));
-                title.innerHTML = `Welcome back, <span style="color:#667eea">${user.username}</span>!`;
-            }
-        }, 4000);
+            window.location.href = 'pages/home/index.html';
+        }, 1000);
+        return; // Stop here
     }
     
+    // Only run landing page effects if user is NOT logged in
+    console.log("No user found, showing landing page...");
+    
+    // Original landing page effects
+    setTimeout(() => {
+        const title = document.querySelector('.title');
+        if (title) {
+            title.innerHTML = `Welcome to <span style="color:#667eea">Relay</span>!`;
+        }
+    }, 4000);
+
     // Add click effects to buttons
     document.querySelectorAll('button').forEach(button => {
         button.addEventListener('click', function() {
@@ -59,10 +76,10 @@ function initApp() {
 // Wait for opening animation to complete
 setTimeout(() => {
     initApp();
-}, 3500); // Wait 3.5 seconds for opening animation
+}, 3500);
 
 // Make functions available globally
-window.LusterApp = {
+window.RelayApp = {
     goToSignup,
     goToLogin,
     checkExistingUser
