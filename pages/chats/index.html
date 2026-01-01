@@ -17,7 +17,7 @@
             display: flex;
             flex-direction: column;
         }
-        
+
         /* Chat Header */
         .chat-header {
             display: flex;
@@ -30,7 +30,7 @@
             top: 0;
             z-index: 100;
         }
-        
+
         .back-btn {
             background: none;
             border: none;
@@ -47,18 +47,18 @@
             justify-content: center;
             transition: all 0.3s;
         }
-        
+
         .back-btn:hover {
             background: rgba(255, 255, 255, 0.1);
         }
-        
+
         .chat-user-info {
             display: flex;
             align-items: center;
             gap: 15px;
             flex: 1;
         }
-        
+
         .chat-user-avatar {
             width: 45px;
             height: 45px;
@@ -70,12 +70,12 @@
             font-size: 1.2rem;
             font-weight: bold;
         }
-        
+
         .chat-user-details h3 {
             font-size: 1.2rem;
             margin-bottom: 3px;
         }
-        
+
         .chat-user-status {
             display: flex;
             align-items: center;
@@ -83,23 +83,14 @@
             font-size: 0.9rem;
             color: #a0a0c0;
         }
-        
-        .status-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: #28a745;
-        }
-        
-        .status-dot.offline {
-            background: #6c757d;
-        }
-        
+
+        /* REMOVED: .status-dot styles - now in style.css */
+
         .chat-actions {
             display: flex;
             gap: 10px;
         }
-        
+
         .chat-action-btn {
             background: none;
             border: none;
@@ -115,12 +106,12 @@
             justify-content: center;
             transition: all 0.3s;
         }
-        
+
         .chat-action-btn:hover {
             background: rgba(255, 255, 255, 0.1);
             color: white;
         }
-        
+
         /* Messages Container */
         .messages-container {
             flex: 1;
@@ -130,7 +121,7 @@
             flex-direction: column;
             gap: 15px;
         }
-        
+
         /* Message Bubbles */
         .message {
             max-width: 70%;
@@ -140,44 +131,44 @@
             animation: fadeIn 0.3s ease;
             word-wrap: break-word;
         }
-        
+
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
         }
-        
+
         .message.sent {
             align-self: flex-end;
             background: linear-gradient(135deg, #667eea, #764ba2);
             color: white;
             border-bottom-right-radius: 5px;
         }
-        
+
         .message.received {
             align-self: flex-start;
             background: rgba(255, 255, 255, 0.1);
             color: white;
             border-bottom-left-radius: 5px;
         }
-        
+
         .message-time {
             font-size: 0.7rem;
             opacity: 0.7;
             margin-top: 5px;
             text-align: right;
         }
-        
+
         .message.received .message-time {
             text-align: left;
         }
-        
+
         /* Date Separator */
         .date-separator {
             text-align: center;
             margin: 20px 0;
             position: relative;
         }
-        
+
         .date-separator span {
             background: rgba(255, 255, 255, 0.1);
             padding: 5px 15px;
@@ -185,7 +176,7 @@
             font-size: 0.8rem;
             color: #a0a0c0;
         }
-        
+
         /* Typing Indicator */
         .typing-indicator {
             align-self: flex-start;
@@ -198,12 +189,12 @@
             gap: 5px;
             display: none;
         }
-        
+
         .typing-dots {
             display: flex;
             gap: 4px;
         }
-        
+
         .typing-dot {
             width: 6px;
             height: 6px;
@@ -211,20 +202,20 @@
             border-radius: 50%;
             animation: typing 1.4s infinite;
         }
-        
+
         .typing-dot:nth-child(2) {
             animation-delay: 0.2s;
         }
-        
+
         .typing-dot:nth-child(3) {
             animation-delay: 0.4s;
         }
-        
+
         @keyframes typing {
             0%, 60%, 100% { transform: translateY(0); }
             30% { transform: translateY(-5px); }
         }
-        
+
         /* Message Input */
         .message-input-container {
             padding: 15px 20px;
@@ -235,7 +226,7 @@
             gap: 10px;
             align-items: center;
         }
-        
+
         .message-input {
             flex: 1;
             padding: 12px 18px;
@@ -248,13 +239,13 @@
             max-height: 100px;
             font-family: inherit;
         }
-        
+
         .message-input:focus {
             outline: none;
             border-color: #667eea;
             background: rgba(255, 255, 255, 0.12);
         }
-        
+
         .send-btn {
             background: linear-gradient(135deg, #667eea, #764ba2);
             border: none;
@@ -269,18 +260,18 @@
             justify-content: center;
             transition: all 0.3s;
         }
-        
+
         .send-btn:hover {
             transform: scale(1.1);
             box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
         }
-        
+
         .send-btn:disabled {
             opacity: 0.5;
             cursor: not-allowed;
             transform: none;
         }
-        
+
         /* Attachment Button */
         .attach-btn {
             background: none;
@@ -297,12 +288,12 @@
             justify-content: center;
             transition: all 0.3s;
         }
-        
+
         .attach-btn:hover {
             background: rgba(255, 255, 255, 0.1);
             color: white;
         }
-        
+
         /* Empty Chat State */
         .empty-chat {
             flex: 1;
@@ -314,13 +305,13 @@
             padding: 40px 20px;
             color: #a0a0c0;
         }
-        
+
         .empty-chat-icon {
             font-size: 4rem;
             margin-bottom: 20px;
             opacity: 0.5;
         }
-        
+
         /* Message Status */
         .message-status {
             font-size: 0.7rem;
@@ -329,35 +320,35 @@
             align-items: center;
             gap: 3px;
         }
-        
+
         /* Scrollbar Styling */
         .messages-container::-webkit-scrollbar {
             width: 6px;
         }
-        
+
         .messages-container::-webkit-scrollbar-track {
             background: rgba(255, 255, 255, 0.05);
         }
-        
+
         .messages-container::-webkit-scrollbar-thumb {
             background: rgba(102, 126, 234, 0.5);
             border-radius: 3px;
         }
-        
+
         /* Responsive */
         @media (max-width: 600px) {
             .chat-header {
                 padding: 12px 15px;
             }
-            
+
             .message {
                 max-width: 85%;
             }
-            
+
             .message-input-container {
                 padding: 12px 15px;
             }
-            
+
             .message-input {
                 padding: 10px 15px;
             }
@@ -368,7 +359,7 @@
     <!-- Chat Header -->
     <header class="chat-header">
         <button class="back-btn" onclick="goBack()">←</button>
-        
+
         <div class="chat-user-info">
             <div class="chat-user-avatar" id="chatUserAvatar">F</div>
             <div class="chat-user-details">
@@ -379,7 +370,7 @@
                 </div>
             </div>
         </div>
-        
+
         <div class="chat-actions">
             <button class="chat-action-btn" onclick="showUserInfo()" title="User Info">
                 ⓘ
@@ -389,7 +380,7 @@
             </button>
         </div>
     </header>
-    
+
     <!-- Messages Container -->
     <div class="messages-container" id="messagesContainer">
         <!-- Messages will be loaded here -->
@@ -399,7 +390,7 @@
             <p style="margin-top: 10px;">Start the conversation!</p>
         </div>
     </div>
-    
+
     <!-- Typing Indicator -->
     <div class="typing-indicator" id="typingIndicator">
         <div class="typing-dots">
@@ -408,24 +399,24 @@
             <div class="typing-dot"></div>
         </div>
     </div>
-    
+
     <!-- Message Input -->
     <div class="message-input-container">
         <button class="attach-btn" onclick="attachFile()" title="Attach File">
             📎
         </button>
-        
+
         <textarea class="message-input" id="messageInput" 
                   placeholder="Type a message..." 
                   rows="1"
                   onkeydown="handleKeyPress(event)"
                   oninput="autoResize(this)"></textarea>
-        
+
         <button class="send-btn" id="sendBtn" onclick="sendMessage()" disabled>
             ➤
         </button>
     </div>
-    
+
     <!-- User Info Modal -->
     <div class="modal-overlay" id="userInfoModal" style="display: none;">
         <div class="modal-content">
