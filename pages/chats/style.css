@@ -1,6 +1,6 @@
 /* Chat Page Specific Styles - FIXED */
 
-/* Modal styles */
+/* Modal styles - FIXED DISPLAY */
 .modal-overlay {
     position: fixed;
     top: 0;
@@ -8,7 +8,7 @@
     width: 100%;
     height: 100%;
     background: rgba(10, 10, 26, 0.95);
-    display: none;
+    display: none; /* Hidden by default */
     justify-content: center;
     align-items: center;
     z-index: 1000;
@@ -187,18 +187,6 @@
     color: white;
     font-weight: bold;
     transition: all 0.3s;
-}
-
-/* Status dot styles */
-.status-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: #28a745;
-}
-
-.status-dot.offline {
-    background: #6c757d;
 }
 
 /* New message notification */
