@@ -1,17 +1,146 @@
-/* friends/style.css - Friends Page Specific Styles */
+/* friends/style.css - WhatsApp Style */
 
+/* WhatsApp Style Friend Items */
+.friend-item-whatsapp {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 15px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 15px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: 1px solid transparent;
+}
+
+.friend-item-whatsapp:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(102, 126, 234, 0.2);
+    transform: translateY(-2px);
+}
+
+.friend-avatar-whatsapp {
+    position: relative;
+    flex-shrink: 0;
+}
+
+.friend-avatar-initial {
+    width: 55px;
+    height: 55px;
+    background: linear-gradient(45deg, #667eea, #764ba2);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.3rem;
+    font-weight: bold;
+    color: white;
+}
+
+.status-indicator-whatsapp {
+    position: absolute;
+    bottom: 2px;
+    right: 2px;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 2px solid #1a1a2e;
+}
+
+.status-indicator-whatsapp.online {
+    background: #28a745;
+    box-shadow: 0 0 8px #28a745;
+}
+
+.status-indicator-whatsapp.offline {
+    background: #6c757d;
+}
+
+.friend-info-whatsapp {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 15px;
+}
+
+.friend-name-status {
+    flex: 1;
+    min-width: 0;
+}
+
+.friend-name-whatsapp {
+    font-size: 1.1rem;
+    font-weight: 500;
+    margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.friend-status-whatsapp {
+    font-size: 0.85rem;
+    color: #a0a0c0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Unread Message Badge */
+.unread-badge {
+    background: linear-gradient(45deg, #667eea, #764ba2);
+    color: white;
+    font-size: 0.8rem;
+    font-weight: bold;
+    min-width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 5px;
+    flex-shrink: 0;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+}
+
+/* Remove old styles for friend cards */
+.friend-card-friends-page,
+.friend-avatar-large,
+.friend-details-friends-page,
+.friend-name-large,
+.friend-username-large,
+.friend-status-friends-page,
+.friend-actions-friends-page,
+.action-btn-friends-page {
+    display: none;
+}
+
+/* Update container for WhatsApp style */
+.friends-container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/* Keep stats and search styles */
 .friends-header {
     text-align: center;
-    margin: 20px 0 30px; /* Reduced margin */
+    margin: 20px 0 25px;
 }
 
 .friends-title {
-    font-size: 2.2rem; /* Slightly smaller */
+    font-size: 2rem;
     background: linear-gradient(45deg, #667eea, #764ba2);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
-    background-clip: text;
-    margin-bottom: 10px; /* Reduced */
+    margin-bottom: 10px;
 }
 
 .friends-subtitle {
@@ -21,11 +150,11 @@
     margin: 0 auto;
 }
 
-/* Stats Cards - Reduced height */
+/* Stats Cards */
 .friends-stats {
     display: flex;
     justify-content: center;
-    gap: 25px; /* Increased gap */
+    gap: 25px;
     margin-top: 25px;
     flex-wrap: wrap;
 }
@@ -33,11 +162,11 @@
 .stat-card {
     background: rgba(255, 255, 255, 0.05);
     border-radius: 20px;
-    padding: 15px 25px; /* Reduced padding */
+    padding: 15px 25px;
     text-align: center;
-    min-width: 180px; /* Increased width */
+    min-width: 180px;
     transition: all 0.2s;
-    height: 100px; /* Fixed height */
+    height: 100px;
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -49,12 +178,11 @@
 }
 
 .stat-number {
-    font-size: 2.2rem; /* Slightly smaller */
+    font-size: 2.2rem;
     font-weight: 700;
     background: linear-gradient(45deg, #667eea, #764ba2);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
-    background-clip: text;
     line-height: 1.2;
 }
 
@@ -64,9 +192,9 @@
     margin-top: 5px;
 }
 
-/* Search Friends */
+/* Search */
 .search-friends-container {
-    margin-bottom: 25px;
+    margin-bottom: 20px;
 }
 
 .search-friends-wrapper {
@@ -77,7 +205,7 @@
 
 .search-friends-input {
     width: 100%;
-    padding: 18px 20px 18px 55px;
+    padding: 16px 20px 16px 55px;
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 15px;
@@ -101,162 +229,8 @@
     font-size: 1.2rem;
 }
 
-/* Friends Container */
-.friends-container {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 20px;
-}
-
-/* Friend Card for Friends Page */
-.friend-card-friends-page {
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 20px;
-    padding: 20px;
-    transition: all 0.2s ease;
-    position: relative;
-    overflow: hidden;
-    display: flex;
-    align-items: center;
-    gap: 15px;
-}
-
-.friend-card-friends-page:hover {
-    background: rgba(255, 255, 255, 0.08);
-    transform: translateY(-5px);
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-}
-
-.friend-card-friends-page:hover::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 4px;
-    background: linear-gradient(90deg, #667eea, #764ba2);
-}
-
-.friend-avatar-large {
-    width: 70px; /* Slightly smaller */
-    height: 70px;
-    background: linear-gradient(45deg, #667eea, #764ba2);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.6rem;
-    font-weight: bold;
-    position: relative;
-    flex-shrink: 0;
-}
-
-.status-indicator-large {
-    position: absolute;
-    bottom: 5px;
-    right: 5px;
-    width: 16px;
-    height: 16px;
-    border-radius: 50%;
-    border: 3px solid #1a1a2e;
-}
-
-.friend-details-friends-page {
-    flex: 1;
-    min-width: 0; /* For text truncation */
-}
-
-.friend-name-large {
-    font-size: 1.3rem;
-    font-weight: 600;
-    margin-bottom: 5px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.friend-username-large {
-    color: #a0a0c0;
-    font-size: 0.9rem;
-    margin-bottom: 8px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.friend-status-friends-page {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 0.9rem;
-    color: #a0a0c0;
-    padding: 6px 10px;
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 10px;
-    margin-top: 5px;
-}
-
-.status-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    display: inline-block;
-}
-
-.status-online {
-    background: #28a745;
-    box-shadow: 0 0 8px #28a745;
-}
-
-.status-offline {
-    background: #6c757d;
-}
-
-/* Friend Actions for Friends Page */
-.friend-actions-friends-page {
-    display: flex;
-    gap: 8px;
-    margin-top: 12px;
-}
-
-.action-btn-friends-page {
-    padding: 10px 15px;
-    border-radius: 10px;
-    border: none;
-    background: rgba(255, 255, 255, 0.05);
-    color: white;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    transition: all 0.2s;
-    font-size: 0.9rem;
-    font-weight: 500;
-    flex: 1;
-}
-
-.action-btn-friends-page:hover {
-    background: rgba(102, 126, 234, 0.2);
-    transform: translateY(-3px);
-}
-
-.action-btn-friends-page.primary {
-    background: rgba(102, 126, 234, 0.2);
-    color: #667eea;
-}
-
-.action-btn-friends-page.primary:hover {
-    background: rgba(102, 126, 234, 0.3);
-}
-
-/* Responsive for Friends Page */
+/* Responsive */
 @media (max-width: 768px) {
-    .friends-container {
-        grid-template-columns: 1fr;
-    }
-    
     .friends-stats {
         gap: 15px;
     }
@@ -271,23 +245,18 @@
         font-size: 1.8rem;
     }
     
-    .friend-card-friends-page {
-        flex-direction: column;
-        text-align: center;
-        padding: 15px;
+    .friend-avatar-initial {
+        width: 50px;
+        height: 50px;
+        font-size: 1.2rem;
     }
     
-    .friend-actions-friends-page {
-        width: 100%;
-        margin-top: 15px;
+    .friend-name-whatsapp {
+        font-size: 1rem;
     }
 }
 
 @media (max-width: 480px) {
-    .friends-title {
-        font-size: 1.8rem;
-    }
-    
     .stat-card {
         min-width: 120px;
         padding: 10px 15px;
@@ -296,15 +265,5 @@
     
     .stat-number {
         font-size: 1.6rem;
-    }
-    
-    .friend-avatar-large {
-        width: 60px;
-        height: 60px;
-        font-size: 1.4rem;
-    }
-    
-    .friend-name-large {
-        font-size: 1.2rem;
     }
 }
