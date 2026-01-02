@@ -88,7 +88,7 @@ function showLoginAlert() {
     alertConfirm.className = "alert-btn confirm";
     alertConfirm.onclick = () => {
         alertOverlay.style.display = 'none';
-     window.location.href = 'pages/login/index.html';
+     window.location.href = '../login/index.html';
     };
 
     // Signup button
@@ -96,7 +96,7 @@ function showLoginAlert() {
     alertCancel.className = "alert-btn cancel";
     alertCancel.onclick = () => {
         alertOverlay.style.display = 'none';
-        window.location.href = 'pages/auth/index.html?signup=true'; // Same page with signup flag
+        window.location.href = '../auth/index.html?signup=true'; // Same page with signup flag
     };
 
     alertOverlay.style.display = 'flex';
