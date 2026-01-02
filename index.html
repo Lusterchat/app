@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>✨ Relay</title>
-    
+
     <!-- PWA Meta Tags -->
     <link rel="manifest" href="manifest.json">
     <link rel="icon" href="relay.png">
@@ -14,11 +14,11 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="RelayTalk">
     <link rel="apple-touch-icon" href="relay.png">
-    
+
     <!-- Styles -->
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="opening.css">
-    
+
     <!-- PWA Service Worker Registration -->
     <script>
         // Register Service Worker for PWA
@@ -33,13 +33,13 @@
                     });
             });
         }
-        
+
         // PWA Installation Prompts
         let deferredPrompt;
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredPrompt = e;
-            
+
             // Show install button after 3 seconds
             setTimeout(() => {
                 if (deferredPrompt) {
@@ -47,12 +47,12 @@
                 }
             }, 3000);
         });
-        
+
         function showInstallButton() {
             // Remove existing install button
             const existingBtn = document.getElementById('installPwaBtn');
             if (existingBtn) existingBtn.remove();
-            
+
             // Create install button
             const installBtn = document.createElement('button');
             installBtn.id = 'installPwaBtn';
@@ -72,7 +72,7 @@
                 box-shadow: 0 5px 15px rgba(74, 144, 226, 0.4);
                 animation: fadeIn 0.5s ease;
             `;
-            
+
             installBtn.onclick = () => {
                 if (deferredPrompt) {
                     deferredPrompt.prompt();
@@ -85,9 +85,9 @@
                     });
                 }
             };
-            
+
             document.body.appendChild(installBtn);
-            
+
             // Auto-hide after 10 seconds
             setTimeout(() => {
                 if (installBtn.parentNode) {
@@ -99,7 +99,7 @@
                 }
             }, 10000);
         }
-        
+
         // Check if app is running in standalone mode
         function checkStandaloneMode() {
             if (window.matchMedia('(display-mode: standalone)').matches || 
@@ -108,7 +108,7 @@
                 document.documentElement.classList.add('standalone-mode');
             }
         }
-        
+
         // Add CSS for standalone mode
         const style = document.createElement('style');
         style.textContent = `
@@ -122,7 +122,7 @@
             }
         `;
         document.head.appendChild(style);
-        
+
         // Check on load
         window.addEventListener('load', checkStandaloneMode);
     </script>
@@ -175,6 +175,23 @@
         </div>
     </div>
 
+    <!-- INLINE SCRIPT TO DEFINE goToLogin BEFORE MODULE LOADS -->
+    <script>
+        // Define goToLogin IMMEDIATELY so button works
+        function goToLogin() {
+            window.location.href = 'pages/login/index.html';
+        }
+        
+        // Make it globally available immediately
+        window.goToLogin = goToLogin;
+        
+        // Also define goToSignup for consistency
+        function goToSignup() {
+            window.location.href = 'pages/auth/index.html';
+        }
+        window.goToSignup = goToSignup;
+    </script>
+
     <script type="module">
         import { auth } from './utils/auth.js';
 
@@ -211,15 +228,18 @@
             }
         }
 
-        function goToLogin() {
-            window.location.href = 'pages/login/index.html';
-        }
-
         // Check on page load
         document.addEventListener('DOMContentLoaded', checkUserAndRedirect);
 
-        // Make functions global
-        window.goToLogin = goToLogin;
+        // Add click effects to buttons
+        document.querySelectorAll('button').forEach(button => {
+            button.addEventListener('click', function() {
+                this.style.transform = 'scale(0.98)';
+                setTimeout(() => {
+                    this.style.transform = '';
+                }, 150);
+            });
+        });
     </script>
 </body>
 </html>
