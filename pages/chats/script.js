@@ -67,7 +67,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 });
 
-// NEW: Better login alert with Login/Signup options
+// NEW: Better login alert with Login/Signup options - FIXED REDIRECT
 function showLoginAlert() {
     const alertOverlay = document.getElementById('customAlert');
     const alertIcon = document.getElementById('alertIcon');
@@ -83,12 +83,12 @@ function showLoginAlert() {
     // Show both buttons
     alertCancel.style.display = 'inline-block';
     
-    // Login button
+    // FIXED: Login button redirects to pages/login/index.html
     alertConfirm.textContent = "Login";
     alertConfirm.className = "alert-btn confirm";
     alertConfirm.onclick = () => {
         alertOverlay.style.display = 'none';
-        window.location.href = '../auth/index.html'; // Login page
+        window.location.href = '../../auth/index.html'; // FIXED PATH
     };
 
     // Signup button
@@ -96,7 +96,7 @@ function showLoginAlert() {
     alertCancel.className = "alert-btn cancel";
     alertCancel.onclick = () => {
         alertOverlay.style.display = 'none';
-        window.location.href = '../auth/index.html?signup=true'; // Signup page
+        window.location.href = '../../auth/index.html?signup=true'; // Same page with signup flag
     };
 
     alertOverlay.style.display = 'flex';
@@ -295,6 +295,8 @@ function setupRealtime(friendId) {
                 // Show toast for status change
                 if (payload.new.status === 'online') {
                     showToast(`${chatFriend.username} is now online`, "🟢");
+                } else {
+                    showToast(`${chatFriend.username} is now offline`, "⚫");
                 }
             }
         })
@@ -572,8 +574,6 @@ window.blockUserPrompt = function() {
         }
     );
 };
-
-// REMOVED: attachFile function
 
 window.clearChatPrompt = async function() {
     showConfirmAlert(
