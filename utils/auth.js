@@ -1,44 +1,41 @@
 // File: utils/auth.js - SIMPLE USERNAME-ONLY AUTH SYSTEM (CLEAN VERSION)
-// Supabase is loaded globally from supabase.js (loaded before this file)
+import { supabase } from './supabase.js'
 
 let heartbeatInterval = null;
 let currentUserId = null;
-
-// Get supabase from global window object (set by supabase.js)
-const supabase = window.supabase;
 
 // SIMPLE HEARTBEAT SYSTEM (Optional - can be enabled later)
 const heartbeat = {
     async start(userId) {
         if (!userId) return;
-
+        
         currentUserId = userId;
         console.log("❤️ Heartbeat started for:", userId);
-
+        
         // Set initial online status
         await this.updateStatus('online');
-
+        
         // Send heartbeat every 30 seconds
         heartbeatInterval = setInterval(() => {
             this.updateStatus('online');
         }, 30000);
-
+        
         // Update on tab focus
         document.addEventListener('visibilitychange', () => {
             if (!document.hidden) {
                 this.updateStatus('online');
             }
         });
-
+        
         // Cleanup on unload
         window.addEventListener('beforeunload', () => {
             this.stop();
         });
     },
-
+    
     async updateStatus(status) {
-        if (!currentUserId || !supabase) return;
-
+        if (!currentUserId) return;
+        
         try {
             await supabase
                 .from('profiles')
@@ -51,7 +48,7 @@ const heartbeat = {
             console.log("Heartbeat error:", error);
         }
     },
-
+    
     stop() {
         if (heartbeatInterval) {
             clearInterval(heartbeatInterval);
@@ -66,19 +63,11 @@ const heartbeat = {
 };
 
 // MAIN AUTH OBJECT
-const auth = {
+export const auth = {
     // Sign in existing user (MAIN LOGIN FUNCTION)
     async signIn(username, password) {
         try {
             console.log("🔐 Login attempt:", username);
-
-            if (!supabase) {
-                return {
-                    success: false,
-                    error: "Database not connected",
-                    message: "Database connection failed. Please refresh."
-                };
-            }
 
             // Use @luster.test domain
             const internalEmail = `${username}@luster.test`;
@@ -91,7 +80,7 @@ const auth = {
             if (error) throw error;
 
             console.log("✅ Login successful:", data.user.email);
-
+            
             // START HEARTBEAT IF NEEDED
             heartbeat.start(data.user.id);
 
@@ -115,14 +104,6 @@ const auth = {
     async signUp(username, password) {
         try {
             console.log("📝 Signup attempt:", username);
-
-            if (!supabase) {
-                return {
-                    success: false,
-                    error: "Database not connected",
-                    message: "Database connection failed. Please refresh."
-                };
-            }
 
             // Use @luster.test domain
             const internalEmail = `${username}@luster.test`;
@@ -176,18 +157,11 @@ const auth = {
         try {
             // Stop heartbeat first
             heartbeat.stop();
-
-            if (!supabase) {
-                return { 
-                    success: false, 
-                    error: "Database not connected" 
-                };
-            }
-
+            
             // Sign out from Supabase
             const { error } = await supabase.auth.signOut();
             if (error) throw error;
-
+            
             return { 
                 success: true, 
                 message: 'Logged out successfully' 
@@ -203,13 +177,6 @@ const auth = {
     // Get current user (NO AUTOMATIC HEARTBEAT START - causes loops)
     async getCurrentUser() {
         try {
-            if (!supabase) {
-                return { 
-                    success: false, 
-                    error: 'Database not connected' 
-                };
-            }
-
             const { data, error } = await supabase.auth.getUser();
             if (error) throw error;
 
@@ -243,16 +210,9 @@ const auth = {
     // Check session (simple version)
     async getSession() {
         try {
-            if (!supabase) {
-                return { 
-                    success: false, 
-                    error: 'Database not connected' 
-                };
-            }
-
             const { data, error } = await supabase.auth.getSession();
             if (error) throw error;
-
+            
             return { 
                 success: true, 
                 session: data.session 
@@ -279,20 +239,18 @@ const auth = {
     // Check if user is online
     async isUserOnline(userId) {
         try {
-            if (!supabase) return false;
-
             const { data: profile } = await supabase
                 .from('profiles')
                 .select('last_seen, status')
                 .eq('id', userId)
                 .maybeSingle();
-
+                
             if (!profile || !profile.last_seen) return false;
-
+            
             const lastSeen = new Date(profile.last_seen);
             const now = new Date();
             const secondsAgo = (now - lastSeen) / 1000;
-
+            
             // Online if seen in last 60 seconds AND status is 'online'
             return secondsAgo < 60 && profile.status === 'online';
         } catch (error) {
@@ -327,13 +285,5 @@ window.addEventListener('beforeunload', () => {
     heartbeat.stop();
 });
 
-// ================================================
-// 🔥 EXPOSE GLOBALLY - NO EXPORT STATEMENTS
-// ================================================
-if (typeof window !== 'undefined') {
-    window.auth = auth;
-    window.heartbeat = heartbeat;
-    console.log('✅ Auth exposed globally as window.auth');
-}
-
-// NO EXPORT STATEMENTS AT ALL - this is a regular script
+// Export heartbeat separately if needed
+export { heartbeat };
