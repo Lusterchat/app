@@ -8,34 +8,34 @@ let currentUserId = null;
 const heartbeat = {
     async start(userId) {
         if (!userId) return;
-        
+
         currentUserId = userId;
         console.log("❤️ Heartbeat started for:", userId);
-        
+
         // Set initial online status
         await this.updateStatus('online');
-        
+
         // Send heartbeat every 30 seconds
         heartbeatInterval = setInterval(() => {
             this.updateStatus('online');
         }, 30000);
-        
+
         // Update on tab focus
         document.addEventListener('visibilitychange', () => {
             if (!document.hidden) {
                 this.updateStatus('online');
             }
         });
-        
+
         // Cleanup on unload
         window.addEventListener('beforeunload', () => {
             this.stop();
         });
     },
-    
+
     async updateStatus(status) {
         if (!currentUserId) return;
-        
+
         try {
             await supabase
                 .from('profiles')
@@ -48,7 +48,7 @@ const heartbeat = {
             console.log("Heartbeat error:", error);
         }
     },
-    
+
     stop() {
         if (heartbeatInterval) {
             clearInterval(heartbeatInterval);
@@ -80,7 +80,7 @@ export const auth = {
             if (error) throw error;
 
             console.log("✅ Login successful:", data.user.email);
-            
+
             // START HEARTBEAT IF NEEDED
             heartbeat.start(data.user.id);
 
@@ -157,11 +157,11 @@ export const auth = {
         try {
             // Stop heartbeat first
             heartbeat.stop();
-            
+
             // Sign out from Supabase
             const { error } = await supabase.auth.signOut();
             if (error) throw error;
-            
+
             return { 
                 success: true, 
                 message: 'Logged out successfully' 
@@ -212,7 +212,7 @@ export const auth = {
         try {
             const { data, error } = await supabase.auth.getSession();
             if (error) throw error;
-            
+
             return { 
                 success: true, 
                 session: data.session 
@@ -244,13 +244,13 @@ export const auth = {
                 .select('last_seen, status')
                 .eq('id', userId)
                 .maybeSingle();
-                
+
             if (!profile || !profile.last_seen) return false;
-            
+
             const lastSeen = new Date(profile.last_seen);
             const now = new Date();
             const secondsAgo = (now - lastSeen) / 1000;
-            
+
             // Online if seen in last 60 seconds AND status is 'online'
             return secondsAgo < 60 && profile.status === 'online';
         } catch (error) {
@@ -287,3 +287,16 @@ window.addEventListener('beforeunload', () => {
 
 // Export heartbeat separately if needed
 export { heartbeat };
+
+// ================================================
+// 🔥 ADD THESE LINES AT THE VERY END OF THE FILE
+// ================================================
+// Export for ES6 modules (already exists - keep it!)
+// export { auth };
+
+// Expose globally for regular scripts (IMPORTANT!)
+if (typeof window !== 'undefined') {
+    window.auth = auth;
+    console.log('✅ Auth exposed globally as window.auth');
+}
+// ================================================
