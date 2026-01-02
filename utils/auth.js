@@ -1,11 +1,5 @@
 // File: utils/auth.js - SIMPLE USERNAME-ONLY AUTH SYSTEM (CLEAN VERSION)
-// Get supabase from global window object
-const supabase = window.supabase;
-
-// Check if supabase is available
-if (!supabase) {
-    console.error('❌ Supabase not found in window.supabase');
-}
+import { supabase } from './supabase.js'
 
 let heartbeatInterval = null;
 let currentUserId = null;
@@ -292,9 +286,21 @@ window.addEventListener('beforeunload', () => {
 });
 
 // ================================================
-// 🔥 EXPOSE AUTH GLOBALLY
+// 🔥 EXPORTS SECTION - MULTIPLE OPTIONS
 // ================================================
+
+// Option 1: Named export (for pages using: import { auth } from './auth.js')
+export { auth };
+
+// Option 2: Default export (for pages using: import auth from './auth.js')
+export default auth;
+
+// Option 3: Named export for heartbeat (if needed)
+export { heartbeat };
+
+// Option 4: Global exposure (for pages using regular <script> tags)
 if (typeof window !== 'undefined') {
     window.auth = auth;
+    window.heartbeat = heartbeat;
     console.log('✅ Auth exposed globally as window.auth');
 }
