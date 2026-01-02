@@ -1,5 +1,28 @@
 // ===== RELAYTALK HOME PAGE - MIDNIGHT AURORA =====
-// Using your existing database logic with new UI
+// Using global variables from your existing auth.js and supabase.js
+
+// Get auth and supabase from global window object
+const auth = window.auth;
+const supabase = window.supabase;
+
+// Global variables
+let currentUser = null;
+let currentProfile = null;
+let realtimeSubscription = null;
+let heartbeatInterval = null;
+
+// DOM Elements
+const loadingScreen = document.getElementById('loadingIndicator');
+const appContainer = document.getElementById('appContainer');
+const chatsList = document.getElementById('chatsList');
+const emptyState = document.getElementById('emptyState');
+const searchInput = document.getElementById('searchInput');
+const clearSearch = document.getElementById('clearSearch');
+const notificationBadge = document.getElementById('notificationBadge');
+const navNotificationBadge = document.getElementById('navNotificationBadge');
+const newChatFab = document.getElementById('newChatFab');
+const newChatModal = document.getElementById('newChatModal');
+const welcomeTitle = document.getElementById('welcomeTitle');
 
 // Initialize when page loads
 document.addEventListener('DOMContentLoaded', initHomePage);
@@ -9,7 +32,7 @@ async function initHomePage() {
     
     try {
         // Hide app, show loading
-        document.getElementById('appContainer').style.display = 'none';
+        appContainer.style.display = 'none';
         
         // Check if user is logged in using your existing auth system
         const { success, user } = await auth.getCurrentUser();  
@@ -23,13 +46,19 @@ async function initHomePage() {
         currentUser = user;  
         console.log("✅ User authenticated:", currentUser.email);  
 
-        // Get user profile using your existing function
+        // Get user profile
         await loadUserProfile();  
 
         // Update UI  
         updateWelcomeMessage();  
         await loadFriends();  
         await updateNotificationsBadge();  
+
+        // Setup real-time updates
+        setupRealtimeUpdates();
+        
+        // Setup heartbeat
+        startHeartbeat();
 
         // Set up event listeners  
         setupEventListeners();  
@@ -38,28 +67,22 @@ async function initHomePage() {
 
         // Hide loading indicator
         setTimeout(() => {
-            const loadingIndicator = document.getElementById('loadingIndicator');
-            if (loadingIndicator) {
-                loadingIndicator.style.opacity = '0';
+            if (loadingScreen) {
+                loadingScreen.style.opacity = '0';
                 setTimeout(() => {
-                    loadingIndicator.style.display = 'none';
-                    document.getElementById('appContainer').style.display = 'block';
+                    loadingScreen.style.display = 'none';
+                    appContainer.style.display = 'block';
                 }, 300);
             }
         }, 500);
         
     } catch (error) {
         console.error("❌ Initialization error:", error);
-        showError("Failed to load. Please refresh.");
+        showError("Failed to load app. Please refresh.");
     }
 }
 
-// === YOUR EXISTING DATABASE FUNCTIONS ===
-// I'm keeping all your database logic exactly as it is!
-
-let currentUser = null;
-let currentProfile = null;
-
+// Load user profile
 async function loadUserProfile() {
     try {
         const { data: profile, error } = await supabase
@@ -83,22 +106,19 @@ async function loadUserProfile() {
     }
 }
 
+// Update welcome message
 function updateWelcomeMessage() {
-    if (!currentProfile) return;
-
-    const welcomeElement = document.getElementById('welcomeTitle');  
-    if (welcomeElement) {  
-        welcomeElement.textContent = `Welcome, ${currentProfile.username}!`;  
-    }  
+    if (!currentProfile || !welcomeTitle) return;
+    welcomeTitle.textContent = `Welcome, ${currentProfile.username}!`;  
 }
 
+// Load friends (chats)
 async function loadFriends() {
     if (!currentUser) return;
 
     console.log("Loading friends for user:", currentUser.id);  
 
-    const container = document.getElementById('chatsList');  
-    if (!container) {  
+    if (!chatsList) {  
         console.error("Chats list container not found!");  
         return;  
     }  
@@ -112,14 +132,14 @@ async function loadFriends() {
 
         if (error) {  
             console.log("Error loading friends:", error.message);  
-            showEmptyFriends(container);  
+            showEmptyFriends();  
             return;  
         }  
 
         console.log("Found friend IDs:", friends?.length || 0);  
 
         if (!friends || friends.length === 0) {  
-            showEmptyFriends(container);  
+            showEmptyFriends();  
             return;  
         }  
 
@@ -132,7 +152,7 @@ async function loadFriends() {
 
         if (profilesError) {  
             console.error("Error loading profiles:", profilesError);  
-            showEmptyFriends(container);  
+            showEmptyFriends();  
             return;  
         }  
 
@@ -167,127 +187,128 @@ async function loadFriends() {
             `;  
         });  
 
-        container.innerHTML = html;  
-        document.getElementById('emptyState').style.display = 'none';
+        chatsList.innerHTML = html;  
+        if (emptyState) emptyState.style.display = 'none';
 
     } catch (error) {  
         console.error("Error loading friends:", error);  
-        showEmptyFriends(container);  
+        showEmptyFriends();  
     }
 }
 
-function showEmptyFriends(container) {
-    document.getElementById('emptyState').style.display = 'block';
-    if (container) container.innerHTML = '';
+function showEmptyFriends() {
+    if (emptyState) emptyState.style.display = 'block';
+    if (chatsList) chatsList.innerHTML = '';
 }
 
-// Helper functions from your original code
-function getTimeAgo(date) {
-    const now = new Date();
-    const past = new Date(date);
-    const diffMs = now - past;
-    const diffMins = Math.floor(diffMs / (1000 * 60));
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-    if (diffMins < 1) return 'just now';  
-    if (diffMins < 60) return `${diffMins}m ago`;  
-    if (diffHours < 24) return `${diffHours}h ago`;  
-    if (diffDays === 1) return 'yesterday';  
-    if (diffDays < 7) return `${diffDays}d ago`;  
-    if (diffDays < 30) return `${Math.floor(diffDays/7)}w ago`;  
-    return past.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-}
-
-function generateColorFromName(name) {
-    const colors = [
-        '#00d4ff', '#8a2be2', '#ff00ff', '#00ffaa', '#ffaa00',
-        '#ff6b8b', '#6b8bff', '#8bff6b', '#ff8b6b', '#6bff8b'
-    ];
-    if (!name) return colors[0];
-    const hash = name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-    return colors[hash % colors.length];
-}
-
-function adjustColor(color, amount) {
-    let usePound = false;
-    if (color[0] === "#") {
-        color = color.slice(1);
-        usePound = true;
+// Setup real-time updates
+function setupRealtimeUpdates() {
+    if (realtimeSubscription) {
+        supabase.removeChannel(realtimeSubscription);
     }
-    const num = parseInt(color, 16);
-    let r = (num >> 16) + amount;
-    if (r > 255) r = 255;
-    else if (r < 0) r = 0;
-    let b = ((num >> 8) & 0x00FF) + amount;
-    if (b > 255) b = 255;
-    else if (b < 0) b = 0;
-    let g = (num & 0x0000FF) + amount;
-    if (g > 255) g = 255;
-    else if (g < 0) g = 0;
-    return (usePound ? "#" : "") + (g | (b << 8) | (r << 16)).toString(16).padStart(6, '0');
-}
-
-// === NEW UI FUNCTIONS ===
-async function updateNotificationsBadge() {
-    try {
-        const { data: notifications, error } = await supabase
-            .from('friend_requests')
-            .select('id')
-            .eq('receiver_id', currentUser.id)
-            .eq('status', 'pending');
-
-        if (error) {  
-            console.log("Friend requests error:", error.message);  
-            hideNotificationBadge();  
-            return;  
-        }  
-
-        const unreadCount = notifications?.length || 0;  
-        updateBadgeDisplay(unreadCount);  
-
-    } catch (error) {  
-        console.error("Error loading notifications:", error);  
-        hideNotificationBadge();  
-    }
-}
-
-function updateBadgeDisplay(count) {
-    const badge = document.getElementById('notificationBadge');
-    const navBadge = document.getElementById('navNotificationBadge');
     
-    [badge, navBadge].forEach(b => {
-        if (b) {
-            if (count > 0) {
-                b.textContent = count > 9 ? '9+' : count;
-                b.style.display = 'flex';
-            } else {
-                b.style.display = 'none';
+    // Subscribe to profile status changes
+    realtimeSubscription = supabase
+        .channel('profile-status')
+        .on('postgres_changes',
+            {
+                event: 'UPDATE',
+                schema: 'public',
+                table: 'profiles'
+            },
+            (payload) => {
+                console.log('Profile status updated:', payload);
+                loadFriends();
             }
+        )
+        .subscribe();
+}
+
+// Start heartbeat for online status
+function startHeartbeat() {
+    // Send initial heartbeat
+    sendHeartbeat();
+    
+    // Set up interval for heartbeat (every 30 seconds)
+    heartbeatInterval = setInterval(sendHeartbeat, 30000);
+    
+    // Send heartbeat on visibility change
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) {
+            sendHeartbeat();
         }
     });
 }
 
-function hideNotificationBadge() {
-    const badge = document.getElementById('notificationBadge');
-    const navBadge = document.getElementById('navNotificationBadge');
-    
-    if (badge) badge.style.display = 'none';
-    if (navBadge) navBadge.style.display = 'none';
+// Send heartbeat to update online status
+async function sendHeartbeat() {
+    try {
+        await supabase
+            .from('profiles')
+            .update({ 
+                status: 'online',
+                last_seen: new Date().toISOString()
+            })
+            .eq('id', currentUser.id);
+    } catch (error) {
+        console.error('Heartbeat error:', error);
+    }
 }
 
+// Update notifications badge
+async function updateNotificationsBadge() {
+    try {
+        const { count, error } = await supabase
+            .from('friend_requests')
+            .select('*', { count: 'exact', head: true })
+            .eq('receiver_id', currentUser.id)
+            .eq('status', 'pending');
+        
+        if (error) throw error;
+        
+        const unreadCount = count || 0;
+        
+        // Update both badges
+        [notificationBadge, navNotificationBadge].forEach(badge => {
+            if (badge) {
+                if (unreadCount > 0) {
+                    badge.textContent = unreadCount > 9 ? '9+' : unreadCount;
+                    badge.style.display = 'flex';
+                } else {
+                    badge.style.display = 'none';
+                }
+            }
+        });
+        
+    } catch (error) {
+        console.error('Error updating notifications badge:', error);
+    }
+}
+
+// Setup event listeners
 function setupEventListeners() {
     console.log("Setting up event listeners...");
     
     // Search button
-    document.getElementById('searchBtn')?.addEventListener('click', () => {
-        window.location.href = 'subpages/search.html';
-    });
+    const searchBtn = document.getElementById('searchBtn');
+    if (searchBtn) {
+        searchBtn.addEventListener('click', () => {
+            window.location.href = 'subpages/search.html';
+        });
+    }
     
     // Notifications button
-    document.getElementById('notificationsBtn')?.addEventListener('click', () => {
-        window.location.href = 'subpages/notifications.html';
-    });
+    const notificationsBtn = document.getElementById('notificationsBtn');
+    if (notificationsBtn) {
+        notificationsBtn.addEventListener('click', () => {
+            window.location.href = 'subpages/notifications.html';
+        });
+    }
+    
+    // New chat FAB
+    if (newChatFab) {
+        newChatFab.addEventListener('click', openNewChatModal);
+    }
     
     // Search input in modal
     const friendSearch = document.getElementById('friendSearch');
@@ -298,15 +319,17 @@ function setupEventListeners() {
     }
 }
 
+// Open new chat modal
 async function openNewChatModal() {
     try {
         await loadFriendsForModal();
-        document.getElementById('newChatModal').style.display = 'flex';
+        if (newChatModal) newChatModal.style.display = 'flex';
     } catch (error) {
         console.error('Error opening new chat modal:', error);
     }
 }
 
+// Load friends for new chat modal
 async function loadFriendsForModal(searchTerm = '') {
     if (!currentUser) return;
 
@@ -384,6 +407,7 @@ async function loadFriendsForModal(searchTerm = '') {
     }
 }
 
+// Open chat
 function openChat(friendId, friendUsername = 'Friend') {
     console.log("Opening chat with:", friendId, friendUsername);
 
@@ -397,15 +421,18 @@ function openChat(friendId, friendUsername = 'Friend') {
     window.location.href = `../chats/index.html?friendId=${friendId}`;
 }
 
+// Close modal
 function closeModal() {
-    document.getElementById('newChatModal').style.display = 'none';
+    if (newChatModal) newChatModal.style.display = 'none';
 }
 
+// Refresh chats
 function refreshChats() {
     loadFriends();
     showRefreshFeedback();
 }
 
+// Show refresh feedback
 function showRefreshFeedback() {
     const feedback = document.createElement('div');
     feedback.className = 'refresh-feedback';
@@ -435,8 +462,8 @@ function showRefreshFeedback() {
     }, 1800);
 }
 
+// Show error
 function showError(message) {
-    const loadingScreen = document.getElementById('loadingIndicator');
     if (loadingScreen) {
         loadingScreen.innerHTML = `
             <div class="loading-content">
@@ -454,6 +481,53 @@ function showError(message) {
     }
 }
 
+// Helper functions from your original code
+function getTimeAgo(date) {
+    const now = new Date();
+    const past = new Date(date);
+    const diffMs = now - past;
+    const diffMins = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffMins < 1) return 'just now';  
+    if (diffMins < 60) return `${diffMins}m ago`;  
+    if (diffHours < 24) return `${diffHours}h ago`;  
+    if (diffDays === 1) return 'yesterday';  
+    if (diffDays < 7) return `${diffDays}d ago`;  
+    if (diffDays < 30) return `${Math.floor(diffDays/7)}w ago`;  
+    return past.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function generateColorFromName(name) {
+    const colors = [
+        '#00d4ff', '#8a2be2', '#ff00ff', '#00ffaa', '#ffaa00',
+        '#ff6b8b', '#6b8bff', '#8bff6b', '#ff8b6b', '#6bff8b'
+    ];
+    if (!name) return colors[0];
+    const hash = name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    return colors[hash % colors.length];
+}
+
+function adjustColor(color, amount) {
+    let usePound = false;
+    if (color[0] === "#") {
+        color = color.slice(1);
+        usePound = true;
+    }
+    const num = parseInt(color, 16);
+    let r = (num >> 16) + amount;
+    if (r > 255) r = 255;
+    else if (r < 0) r = 0;
+    let b = ((num >> 8) & 0x00FF) + amount;
+    if (b > 255) b = 255;
+    else if (b < 0) b = 0;
+    let g = (num & 0x0000FF) + amount;
+    if (g > 255) g = 255;
+    else if (g < 0) g = 0;
+    return (usePound ? "#" : "") + (g | (b << 8) | (r << 16)).toString(16).padStart(6, '0');
+}
+
 // Add CSS for refresh feedback animation
 const style = document.createElement('style');
 style.textContent = `
@@ -465,8 +539,48 @@ style.textContent = `
         from { top: 20px; opacity: 1; }
         to { top: -50px; opacity: 0; }
     }
+    .friend-item {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        padding: 15px;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 15px;
+        margin-bottom: 10px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    .friend-item:hover {
+        background: rgba(255, 255, 255, 0.1);
+        transform: translateX(5px);
+    }
+    .friend-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        color: white;
+        flex-shrink: 0;
+    }
+    .friend-name {
+        flex: 1;
+        font-weight: 500;
+    }
 `;
 document.head.appendChild(style);
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', () => {
+    if (realtimeSubscription) {
+        supabase.removeChannel(realtimeSubscription);
+    }
+    if (heartbeatInterval) {
+        clearInterval(heartbeatInterval);
+    }
+});
 
 // Make functions available globally
 window.openChat = openChat;
