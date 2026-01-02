@@ -7,6 +7,88 @@
     <link rel="stylesheet" href="../style.css">
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Additional inline styles for login prompt */
+        .login-prompt {
+            text-align: center;
+            padding: 60px 20px;
+            max-width: 400px;
+            margin: 100px auto;
+        }
+        
+        .login-icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            opacity: 0.8;
+        }
+        
+        .login-title {
+            font-size: 1.8rem;
+            margin-bottom: 15px;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .login-subtitle {
+            color: #a0a0c0;
+            margin-bottom: 30px;
+            line-height: 1.5;
+        }
+        
+        .login-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            max-width: 250px;
+            margin: 0 auto;
+        }
+        
+        .login-btn, .signup-btn {
+            padding: 15px 25px;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        .login-btn:active, .signup-btn:active {
+            transform: scale(0.98);
+        }
+        
+        .login-btn {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+        }
+        
+        .login-btn:hover {
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+        }
+        
+        .signup-btn {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .signup-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        
+        /* Loading skeleton animation */
+        @keyframes skeleton-pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .friend-skeleton {
+            animation: skeleton-pulse 1.5s infinite;
+        }
+    </style>
 </head>
 <body>
     <!-- Toast Notifications Container -->
@@ -22,7 +104,7 @@
         <button class="back-btn" onclick="goToHome()">
             <i class="fas fa-arrow-left"></i> Back
         </button>
-        <div class="logo-top">✨ Relay</div> <!-- Changed from page-title to logo-top -->
+        <div class="logo-top">✨ Relay</div>
     </header>
 
     <!-- Main Content -->
@@ -32,7 +114,7 @@
             <h1 class="friends-title">Your Friends Circle</h1>
             <p class="friends-subtitle">Connect, chat, and stay close with the people who matter most</p>
             
-            <!-- Stats - Updated without pending -->
+            <!-- Stats -->
             <div class="friends-stats">
                 <div class="stat-card">
                     <div class="stat-number" id="totalFriends">0</div>
@@ -54,16 +136,29 @@
             </div>
         </div>
 
-        <!-- Friends Container - Removed tabs and filters -->
+        <!-- Friends Container -->
         <div class="friends-container" id="friendsContainer">
-            <!-- Friends will be loaded here -->
-            <div class="empty-state">
-                <div class="empty-icon">👥</div>
-                <h3 class="empty-title">No Friends Yet</h3>
-                <p class="empty-desc">Start building your friend list by searching for people</p>
-                <button class="search-btn" onclick="openSearch()" style="margin-top: 20px;">
-                    <i class="fas fa-search"></i> Find Friends
-                </button>
+            <!-- Loading skeleton will appear here -->
+            <div class="friend-skeleton">
+                <div class="skeleton-avatar"></div>
+                <div class="skeleton-info">
+                    <div class="skeleton-name"></div>
+                    <div class="skeleton-status"></div>
+                </div>
+            </div>
+            <div class="friend-skeleton">
+                <div class="skeleton-avatar"></div>
+                <div class="skeleton-info">
+                    <div class="skeleton-name"></div>
+                    <div class="skeleton-status"></div>
+                </div>
+            </div>
+            <div class="friend-skeleton">
+                <div class="skeleton-avatar"></div>
+                <div class="skeleton-info">
+                    <div class="skeleton-name"></div>
+                    <div class="skeleton-status"></div>
+                </div>
             </div>
         </div>
     </main>
@@ -98,14 +193,15 @@
             <div class="search-container">
                 <i class="fas fa-search search-icon"></i>
                 <input type="text" id="searchInput" class="search-input" 
-                       placeholder="Search by username or name..." autocomplete="off">
+                       placeholder="Search by username..." autocomplete="off">
             </div>
             
             <div id="searchResults">
+                <!-- Search results will appear here -->
                 <div class="empty-state" style="padding: 30px 20px;">
                     <div class="empty-icon">🔍</div>
                     <h3 class="empty-title">Find New Friends</h3>
-                    <p class="empty-desc">Type a username or name to find people on Relay</p>
+                    <p class="empty-desc">Type a username to find people on Relay</p>
                 </div>
             </div>
         </div>
@@ -120,6 +216,7 @@
             </div>
             
             <div id="notificationsList">
+                <!-- Notifications will appear here -->
                 <div class="empty-state" style="padding: 40px 20px;">
                     <div class="empty-icon">🔔</div>
                     <h3 class="empty-title">No Notifications</h3>
@@ -131,5 +228,26 @@
 
     <!-- Friends Page Script -->
     <script type="module" src="script.js"></script>
+    
+    <script>
+        // Add goToFriends function for the bottom nav
+        function goToFriends() {
+            // Already on friends page
+            console.log("Already on friends page");
+        }
+        
+        // Prevent text selection
+        document.addEventListener('selectstart', function(e) {
+            e.preventDefault();
+        });
+        
+        // Prevent context menu on long press
+        document.addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+        });
+        
+        // Remove blue tap highlight on mobile
+        document.addEventListener('touchstart', function() {}, {passive: true});
+    </script>
 </body>
 </html>
