@@ -1,5 +1,9 @@
 // ===== FRIENDS PAGE - MIDNIGHT AURORA =====
 
+// Get auth and supabase from global window object
+const auth = window.auth;
+const supabase = window.supabase;
+
 let currentUser = null;
 let currentProfile = null;
 let friendsData = [];
@@ -170,7 +174,7 @@ function renderRecentFriends() {
         const timeA = new Date(a.last_seen || 0);
         const timeB = new Date(b.last_seen || 0);
         return timeB - timeA;
-    }).slice(0, 10); // Show only 10 most recent
+    }).slice(0, 10);
     
     if (recentFriends.length === 0) {
         container.innerHTML = `
@@ -397,7 +401,7 @@ function showError(message) {
     }
 }
 
-// Helper functions from your original code
+// Helper functions
 function getTimeAgo(date) {
     const now = new Date();
     const past = new Date(date);
