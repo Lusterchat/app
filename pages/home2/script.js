@@ -1,1280 +1,674 @@
-// Home Page Script with Real-Time Updates
-console.log("✨ RelayTalk Home Page Loaded");
+// Initialize Supabase
+const SUPABASE_URL = 'https://your-project.supabase.co';
+const SUPABASE_ANON_KEY = 'your-anon-key';
+
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // Global variables
 let currentUser = null;
 let currentProfile = null;
-let supabaseClient = null;
 let realtimeSubscription = null;
+let heartbeatInterval = null;
 
-// Initialize the home page
+// DOM Elements
+const loadingScreen = document.getElementById('loadingScreen');
+const appContainer = document.getElementById('appContainer');
+const chatsList = document.getElementById('chatsList');
+const emptyState = document.getElementById('emptyState');
+const searchInput = document.getElementById('searchInput');
+const clearSearch = document.getElementById('clearSearch');
+const notificationBadge = document.getElementById('notificationBadge');
+const navNotificationBadge = document.getElementById('navNotificationBadge');
+const newChatFab = document.getElementById('newChatFab');
+const newChatModal = document.getElementById('newChatModal');
+
+// Initialize Home Page
 async function initHomePage() {
-    console.log("🚀 Initializing home page...");
+    console.log('✨ RelayTalk Home Initializing...');
     
     try {
-        // Initialize Supabase
-        supabaseClient = window.supabase;
-        if (!supabaseClient) {
-            throw new Error("Supabase client not found");
-        }
-
-        // Check authentication
-        const { data: { session }, error: authError } = await supabaseClient.auth.getSession();
+        // Get current session
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         
-        if (authError) {
-            console.error("Auth error:", authError);
-            redirectToLogin();
-            return;
+        if (sessionError) {
+            throw new Error(`Session error: ${sessionError.message}`);
         }
-
+        
         if (!session) {
             redirectToLogin();
             return;
         }
-
+        
         currentUser = session.user;
-        console.log("✅ Logged in as:", currentUser.email);
-
+        console.log('✅ User authenticated:', currentUser.email);
+        
         // Load user profile
         await loadUserProfile();
         
-        // Setup real-time subscriptions
-        setupRealtimeSubscriptions();
+        // Setup real-time updates
+        setupRealtimeUpdates();
         
-        // Load initial data
-        await Promise.all([
-            loadChats(),
-            updateNotificationsBadge()
-        ]);
+        // Setup heartbeat
+        startHeartbeat();
         
-        // Update UI
-        updateWelcomeMessage();
+        // Load chats
+        await loadChats();
+        
+        // Update notifications
+        await updateNotificationsBadge();
         
         // Setup event listeners
         setupEventListeners();
         
-        // Hide loading screen
-        setTimeout(() => {
-            const loadingScreen = document.getElementById('loadingScreen');
-            if (loadingScreen) {
-                loadingScreen.classList.add('hidden');
-                setTimeout(() => {
-                    loadingScreen.style.display = 'none';
-                }, 500);
-            }
-        }, 1000);
+        // Show app
+        showApp();
         
-        console.log("🎉 Home page initialization complete");
+        console.log('✅ Home page initialized successfully');
         
     } catch (error) {
-        console.error("❌ Initialization error:", error);
-        showError("Failed to initialize. Please refresh.");
+        console.error('❌ Initialization error:', error);
+        showError('Failed to load app. Please refresh.');
     }
 }
 
 // Redirect to login
 function redirectToLogin() {
-    window.location.href = '../../auth/index.html';
+    window.location.href = '../auth/index.html';
 }
 
 // Load user profile
 async function loadUserProfile() {
     try {
-        const { data: profile, error } = await supabaseClient
+        const { data: profile, error } = await supabase
             .from('profiles')
             .select('*')
             .eq('id', currentUser.id)
             .single();
-
-        if (error) {
-            console.warn("Profile error, using defaults:", error.message);
-            currentProfile = {
-                username: currentUser.email.split('@')[0],
-                full_name: 'User',
-                avatar_url: null
-            };
-        } else {
-            currentProfile = profile;
-            console.log("📝 Profile loaded:", profile.username);
-        }
         
-        // Update avatar initial
-        const avatarInitial = document.getElementById('avatarInitial');
-        if (avatarInitial && currentProfile.username) {
-            avatarInitial.textContent = currentProfile.username.charAt(0).toUpperCase();
-        }
+        if (error) throw error;
+        
+        currentProfile = profile;
+        updateUserAvatar(profile);
         
     } catch (error) {
-        console.error("Error loading profile:", error);
+        console.error('Error loading profile:', error);
         currentProfile = {
-            username: 'User',
-            full_name: 'User',
-            avatar_url: null
+            username: currentUser.email?.split('@')[0] || 'User',
+            avatar_color: '#667eea'
         };
     }
 }
 
-// Update welcome message
-function updateWelcomeMessage() {
-    if (!currentProfile) return;
+// Update user avatar
+function updateUserAvatar(profile) {
+    const avatar = document.getElementById('userAvatar');
+    if (!avatar) return;
     
-    const welcomeTitle = document.getElementById('welcomeTitle');
-    const welcomeSubtitle = document.getElementById('welcomeSubtitle');
-    
-    if (welcomeTitle) {
-        const hour = new Date().getHours();
-        let greeting = 'Good evening';
-        
-        if (hour < 12) greeting = 'Good morning';
-        else if (hour < 18) greeting = 'Good afternoon';
-        
-        welcomeTitle.textContent = `${greeting}, ${currentProfile.username}!`;
-    }
-    
-    if (welcomeSubtitle) {
-        welcomeSubtitle.textContent = 'Your conversations are live and ready';
+    if (profile.avatar_url) {
+        avatar.innerHTML = `<img src="${profile.avatar_url}" alt="${profile.username}">`;
+    } else {
+        const initial = profile.username ? profile.username.charAt(0).toUpperCase() : 'U';
+        avatar.innerHTML = initial;
+        avatar.style.background = `linear-gradient(135deg, ${profile.avatar_color || '#667eea'}, ${profile.avatar_color ? adjustColor(profile.avatar_color, -20) : '#764ba2'})`;
     }
 }
 
-// Load chats with friends
-async function loadChats() {
-    console.log("💬 Loading chats...");
-    
-    const container = document.getElementById('chatsList');
-    if (!container) return;
-    
+// Load chats
+async function loadChats(searchTerm = '') {
     try {
+        showLoading(true);
+        
         // Get user's friends
-        const { data: friends, error: friendsError } = await supabaseClient
+        const { data: friends, error: friendsError } = await supabase
             .from('friends')
             .select('friend_id')
             .eq('user_id', currentUser.id);
         
-        if (friendsError) {
-            console.error("Friends error:", friendsError);
-            showEmptyChats(container);
-            return;
-        }
+        if (friendsError) throw friendsError;
         
         if (!friends || friends.length === 0) {
-            showEmptyChats(container);
+            showEmptyState();
             return;
         }
         
         const friendIds = friends.map(f => f.friend_id);
         
         // Get profiles of friends
-        const { data: profiles, error: profilesError } = await supabaseClient
+        const { data: profiles, error: profilesError } = await supabase
             .from('profiles')
-            .select('id, username, full_name, status, last_seen')
+            .select('id, username, status, last_seen, avatar_url, avatar_color')
             .in('id', friendIds);
         
-        if (profilesError) {
-            console.error("Profiles error:", profilesError);
-            showEmptyChats(container);
-            return;
-        }
+        if (profilesError) throw profilesError;
         
         // Get last messages for each friend
-        const chatsHtml = await Promise.all(
+        const chatsData = await Promise.all(
             profiles.map(async (profile) => {
-                const lastMessage = await getLastMessage(profile.id);
-                const unreadCount = await getUnreadCount(profile.id);
-                const isOnline = profile.status === 'online';
+                const { data: messages, error: messagesError } = await supabase
+                    .from('direct_messages')
+                    .select('*')
+                    .or(`sender_id.eq.${currentUser.id},receiver_id.eq.${currentUser.id}`)
+                    .or(`sender_id.eq.${profile.id},receiver_id.eq.${profile.id}`)
+                    .order('created_at', { ascending: false })
+                    .limit(1)
+                    .single();
                 
-                return createChatItem(profile, lastMessage, unreadCount, isOnline);
+                if (messagesError && messagesError.code !== 'PGRST116') {
+                    console.error('Error fetching messages:', messagesError);
+                }
+                
+                // Get unread count
+                const { count: unreadCount } = await supabase
+                    .from('direct_messages')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('sender_id', profile.id)
+                    .eq('receiver_id', currentUser.id)
+                    .eq('read', false);
+                
+                return {
+                    profile,
+                    lastMessage: messages || null,
+                    unreadCount: unreadCount || 0
+                };
             })
         );
         
-        // Sort by last message time (most recent first)
-        container.innerHTML = chatsHtml.sort((a, b) => {
-            const timeA = extractTime(a);
-            const timeB = extractTime(b);
-            return timeB - timeA;
-        }).join('');
-        
-        // Add click events
-        addChatClickEvents();
-        
-    } catch (error) {
-        console.error("Error loading chats:", error);
-        showEmptyChats(container);
-    }
-}
-
-// Get last message with a friend
-async function getLastMessage(friendId) {
-    try {
-        const { data: messages, error } = await supabaseClient
-            .from('direct_messages')
-            .select('content, created_at, sender_id')
-            .or(`and(sender_id.eq.${currentUser.id},receiver_id.eq.${friendId}),and(sender_id.eq.${friendId},receiver_id.eq.${currentUser.id})`)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .single();
-        
-        if (error || !messages) {
-            return { content: 'Start a conversation', created_at: null, sender_id: null };
+        // Filter by search term if provided
+        let filteredChats = chatsData;
+        if (searchTerm) {
+            const term = searchTerm.toLowerCase();
+            filteredChats = chatsData.filter(chat => 
+                chat.profile.username.toLowerCase().includes(term) ||
+                (chat.lastMessage && chat.lastMessage.content.toLowerCase().includes(term))
+            );
         }
         
-        return messages;
-    } catch (error) {
-        return { content: 'Start a conversation', created_at: null, sender_id: null };
-    }
-}
-
-// Get unread message count
-async function getUnreadCount(friendId) {
-    try {
-        const { count, error } = await supabaseClient
-            .from('direct_messages')
-            .select('*', { count: 'exact', head: true })
-            .eq('receiver_id', currentUser.id)
-            .eq('sender_id', friendId)
-            .eq('read', false);
-        
-        if (error) return 0;
-        return count || 0;
-    } catch (error) {
-        return 0;
-    }
-}
-
-// Create chat item HTML
-function createChatItem(profile, lastMessage, unreadCount, isOnline) {
-    const timeAgo = lastMessage.created_at ? getTimeAgo(lastMessage.created_at) : '';
-    const messagePreview = lastMessage.sender_id === currentUser.id 
-        ? `You: ${lastMessage.content}`
-        : lastMessage.content;
-    
-    const isUnread = unreadCount > 0;
-    
-    return `
-        <div class="chat-item ${isUnread ? 'unread' : ''}" data-friend-id="${profile.id}">
-            <div class="chat-avatar">
-                <div class="avatar-circle">
-                    ${profile.username ? profile.username.charAt(0).toUpperCase() : '?'}
-                </div>
-                <div class="status-dot ${isOnline ? 'status-online' : 'status-offline'}"></div>
-            </div>
-            <div class="chat-info">
-                <div class="chat-header">
-                    <div class="chat-name">${profile.username || 'Unknown User'}</div>
-                    <div class="chat-time">${timeAgo}</div>
-                </div>
-                <div class="chat-preview">
-                    <div class="chat-message">${messagePreview}</div>
-                    ${unreadCount > 0 ? `<div class="unread-count">${unreadCount}</div>` : ''}
-                </div>
-            </div>
-        </div>
-    `;
-}
-
-// Extract time from chat item for sorting
-function extractTime(html) {
-    const match = html.match(/chat-time">([^<]+)</);
-    if (!match) return 0;
-    
-    const timeStr = match[1];
-    const now = new Date();
-    
-    if (timeStr.includes('just now')) return now.getTime();
-    if (timeStr.includes('min')) return now.getTime() - parseInt(timeStr) * 60000;
-    if (timeStr.includes('h')) return now.getTime() - parseInt(timeStr) * 3600000;
-    if (timeStr.includes('d')) return now.getTime() - parseInt(timeStr) * 86400000;
-    if (timeStr.includes('w')) return now.getTime() - parseInt(timeStr) * 604800000;
-    
-    return 0;
-}
-
-// Show empty chats state
-function showEmptyChats(container) {
-    container.innerHTML = `
-        <div class="empty-state">
-            <div class="empty-icon">
-                <i class="fas fa-comment-slash"></i>
-            </div>
-            <h3>No conversations yet</h3>
-            <p>Start by adding friends or sending your first message!</p>
-            <button class="btn-primary" onclick="window.location.href='subpages/search.html'">
-                <i class="fas fa-user-plus"></i>
-                Find Friends
-            </button>
-        </div>
-    `;
-}
-
-// Add click events to chat items
-function addChatClickEvents() {
-    document.querySelectorAll('.chat-item').forEach(item => {
-        item.addEventListener('click', function() {
-            const friendId = this.dataset.friendId;
-            const friendName = this.querySelector('.chat-name').textContent;
-            openChat(friendId, friendName);
-        });
-    });
-}
-
-// Open chat with friend
-async function openChat(friendId, friendName) {
-    console.log("Opening chat with:", friendId, friendName);
-    
-    // Mark messages as read
-    await markMessagesAsRead(friendId);
-    
-    // Store friend info in session storage
-    sessionStorage.setItem('currentChatFriend', JSON.stringify({
-        id: friendId,
-        username: friendName
-    }));
-    
-    // Redirect to chat page
-    window.location.href = `../chats/index.html?friendId=${friendId}`;
-}
-
-// Mark messages as read
-async function markMessagesAsRead(friendId) {
-    try {
-        await supabaseClient
-            .from('direct_messages')
-            .update({ read: true })
-            .eq('sender_id', friendId)
-            .eq('receiver_id', currentUser.id)
-            .eq('read', false);
-    } catch (error) {
-        console.error("Error marking messages as read:", error);
-    }
-}
-
-// Get time ago string
-function getTimeAgo(dateString) {
-    const now = new Date();
-    const past = new Date(dateString);
-    const diffMs = now - past;
-    const diffMins = Math.floor(diffMs / (1000 * 60));
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    const diffWeeks = Math.floor(diffDays / 7);
-    
-    if (diffMins < 1) return 'just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays === 1) return 'yesterday';
-    if (diffDays < 7) return `${diffDays}d ago`;
-    if (diffWeeks < 4) return `${diffWeeks}w ago`;
-    return past.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-}
-
-// Update notifications badge
-async function updateNotificationsBadge() {
-    try {
-        const { count, error } = await supabaseClient
-            .from('friend_requests')
-            .select('*', { count: 'exact', head: true })
-            .eq('receiver_id', currentUser.id)
-            .eq('status', 'pending');
-        
-        if (error) {
-            console.log("Friend requests error:", error.message);
-            hideNotificationBadge();
-            return;
-        }
-        
-        const unreadCount = count || 0;
-        
-        // Update header badge
-        const headerBadge = document.getElementById('headerNotificationBadge');
-        if (headerBadge) {
-            if (unreadCount > 0) {
-                headerBadge.textContent = unreadCount > 99 ? '99+' : unreadCount;
-                headerBadge.style.display = 'flex';
-            } else {
-                headerBadge.style.display = 'none';
-            }
-        }
-        
-        // Update bottom nav badge
-        const bottomBadge = document.getElementById('bottomNavBadge');
-        if (bottomBadge) {
-            if (unreadCount > 0) {
-                bottomBadge.textContent = unreadCount > 9 ? '9+' : unreadCount;
-                bottomBadge.style.display = 'flex';
-            } else {
-                bottomBadge.style.display = 'none';
-            }
-        }
-        
-    } catch (error) {
-        console.error("Error updating notifications badge:", error);
-        hideNotificationBadge();
-    }
-}
-
-// Hide notification badge
-function hideNotificationBadge() {
-    const headerBadge = document.getElementById('headerNotificationBadge');
-    const bottomBadge = document.getElementById('bottomNavBadge');
-    
-    if (headerBadge) headerBadge.style.display = 'none';
-    if (bottomBadge) bottomBadge.style.display = 'none';
-}
-
-// Setup real-time subscriptions
-function setupRealtimeSubscriptions() {
-    if (!supabaseClient || !currentUser) return;
-    
-    // Subscribe to online status changes
-    const statusChannel = supabaseClient.channel('online-status')
-        .on('postgres_changes', {
-            event: 'UPDATE',
-            schema: 'public',
-            table: 'profiles',
-            filter: `id=neq.${currentUser.id}`
-        }, (payload) => {
-            console.log('Status update:', payload.new);
-            updateFriendStatus(payload.new.id, payload.new.status);
-        })
-        .subscribe();
-    
-    // Subscribe to new messages
-    const messagesChannel = supabaseClient.channel('new-messages')
-        .on('postgres_changes', {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'direct_messages',
-            filter: `receiver_id=eq.${currentUser.id}`
-        }, (payload) => {
-            console.log('New message received:', payload.new);
-            handleNewMessage(payload.new);
-        })
-        .subscribe();
-    
-    // Subscribe to friend requests
-    const requestsChannel = supabaseClient.channel('friend-requests')
-        .on('postgres_changes', {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'friend_requests',
-            filter: `receiver_id=eq.${currentUser.id}`
-        }, (payload) => {
-            console.log('New friend request:', payload.new);
-            handleNewFriendRequest(payload.new);
-        })
-        .subscribe();
-    
-    realtimeSubscription = { statusChannel, messagesChannel, requestsChannel };
-    console.log("📡 Real-time subscriptions established");
-}
-
-// Update friend status in UI
-function updateFriendStatus(friendId, status) {
-    const chatItems = document.querySelectorAll(`.chat-item[data-friend-id="${friendId}"]`);
-    
-    chatItems.forEach(item => {
-        const statusDot = item.querySelector('.status-dot');
-        if (statusDot) {
-            statusDot.className = 'status-dot ' + (status === 'online' ? 'status-online' : 'status-offline');
-        }
-    });
-}
-
-// Handle new message
-async function handleNewMessage(message) {
-    // Update notifications badge
-    await updateNotificationsBadge();
-    
-    // Refresh chats to show new message
-    await loadChats();
-    
-    // Show notification
-    showMessageNotification(message);
-}
-
-// Show message notification
-function showMessageNotification(message) {
-    // Check if we have Notification permission
-    if (!("Notification" in window)) return;
-    
-    if (Notification.permission === "granted") {
-        // Get sender name
-        const senderName = 'New message'; // You would fetch this from your data
-        
-        new Notification(senderName, {
-            body: message.content,
-            icon: '/favicon.ico',
-            badge: '/favicon.ico'
-        });
-    }
-}
-
-// Handle new friend request
-function handleNewFriendRequest(request) {
-    // Update notifications badge
-    updateNotificationsBadge();
-    
-    // Show toast notification
-    showToast('New friend request received!', 'info');
-}
-
-// Show toast notification
-function showToast(message, type = 'info') {
-    const toast = document.createElement('div');
-    toast.className = `toast toast-${type}`;
-    toast.innerHTML = `
-        <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i>
-        <span>${message}</span>
-    `;
-    
-    document.body.appendChild(toast);
-    
-    setTimeout(() => {
-        toast.classList.add('show');
-    }, 10);
-    
-    setTimeout(() => {
-        toast.classList.remove('show');
-        setTimeout(() => {
-            document.body.removeChild(toast);
-        }, 300);
-    }, 3000);
-}
-
-// Show error message
-function showError(message) {
-    showToast(message, 'error');
-}
-
-// Setup event listeners
-function setupEventListeners() {
-    console.log("Setting up event listeners...");
-    
-    // Refresh chats button
-    const refreshBtn = document.getElementById('refreshChats');
-    if (refreshBtn) {
-        refreshBtn.addEventListener('click', async () => {
-            refreshBtn.classList.add('rotating');
-            await loadChats();
-            setTimeout(() => {
-                refreshBtn.classList.remove('rotating');
-            }, 1000);
-        });
-    }
-    
-    // New chat button
-    const newChatBtn = document.getElementById('newChatBtn');
-    if (newChatBtn) {
-        newChatBtn.addEventListener('click', openNewChatModal);
-    }
-    
-    // New chat modal search
-    const newChatSearch = document.getElementById('newChatSearch');
-    if (newChatSearch) {
-        newChatSearch.addEventListener('input', searchFriendsForNewChat);
-    }
-    
-    // Logout handler (if needed)
-    document.addEventListener('click', (e) => {
-        if (e.target.closest('#logoutBtn')) {
-            handleLogout();
-        }
-    });
-    
-    // Pull to refresh
-    let touchStartY = 0;
-    document.addEventListener('touchstart', (e) => {
-        touchStartY = e.touches[0].clientY;
-    });
-    
-    document.addEventListener('touchend', (e) => {
-        const touchEndY = e.changedTouches[0].clientY;
-        const diff = touchStartY - touchEndY;
-        
-        if (diff > 100 && window.scrollY === 0) {
-            // Pull to refresh
-            const refreshBtn = document.getElementById('refreshChats');
-            if (refreshBtn) {
-                refreshBtn.click();
-            }
-        }
-    });
-}
-
-// Open new chat modal
-async function openNewChatModal() {
-    const modal = document.getElementById('newChatModal');
-    if (!modal) return;
-    
-    modal.style.display = 'flex';
-    
-    // Load friends for modal
-    await loadFriendsForNewChat();
-}
-
-// Close modal
-function closeModal() {
-    const modals = document.querySelectorAll('.modal-overlay');
-    modals.forEach(modal => {
-        modal.style.display = 'none';
-    });
-}
-
-// Load friends for new chat modal
-async function loadFriendsForNewChat() {
-    const container = document.getElementById('friendsListModal');
-    if (!container) return;
-    
-    try {
-        // Get user's friends
-        const { data: friends, error: friendsError } = await supabaseClient
-            .from('friends')
-            .select('friend_id')
-            .eq('user_id', currentUser.id);
-        
-        if (friendsError) {
-            console.error("Friends error:", friendsError);
-            showEmptyChats(container);
-            return;
-        }
-        
-        if (!friends || friends.length === 0) {
-            showEmptyChats(container);
-            return;
-        }
-        
-        const friendIds = friends.map(f => f.friend_id);
-        
-        // Get profiles of friends
-        const { data: profiles, error: profilesError } = await supabaseClient
-            .from('profiles')
-            .select('id, username, full_name, status, last_seen')
-            .in('id', friendIds);
-        
-        if (profilesError) {
-            console.error("Profiles error:", profilesError);
-            showEmptyChats(container);
-            return;
-        }
-        
-        // Get last messages for each friend
-        const chatsHtml = await Promise.all(
-            profiles.map(async (profile) => {
-                const lastMessage = await getLastMessage(profile.id);
-                const unreadCount = await getUnreadCount(profile.id);
-                const isOnline = profile.status === 'online';
-                
-                return createChatItem(profile, lastMessage, unreadCount, isOnline);
-            })
-        );
-        
-        // Sort by last message time (most recent first)
-        container.innerHTML = chatsHtml.sort((a, b) => {
-            const timeA = extractTime(a);
-            const timeB = extractTime(b);
-            return timeB - timeA;
-        }).join('');
-        
-        // Add click events
-        addChatClickEvents();
-        
-    } catch (error) {
-        console.error("Error loading chats:", error);
-        showEmptyChats(container);
-    }
-}
-
-// Get last message with a friend
-async function getLastMessage(friendId) {
-    try {
-        const { data: messages, error } = await supabaseClient
-            .from('direct_messages')
-            .select('content, created_at, sender_id')
-            .or(`and(sender_id.eq.${currentUser.id},receiver_id.eq.${friendId}),and(sender_id.eq.${friendId},receiver_id.eq.${currentUser.id})`)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .single();
-        
-        if (error || !messages) {
-            return { content: 'Start a conversation', created_at: null, sender_id: null };
-        }
-        
-        return messages;
-    } catch (error) {
-        return { content: 'Start a conversation', created_at: null, sender_id: null };
-    }
-}
-
-// Get unread message count
-async function getUnreadCount(friendId) {
-    try {
-        const { count, error } = await supabaseClient
-            .from('direct_messages')
-            .select('*', { count: 'exact', head: true })
-            .eq('receiver_id', currentUser.id)
-            .eq('sender_id', friendId)
-            .eq('read', false);
-        
-        if (error) return 0;
-        return count || 0;
-    } catch (error) {
-        return 0;
-    }
-}
-
-// Create chat item HTML
-function createChatItem(profile, lastMessage, unreadCount, isOnline) {
-    const timeAgo = lastMessage.created_at ? getTimeAgo(lastMessage.created_at) : '';
-    const messagePreview = lastMessage.sender_id === currentUser.id 
-        ? `You: ${lastMessage.content}`
-        : lastMessage.content;
-    
-    const isUnread = unreadCount > 0;
-    
-    return `
-        <div class="chat-item ${isUnread ? 'unread' : ''}" data-friend-id="${profile.id}">
-            <div class="chat-avatar">
-                <div class="avatar-circle">
-                    ${profile.username ? profile.username.charAt(0).toUpperCase() : '?'}
-                </div>
-                <div class="status-dot ${isOnline ? 'status-online' : 'status-offline'}"></div>
-            </div>
-            <div class="chat-info">
-                <div class="chat-header">
-                    <div class="chat-name">${profile.username || 'Unknown User'}</div>
-                    <div class="chat-time">${timeAgo}</div>
-                </div>
-                <div class="chat-preview">
-                    <div class="chat-message">${messagePreview}</div>
-                    ${unreadCount > 0 ? `<div class="unread-count">${unreadCount}</div>` : ''}
-                </div>
-            </div>
-        </div>
-    `;
-}
-
-// Extract time from chat item for sorting
-function extractTime(html) {
-    const match = html.match(/chat-time">([^<]+)</);
-    if (!match) return 0;
-    
-    const timeStr = match[1];
-    const now = new Date();
-    
-    if (timeStr.includes('just now')) return now.getTime();
-    if (timeStr.includes('min')) return now.getTime() - parseInt(timeStr) * 60000;
-    if (timeStr.includes('h')) return now.getTime() - parseInt(timeStr) * 3600000;
-    if (timeStr.includes('d')) return now.getTime() - parseInt(timeStr) * 86400000;
-    if (timeStr.includes('w')) return now.getTime() - parseInt(timeStr) * 604800000;
-    
-    return 0;
-}
-
-// Show empty chats state
-function showEmptyChats(container) {
-    container.innerHTML = `
-        <div class="empty-state">
-            <div class="empty-icon">
-                <i class="fas fa-comment-slash"></i>
-            </div>
-            <h3>No conversations yet</h3>
-            <p>Start by adding friends or sending your first message!</p>
-            <button class="btn-primary" onclick="window.location.href='subpages/search.html'">
-                <i class="fas fa-user-plus"></i>
-                Find Friends
-            </button>
-        </div>
-    `;
-}
-
-// Add click events to chat items
-function addChatClickEvents() {
-    document.querySelectorAll('.chat-item').forEach(item => {
-        item.addEventListener('click', function() {
-            const friendId = this.dataset.friendId;
-            const friendName = this.querySelector('.chat-name').textContent;
-            openChat(friendId, friendName);
-        });
-    });
-}
-
-// Open chat with friend
-async function openChat(friendId, friendName) {
-    console.log("Opening chat with:", friendId, friendName);
-    
-    // Mark messages as read
-    await markMessagesAsRead(friendId);
-    
-    // Store friend info in session storage
-    sessionStorage.setItem('currentChatFriend', JSON.stringify({
-        id: friendId,
-        username: friendName
-    }));
-    
-    // Redirect to chat page
-    window.location.href = `../chats/index.html?friendId=${friendId}`;
-}
-
-// Mark messages as read
-async function markMessagesAsRead(friendId) {
-    try {
-        await supabaseClient
-            .from('direct_messages')
-            .update({ read: true })
-            .eq('sender_id', friendId)
-            .eq('receiver_id', currentUser.id)
-            .eq('read', false);
-    } catch (error) {
-        console.error("Error marking messages as read:", error);
-    }
-}
-
-// Get time ago string
-function getTimeAgo(dateString) {
-    const now = new Date();
-    const past = new Date(dateString);
-    const diffMs = now - past;
-    const diffMins = Math.floor(diffMs / (1000 * 60));
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    const diffWeeks = Math.floor(diffDays / 7);
-    
-    if (diffMins < 1) return 'just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays === 1) return 'yesterday';
-    if (diffDays < 7) return `${diffDays}d ago`;
-    if (diffWeeks < 4) return `${diffWeeks}w ago`;
-    return past.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-}
-
-// Update notifications badge
-async function updateNotificationsBadge() {
-    try {
-        const { count, error } = await supabaseClient
-            .from('friend_requests')
-            .select('*', { count: 'exact', head: true })
-            .eq('receiver_id', currentUser.id)
-            .eq('status', 'pending');
-        
-        if (error) {
-            console.log("Friend requests error:", error.message);
-            hideNotificationBadge();
-            return;
-        }
-        
-        const unreadCount = count || 0;
-        
-        // Update header badge
-        const headerBadge = document.getElementById('headerNotificationBadge');
-        if (headerBadge) {
-            if (unreadCount > 0) {
-                headerBadge.textContent = unreadCount > 99 ? '99+' : unreadCount;
-                headerBadge.style.display = 'flex';
-            } else {
-                headerBadge.style.display = 'none';
-            }
-        }
-        
-        // Update bottom nav badge
-        const bottomBadge = document.getElementById('bottomNavBadge');
-        if (bottomBadge) {
-            if (unreadCount > 0) {
-                bottomBadge.textContent = unreadCount > 9 ? '9+' : unreadCount;
-                bottomBadge.style.display = 'flex';
-            } else {
-                bottomBadge.style.display = 'none';
-            }
-        }
-        
-    } catch (error) {
-        console.error("Error updating notifications badge:", error);
-        hideNotificationBadge();
-    }
-}
-
-// Hide notification badge
-function hideNotificationBadge() {
-    const headerBadge = document.getElementById('headerNotificationBadge');
-    const bottomBadge = document.getElementById('bottomNavBadge');
-    
-    if (headerBadge) headerBadge.style.display = 'none';
-    if (bottomBadge) bottomBadge.style.display = 'none';
-}
-
-// Setup real-time subscriptions
-function setupRealtimeSubscriptions() {
-    if (!supabaseClient || !currentUser) return;
-    
-    // Subscribe to online status changes
-    const statusChannel = supabaseClient.channel('online-status')
-        .on('postgres_changes', {
-            event: 'UPDATE',
-            schema: 'public',
-            table: 'profiles',
-            filter: `id=neq.${currentUser.id}`
-        }, (payload) => {
-            console.log('Status update:', payload.new);
-            updateFriendStatus(payload.new.id, payload.new.status);
-        })
-        .subscribe();
-    
-    // Subscribe to new messages
-    const messagesChannel = supabaseClient.channel('new-messages')
-        .on('postgres_changes', {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'direct_messages',
-            filter: `receiver_id=eq.${currentUser.id}`
-        }, (payload) => {
-            console.log('New message received:', payload.new);
-            handleNewMessage(payload.new);
-        })
-        .subscribe();
-    
-    // Subscribe to friend requests
-    const requestsChannel = supabaseClient.channel('friend-requests')
-        .on('postgres_changes', {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'friend_requests',
-            filter: `receiver_id=eq.${currentUser.id}`
-        }, (payload) => {
-            console.log('New friend request:', payload.new);
-            handleNewFriendRequest(payload.new);
-        })
-        .subscribe();
-    
-    realtimeSubscription = { statusChannel, messagesChannel, requestsChannel };
-    console.log("📡 Real-time subscriptions established");
-}
-
-// Update friend status in UI
-function updateFriendStatus(friendId, status) {
-    const chatItems = document.querySelectorAll(`.chat-item[data-friend-id="${friendId}"]`);
-    
-    chatItems.forEach(item => {
-        const statusDot = item.querySelector('.status-dot');
-        if (statusDot) {
-            statusDot.className = 'status-dot ' + (status === 'online' ? 'status-online' : 'status-offline');
-        }
-    });
-}
-
-// Handle new message
-async function handleNewMessage(message) {
-    // Update notifications badge
-    await updateNotificationsBadge();
-    
-    // Refresh chats to show new message
-    await loadChats();
-    
-    // Show notification
-    showMessageNotification(message);
-}
-
-// Show message notification
-function showMessageNotification(message) {
-    // Check if we have Notification permission
-    if (!("Notification" in window)) return;
-    
-    if (Notification.permission === "granted") {
-        // Get sender name
-        const senderName = 'New message'; // You would fetch this from your data
-        
-        new Notification(senderName, {
-            body: message.content,
-            icon: '/favicon.ico',
-            badge: '/favicon.ico'
-        });
-    }
-}
-
-// Handle new friend request
-function handleNewFriendRequest(request) {
-    // Update notifications badge
-    updateNotificationsBadge();
-    
-    // Show toast notification
-    showToast('New friend request received!', 'info');
-}
-
-// Show toast notification
-function showToast(message, type = 'info') {
-    const toast = document.createElement('div');
-    toast.className = `toast toast-${type}`;
-    toast.innerHTML = `
-        <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i>
-        <span>${message}</span>
-    `;
-    
-    document.body.appendChild(toast);
-    
-    setTimeout(() => {
-        toast.classList.add('show');
-    }, 10);
-    
-    setTimeout(() => {
-        toast.classList.remove('show');
-        setTimeout(() => {
-            document.body.removeChild(toast);
-        }, 300);
-    }, 3000);
-}
-
-// Show error message
-function showError(message) {
-    showToast(message, 'error');
-}
-
-// Setup event listeners
-function setupEventListeners() {
-    console.log("Setting up event listeners...");
-    
-    // Refresh chats button
-    const refreshBtn = document.getElementById('refreshChats');
-    if (refreshBtn) {
-        refreshBtn.addEventListener('click', async () => {
-            refreshBtn.classList.add('rotating');
-            await loadChats();
-            setTimeout(() => {
-                refreshBtn.classList.remove('rotating');
-            }, 1000);
-        });
-    }
-    
-    // New chat button
-    const newChatBtn = document.getElementById('newChatBtn');
-    if (newChatBtn) {
-        newChatBtn.addEventListener('click', openNewChatModal);
-    }
-    
-    // New chat modal search
-    const newChatSearch = document.getElementById('newChatSearch');
-    if (newChatSearch) {
-        newChatSearch.addEventListener('input', searchFriendsForNewChat);
-    }
-    
-    // Logout handler (if needed)
-    document.addEventListener('click', (e) => {
-        if (e.target.closest('#logoutBtn')) {
-            handleLogout();
-        }
-    });
-    
-    // Pull to refresh
-    let touchStartY = 0;
-    document.addEventListener('touchstart', (e) => {
-        touchStartY = e.touches[0].clientY;
-    });
-    
-    document.addEventListener('touchend', (e) => {
-        const touchEndY = e.changedTouches[0].clientY;
-        const diff = touchStartY - touchEndY;
-        
-        if (diff > 100 && window.scrollY === 0) {
-            // Pull to refresh
-            const refreshBtn = document.getElementById('refreshChats');
-            if (refreshBtn) {
-                refreshBtn.click();
-            }
-        }
-    });
-}
-
-// Open new chat modal
-async function openNewChatModal() {
-    const modal = document.getElementById('newChatModal');
-    if (!modal) return;
-    
-    modal.style.display = 'flex';
-    
-    // Load friends for modal
-    await loadFriendsForNewChat();
-}
-
-// Close modal
-function closeModal() {
-    const modals = document.querySelectorAll('.modal-overlay');
-    modals.forEach(modal => {
-        modal.style.display = 'none';
-    });
-}
-
-// Load friends for new chat modal
-async function loadFriendsForNewChat() {
-    const container = document.getElementById('friendsListModal');
-    if (!container) return;
-    
-    try {
-        // Get user's friends
-        const { data: friends, error } = await supabaseClient
-            .from('friends')
-            .select('friend_id')
-            .eq('user_id', currentUser.id);
-        
-        if (error || !friends || friends.length === 0) {
-            container.innerHTML = `
-                <div class="empty-state" style="padding: 20px;">
-                    <p>No friends yet. Add some friends first!</p>
-                </div>
-            `;
-            return;
-        }
-        
-        const friendIds = friends.map(f => f.friend_id);
-        
-        // Get profiles of friends
-        const { data: profiles } = await supabaseClient
-            .from('profiles')
-            .select('id, username, full_name, status')
-            .in('id', friendIds);
-        
-        if (!profiles || profiles.length === 0) {
-            container.innerHTML = `
-                <div class="empty-state" style="padding: 20px;">
-                    <p>No friends found</p>
-                </div>
-            `;
-            return;
-        }
-        
-        let html = '';
-        profiles.forEach(profile => {
-            const isOnline = profile.status === 'online';
+        // Sort by last message time or online status
+        filteredChats.sort((a, b) => {
+            // Online users first
+            if (a.profile.status === 'online' && b.profile.status !== 'online') return -1;
+            if (a.profile.status !== 'online' && b.profile.status === 'online') return 1;
             
-            html += `
-                <div class="friend-item-modal" data-friend-id="${profile.id}">
-                    <div class="friend-avatar-modal">
-                        ${profile.username ? profile.username.charAt(0).toUpperCase() : '?'}
-                    </div>
-                    <div class="friend-info-modal">
-                        <h4>${profile.username || 'Unknown User'}</h4>
-                        <p>${isOnline ? 'Online' : 'Offline'}</p>
-                    </div>
-                </div>
-            `;
+            // Then by last message time
+            const timeA = a.lastMessage ? new Date(a.lastMessage.created_at) : new Date(0);
+            const timeB = b.lastMessage ? new Date(b.lastMessage.created_at) : new Date(0);
+            return timeB - timeA;
         });
         
-        container.innerHTML = html;
-        
-        // Add click events
-        document.querySelectorAll('.friend-item-modal').forEach(item => {
-            item.addEventListener('click', function() {
-                const friendId = this.dataset.friendId;
-                const friendName = this.querySelector('h4').textContent;
-                closeModal();
-                openChat(friendId, friendName);
-            });
-        });
+        renderChats(filteredChats);
         
     } catch (error) {
-        console.error("Error loading friends for modal:", error);
-        container.innerHTML = `
-            <div class="empty-state" style="padding: 20px;">
-                <p>Error loading friends</p>
-            </div>
-        `;
+        console.error('Error loading chats:', error);
+        showError('Failed to load chats.');
+    } finally {
+        showLoading(false);
     }
 }
 
-// Search friends for new chat
-async function searchFriendsForNewChat() {
-    const searchInput = document.getElementById('newChatSearch');
-    const container = document.getElementById('friendsListModal');
+// Render chats
+function renderChats(chats) {
+    if (!chats || chats.length === 0) {
+        showEmptyState();
+        return;
+    }
     
-    if (!searchInput || !container) return;
+    emptyState.style.display = 'none';
+    chatsList.innerHTML = '';
     
-    const searchTerm = searchInput.value.toLowerCase().trim();
+    chats.forEach(chat => {
+        const chatElement = createChatElement(chat);
+        chatsList.appendChild(chatElement);
+    });
+}
+
+// Create chat element
+function createChatElement(chat) {
+    const { profile, lastMessage, unreadCount } = chat;
     
+    const chatItem = document.createElement('div');
+    chatItem.className = `chat-item ${unreadCount > 0 ? 'unread' : ''}`;
+    chatItem.onclick = () => openChat(profile.id);
+    
+    // Avatar with initial
+    const initial = profile.username ? profile.username.charAt(0).toUpperCase() : '?';
+    const avatarColor = profile.avatar_color || '#667eea';
+    
+    // Time ago
+    const lastMessageTime = lastMessage ? formatTimeAgo(lastMessage.created_at) : 'No messages yet';
+    
+    // Message preview
+    let messagePreview = 'Start a conversation!';
+    if (lastMessage) {
+        const isSender = lastMessage.sender_id === currentUser.id;
+        messagePreview = `${isSender ? 'You: ' : ''}${truncateText(lastMessage.content, 30)}`;
+    }
+    
+    chatItem.innerHTML = `
+        <div class="chat-avatar">
+            <div class="avatar-img" style="background: linear-gradient(135deg, ${avatarColor}, ${adjustColor(avatarColor, -20)})">
+                ${initial}
+            </div>
+            <div class="online-status ${profile.status === 'online' ? '' : 'offline'}"></div>
+        </div>
+        <div class="chat-content">
+            <div class="chat-header">
+                <div class="chat-name">${profile.username || 'Unknown User'}</div>
+                <div class="chat-time">${lastMessageTime}</div>
+            </div>
+            <div class="chat-preview">
+                <div class="chat-message ${unreadCount > 0 ? 'unread' : ''}">
+                    ${messagePreview}
+                </div>
+                ${unreadCount > 0 ? `
+                    <div class="unread-badge">
+                        ${unreadCount > 9 ? '9+' : unreadCount}
+                    </div>
+                ` : ''}
+            </div>
+        </div>
+    `;
+    
+    return chatItem;
+}
+
+// Format time ago
+function formatTimeAgo(timestamp) {
+    const now = new Date();
+    const date = new Date(timestamp);
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays === 1) return 'Yesterday';
+    if (diffDays < 7) return `${diffDays}d ago`;
+    if (diffDays < 30) return `${Math.floor(diffDays/7)}w ago`;
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+// Truncate text
+function truncateText(text, maxLength) {
+    if (text.length <= maxLength) return text;
+    return text.substring(0, maxLength) + '...';
+}
+
+// Adjust color brightness
+function adjustColor(color, amount) {
+    let usePound = false;
+    if (color[0] === "#") {
+        color = color.slice(1);
+        usePound = true;
+    }
+    const num = parseInt(color, 16);
+    let r = (num >> 16) + amount;
+    if (r > 255) r = 255;
+    else if (r < 0) r = 0;
+    let b = ((num >> 8) & 0x00FF) + amount;
+    if (b > 255) b = 255;
+    else if (b < 0) b = 0;
+    let g = (num & 0x0000FF) + amount;
+    if (g > 255) g = 255;
+    else if (g < 0) g = 0;
+    return (usePound ? "#" : "") + (g | (b << 8) | (r << 16)).toString(16).padStart(6, '0');
+}
+
+// Setup real-time updates
+function setupRealtimeUpdates() {
+    if (realtimeSubscription) {
+        supabase.removeChannel(realtimeSubscription);
+    }
+    
+    // Subscribe to direct_messages changes
+    realtimeSubscription = supabase
+        .channel('public:direct_messages')
+        .on('postgres_changes', 
+            { 
+                event: '*', 
+                schema: 'public', 
+                table: 'direct_messages',
+                filter: `receiver_id=eq.${currentUser.id}`
+            }, 
+            (payload) => {
+                console.log('New message real-time update:', payload);
+                loadChats(searchInput.value.trim());
+            }
+        )
+        .on('postgres_changes',
+            {
+                event: 'UPDATE',
+                schema: 'public',
+                table: 'profiles',
+                filter: `id=neq.${currentUser.id}`
+            },
+            (payload) => {
+                console.log('Profile status update:', payload);
+                loadChats(searchInput.value.trim());
+            }
+        )
+        .subscribe();
+}
+
+// Start heartbeat for online status
+function startHeartbeat() {
+    // Send initial heartbeat
+    sendHeartbeat();
+    
+    // Set up interval for heartbeat (every 30 seconds)
+    heartbeatInterval = setInterval(sendHeartbeat, 30000);
+    
+    // Send heartbeat on visibility change
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) {
+            sendHeartbeat();
+        }
+    });
+}
+
+// Send heartbeat to update online status
+async function sendHeartbeat() {
+    try {
+        await supabase
+            .from('profiles')
+            .update({ 
+                status: 'online',
+                last_seen: new Date().toISOString()
+            })
+            .eq('id', currentUser.id);
+    } catch (error) {
+        console.error('Heartbeat error:', error);
+    }
+}
+
+// Update notifications badge
+async function updateNotificationsBadge() {
+    try {
+        const { count, error } = await supabase
+            .from('friend_requests')
+            .select('*', { count: 'exact', head: true })
+            .eq('receiver_id', currentUser.id)
+            .eq('status', 'pending');
+        
+        if (error) throw error;
+        
+        const unreadCount = count || 0;
+        
+        // Update both badges
+        [notificationBadge, navNotificationBadge].forEach(badge => {
+            if (badge) {
+                if (unreadCount > 0) {
+                    badge.textContent = unreadCount > 9 ? '9+' : unreadCount;
+                    badge.style.display = 'flex';
+                } else {
+                    badge.style.display = 'none';
+                }
+            }
+        });
+        
+    } catch (error) {
+        console.error('Error updating notifications badge:', error);
+    }
+}
+
+// Setup event listeners
+function setupEventListeners() {
+    // Search input
+    let searchTimeout;
+    searchInput.addEventListener('input', (e) => {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+            loadChats(e.target.value.trim());
+        }, 300);
+        
+        // Show/hide clear button
+        clearSearch.classList.toggle('visible', e.target.value.length > 0);
+    });
+    
+    // Clear search
+    clearSearch.addEventListener('click', () => {
+        searchInput.value = '';
+        clearSearch.classList.remove('visible');
+        loadChats();
+    });
+    
+    // New chat FAB
+    newChatFab.addEventListener('click', openNewChatModal);
+    
+    // Notifications button
+    document.getElementById('notificationsBtn')?.addEventListener('click', () => {
+        window.location.href = 'notifications.html';
+    });
+    
+    // Pull to refresh
+    let startY = 0;
+    let currentY = 0;
+    let pulling = false;
+    
+    document.addEventListener('touchstart', (e) => {
+        startY = e.touches[0].pageY;
+    }, { passive: true });
+    
+    document.addEventListener('touchmove', (e) => {
+        if (window.scrollY === 0 && e.touches[0].pageY > startY) {
+            currentY = e.touches[0].pageY;
+            pulling = true;
+        }
+    }, { passive: true });
+    
+    document.addEventListener('touchend', () => {
+        if (pulling && currentY - startY > 100) {
+            loadChats(searchInput.value.trim());
+            showPullToRefreshFeedback();
+        }
+        pulling = false;
+        startY = 0;
+        currentY = 0;
+    }, { passive: true });
+}
+
+// Open new chat modal
+async function openNewChatModal() {
     try {
         // Get user's friends
-        const { data: friends } = await supabaseClient
+        const { data: friends, error } = await supabase
             .from('friends')
             .select('friend_id')
             .eq('user_id', currentUser.id);
         
-        if (!friends || friends.length === 0) return;
+        if (error) throw error;
+        
+        if (!friends || friends.length === 0) {
+            alert('Add friends first to start a chat!');
+            window.location.href = 'search.html';
+            return;
+        }
         
         const friendIds = friends.map(f => f.friend_id);
-               // Search in profiles
-        const { data: profiles } = await supabaseClient
+        
+        // Get profiles
+        const { data: profiles, error: profilesError } = await supabase
             .from('profiles')
-            .select('id, username, full_name, status')
+            .select('id, username, avatar_color')
             .in('id', friendIds)
-            .or(`username.ilike.%${searchTerm}%,full_name.ilike.%${searchTerm}%`);
+            .order('username');
+        
+        if (profilesError) throw profilesError;
+        
+        const modalList = document.getElementById('friendsListModal');
+        if (!modalList) return;
         
         if (!profiles || profiles.length === 0) {
-            container.innerHTML = `
-                <div class="empty-state" style="padding: 20px;">
-                    <p>No friends match your search</p>
+            modalList.innerHTML = `
+                <div class="empty-state">
+                    <p>No friends yet</p>
+                    <button class="btn-secondary" onclick="window.location.href='search.html'">
+                        Find Friends
+                    </button>
                 </div>
             `;
-            return;
+        } else {
+            modalList.innerHTML = profiles.map(profile => {
+                const initial = profile.username.charAt(0).toUpperCase();
+                const avatarColor = profile.avatar_color || '#667eea';
+                
+                return `
+                    <div class="friend-item" onclick="openChat('${profile.id}')">
+                        <div class="friend-avatar" style="background: linear-gradient(135deg, ${avatarColor}, ${adjustColor(avatarColor, -20)})">
+                            ${initial}
+                        </div>
+                        <div class="friend-name">${profile.username}</div>
+                        <i class="fas fa-chevron-right"></i>
+                    </div>
+                `;
+            }).join('');
         }
         
-        let html = '';
-        profiles.forEach(profile => {
-            const isOnline = profile.status === 'online';
-            
-            html += `
-                <div class="friend-item-modal" data-friend-id="${profile.id}">
-                    <div class="friend-avatar-modal">
-                        ${profile.username ? profile.username.charAt(0).toUpperCase() : '?'}
-                    </div>
-                    <div class="friend-info-modal">
-                        <h4>${profile.username || 'Unknown User'}</h4>
-                        <p>${isOnline ? 'Online' : 'Offline'}</p>
-                    </div>
-                </div>
-            `;
-        });
-        
-        container.innerHTML = html;
-        
-        // Add click events
-        document.querySelectorAll('.friend-item-modal').forEach(item => {
-            item.addEventListener('click', function() {
-                const friendId = this.dataset.friendId;
-                const friendName = this.querySelector('h4').textContent;
-                closeModal();
-                openChat(friendId, friendName);
-            });
-        });
+        newChatModal.style.display = 'flex';
         
     } catch (error) {
-        console.error("Error searching friends:", error);
+        console.error('Error opening new chat modal:', error);
+        alert('Failed to load friends.');
     }
 }
 
-// Handle logout
-async function handleLogout() {
-    try {
-        // Clean up real-time subscriptions
-        if (realtimeSubscription) {
-            Object.values(realtimeSubscription).forEach(channel => {
-                if (channel) channel.unsubscribe();
-            });
-        }
-        
-        // Sign out
-        await supabaseClient.auth.signOut();
-        
-        // Clear session storage
-        sessionStorage.clear();
-        
-        // Redirect to login
-        window.location.href = '../../auth/index.html';
-        
-    } catch (error) {
-        console.error("Error logging out:", error);
-        showError("Error logging out. Please try again.");
+// Open chat
+function openChat(friendId) {
+    window.location.href = `../chats/index.html?friendId=${friendId}`;
+}
+
+// Close modal
+function closeModal() {
+    newChatModal.style.display = 'none';
+}
+
+// Show empty state
+function showEmptyState() {
+    emptyState.style.display = 'block';
+    chatsList.innerHTML = '';
+}
+
+// Show loading
+function showLoading(show) {
+    const loadingElement = document.getElementById('loadingIndicator');
+    if (loadingElement) {
+        loadingElement.style.display = show ? 'block' : 'none';
     }
 }
 
-// Initialize when DOM is loaded
+// Show app
+function showApp() {
+    loadingScreen.style.opacity = '0';
+    setTimeout(() => {
+        loadingScreen.style.display = 'none';
+        appContainer.style.display = 'block';
+    }, 500);
+}
+
+// Show error
+function showError(message) {
+    loadingScreen.innerHTML = `
+        <div class="loading-content">
+            <div class="logo-circle" style="background: var(--danger)">
+                <i class="fas fa-exclamation"></i>
+            </div>
+            <h1>Oops!</h1>
+            <p>${message}</p>
+            <button class="btn-primary" onclick="location.reload()">
+                <i class="fas fa-redo"></i>
+                Try Again
+            </button>
+        </div>
+    `;
+}
+
+// Show pull to refresh feedback
+function showPullToRefreshFeedback() {
+    const feedback = document.createElement('div');
+    feedback.className = 'refresh-feedback';
+    feedback.innerHTML = '<i class="fas fa-check-circle"></i> Refreshed!';
+    feedback.style.cssText = `
+        position: fixed;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: var(--success);
+        color: white;
+        padding: 10px 20px;
+        border-radius: 25px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        z-index: 1000;
+        animation: slideDown 0.3s ease;
+    `;
+    
+    document.body.appendChild(feedback);
+    
+    setTimeout(() => {
+        feedback.style.animation = 'slideUp 0.3s ease';
+        setTimeout(() => feedback.remove(), 300);
+    }, 1500);
+}
+
+// Add CSS for animations
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes slideDown {
+        from { top: -50px; opacity: 0; }
+        to { top: 20px; opacity: 1; }
+    }
+    @keyframes slideUp {
+        from { top: 20px; opacity: 1; }
+        to { top: -50px; opacity: 0; }
+    }
+    .friend-item {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        padding: 15px;
+        background: var(--glass-bg);
+        border-radius: 15px;
+        margin-bottom: 10px;
+        cursor: pointer;
+        transition: var(--transition);
+    }
+    .friend-item:hover {
+        background: var(--light-surface);
+        transform: translateX(5px);
+    }
+    .friend-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        color: white;
+        flex-shrink: 0;
+    }
+    .friend-name {
+        flex: 1;
+        font-weight: 500;
+    }
+`;
+document.head.appendChild(style);
+
+// Initialize when page loads
 document.addEventListener('DOMContentLoaded', initHomePage);
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', () => {
+    if (realtimeSubscription) {
+        supabase.removeChannel(realtimeSubscription);
+    }
+    if (heartbeatInterval) {
+        clearInterval(heartbeatInterval);
+    }
+});
 
 // Make functions available globally
 window.openChat = openChat;
 window.closeModal = closeModal;
-window.openNewChatModal = openNewChatModal;
