@@ -1,4 +1,4 @@
-// Friends Page Script - WHATSAPP STYLE
+// Friends Page Script - FINAL POLISHED VERSION
 import { auth } from '../../../utils/auth.js'
 import { supabase } from '../../../utils/supabase.js'
 
@@ -7,6 +7,7 @@ console.log("✨ Friends Page Loaded");
 // Current user
 let currentUser = null;
 let currentProfile = null;
+let allFriends = []; // Store all friends for search filtering
 
 // Toast Notification System
 class ToastNotification {
@@ -25,7 +26,7 @@ class ToastNotification {
     }
 
     show(options) {
-        const { title = '', message = '', type = 'info', duration = 5000 } = options;
+        const { title = '', message = '', type = 'info', duration = 4000 } = options;
         
         const toast = document.createElement('div');
         toast.className = `toast toast-${type}`;
@@ -70,20 +71,20 @@ const toast = new ToastNotification();
 async function initFriendsPage() {
     console.log("Initializing friends page...");
 
-    // Hide loading after 2 seconds max (safety net)
-    setTimeout(() => {
+    // Set up loading timeout safety
+    const loadingTimeout = setTimeout(() => {
         const loadingIndicator = document.getElementById('loadingIndicator');
-        if (loadingIndicator && loadingIndicator.style.display !== 'none') {
+        if (loadingIndicator) {
             loadingIndicator.style.display = 'none';
-            console.log("⚠️ Forced loading stop");
+            console.log("Safety timeout: Hid loading indicator");
         }
-    }, 5000);
+    }, 8000);
 
     try {
         const { success, user } = await auth.getCurrentUser();  
 
         if (!success || !user) {  
-            // Show login prompt instead of redirecting
+            clearTimeout(loadingTimeout);
             showLoginPrompt();
             return;  
         }  
@@ -94,7 +95,14 @@ async function initFriendsPage() {
         // Load friends
         await loadFriendsList();
         
+        // Set up search
+        setupSearch();
+        
+        // Set up real-time subscription for status updates
+        setupRealtimeUpdates();
+        
         // Hide loading
+        clearTimeout(loadingTimeout);
         const loadingIndicator = document.getElementById('loadingIndicator');
         if (loadingIndicator) {
             loadingIndicator.style.display = 'none';
@@ -102,6 +110,7 @@ async function initFriendsPage() {
 
     } catch (error) {
         console.error("Init error:", error);
+        clearTimeout(loadingTimeout);
         toast.error("Error", "Failed to load page");
         
         // Hide loading on error
@@ -112,62 +121,21 @@ async function initFriendsPage() {
     }
 }
 
-// Show login prompt (beautiful design)
+// Show login prompt
 function showLoginPrompt() {
     const mainContent = document.querySelector('.main-content');
     if (!mainContent) return;
     
     mainContent.innerHTML = `
-        <div class="login-prompt" style="
-            text-align: center;
-            padding: 60px 20px;
-            max-width: 400px;
-            margin: 100px auto;
-        ">
-            <div style="
-                font-size: 4rem;
-                margin-bottom: 20px;
-                opacity: 0.8;
-            ">🔒</div>
-            <h2 style="
-                font-size: 1.8rem;
-                margin-bottom: 15px;
-                background: linear-gradient(45deg, #667eea, #764ba2);
-                -webkit-background-clip: text;
-                -webkit-text-fill-color: transparent;
-            ">Login Required</h2>
-            <p style="
-                color: #a0a0c0;
-                margin-bottom: 30px;
-                line-height: 1.5;
-            ">Please login to view your friends and messages</p>
-            <div style="display: flex; flex-direction: column; gap: 15px; max-width: 250px; margin: 0 auto;">
-                <button onclick="goToLogin()" style="
-                    background: linear-gradient(45deg, #667eea, #764ba2);
-                    color: white;
-                    border: none;
-                    padding: 15px 25px;
-                    border-radius: 12px;
-                    font-size: 1rem;
-                    font-weight: 500;
-                    cursor: pointer;
-                    transition: all 0.2s;
-                " onmouseover="this.style.transform='translateY(-2px)'" 
-                onmouseout="this.style.transform='translateY(0)'">
+        <div class="login-prompt">
+            <div class="login-icon">🔒</div>
+            <h2 class="login-title">Login Required</h2>
+            <p class="login-subtitle">Please login to view your friends and messages</p>
+            <div class="login-buttons">
+                <button class="login-btn" onclick="goToLogin()">
                     <i class="fas fa-sign-in-alt"></i> Login
                 </button>
-                <button onclick="goToSignup()" style="
-                    background: rgba(255, 255, 255, 0.1);
-                    color: white;
-                    border: 1px solid rgba(255, 255, 255, 0.2);
-                    padding: 15px 25px;
-                    border-radius: 12px;
-                    font-size: 1rem;
-                    font-weight: 500;
-                    cursor: pointer;
-                    transition: all 0.2s;
-                " onmouseover="this.style.transform='translateY(-2px)'" 
-                onmouseout="this.style.transform='translateY(0)'">
+                <button class="signup-btn" onclick="goToSignup()">
                     <i class="fas fa-user-plus"></i> Sign Up
                 </button>
             </div>
@@ -181,23 +149,28 @@ function showLoginPrompt() {
     }
 }
 
-// CORRECT PATHS for login/signup
+// CORRECT PATHS - Adjust these based on your actual structure
 function goToLogin() {
-    window.location.href = '../../../auth/index.html';  // Adjust based on your structure
+    // If your auth is at: app/pages/auth/index.html
+    window.location.href = '../../auth/index.html';  
 }
 
 function goToSignup() {
-    window.location.href = '../../../auth/index.html?signup=true';  // Or your signup page
+    // If your auth is at: app/pages/auth/index.html
+    window.location.href = '../../auth/index.html?signup=true';  
 }
 
-// Load friends list with WhatsApp style
-async function loadFriendsList() {
+// Load friends list
+async function loadFriendsList(searchTerm = '') {
     if (!currentUser) return;
 
     const container = document.getElementById('friendsContainer');  
     if (!container) return;  
 
     try {  
+        // Show loading skeleton
+        showLoadingSkeleton(container);
+
         // Get friend IDs  
         const { data: friends, error } = await supabase  
             .from('friends')  
@@ -208,6 +181,7 @@ async function loadFriendsList() {
 
         if (!friends || friends.length === 0) {  
             showEmptyFriends(container);  
+            allFriends = [];
             return;  
         }  
 
@@ -215,44 +189,87 @@ async function loadFriendsList() {
         const friendIds = friends.map(f => f.friend_id);  
         const { data: profiles, error: profilesError } = await supabase  
             .from('profiles')  
-            .select('id, username, status, last_seen')  
+            .select('id, username, status, last_seen, avatar_url')  
             .in('id', friendIds);  
 
         if (profilesError) throw profilesError;  
 
-        // Get unread message counts for each friend
+        // Get unread message counts
         const unreadCounts = await getUnreadMessageCounts(friendIds);
 
-        // Update stats
-        updateFriendsStats(profiles);
+        // Store all friends for search filtering
+        allFriends = profiles.map(profile => ({
+            ...profile,
+            unreadCount: unreadCounts[profile.id] || 0
+        }));
 
-        // Display friends in WhatsApp style
-        displayFriendsWhatsAppStyle(profiles, unreadCounts, container);
+        // Filter by search term
+        let filteredFriends = allFriends;
+        if (searchTerm) {
+            const term = searchTerm.toLowerCase();
+            filteredFriends = allFriends.filter(friend => 
+                friend.username.toLowerCase().includes(term) ||
+                (friend.full_name && friend.full_name.toLowerCase().includes(term))
+            );
+        }
+
+        // Update stats
+        updateFriendsStats(filteredFriends);
+
+        // Display friends
+        if (filteredFriends.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon">🔍</div>
+                    <h3 class="empty-title">No Friends Found</h3>
+                    <p class="empty-desc">Try a different search term</p>
+                </div>
+            `;
+            return;
+        }
+
+        displayFriendsWhatsAppStyle(filteredFriends, container);
 
     } catch (error) {  
         console.error("Error loading friends:", error);  
-        showEmptyFriends(container);  
+        showErrorState(container, error.message);  
     }
 }
 
-// Get unread message counts for each friend
+// Show loading skeleton
+function showLoadingSkeleton(container) {
+    let html = '';
+    for (let i = 0; i < 8; i++) {
+        html += `
+            <div class="friend-skeleton">
+                <div class="skeleton-avatar"></div>
+                <div class="skeleton-info">
+                    <div class="skeleton-name"></div>
+                    <div class="skeleton-status"></div>
+                </div>
+            </div>
+        `;
+    }
+    container.innerHTML = html;
+}
+
+// Get unread message counts
 async function getUnreadMessageCounts(friendIds) {
     const unreadCounts = {};
     
     try {
-        // Assuming you have a messages table with a 'read' boolean field
-        // This query counts unread messages from each friend
-        for (const friendId of friendIds) {
-            const { count, error } = await supabase
-                .from('messages')
-                .select('*', { count: 'exact', head: true })
-                .eq('receiver_id', currentUser.id)
-                .eq('sender_id', friendId)
-                .eq('read', false);
-            
-            if (!error && count) {
-                unreadCounts[friendId] = count;
-            }
+        // Try to get unread counts from messages table
+        const { data: unreadMessages, error } = await supabase
+            .from('messages')
+            .select('sender_id')
+            .eq('receiver_id', currentUser.id)
+            .in('sender_id', friendIds)
+            .eq('read', false);
+        
+        if (!error && unreadMessages) {
+            unreadMessages.forEach(msg => {
+                unreadCounts[msg.sender_id] = (unreadCounts[msg.sender_id] || 0) + 1;
+            });
         }
     } catch (error) {
         console.log("Note: Could not load unread counts", error.message);
@@ -262,59 +279,58 @@ async function getUnreadMessageCounts(friendIds) {
 }
 
 // Update friends stats
-function updateFriendsStats(profiles) {
+function updateFriendsStats(friends) {
     const totalFriends = document.getElementById('totalFriends');
     const onlineFriends = document.getElementById('onlineFriends');
     
-    if (totalFriends) totalFriends.textContent = profiles.length;
+    if (totalFriends) totalFriends.textContent = friends.length;
     if (onlineFriends) {
-        const onlineCount = profiles.filter(p => p.status === 'online').length;
+        const onlineCount = friends.filter(f => f.status === 'online').length;
         onlineFriends.textContent = onlineCount;
     }
 }
 
 // Display friends in WhatsApp style
-function displayFriendsWhatsAppStyle(profiles, unreadCounts, container) {
+function displayFriendsWhatsAppStyle(friends, container) {
     // Sort: online first, then by unread count, then by name
-    profiles.sort((a, b) => {
+    friends.sort((a, b) => {
         // Online first
         if (a.status === 'online' && b.status !== 'online') return -1;
         if (a.status !== 'online' && b.status === 'online') return 1;
         
         // More unread messages first
-        const aUnread = unreadCounts[a.id] || 0;
-        const bUnread = unreadCounts[b.id] || 0;
-        if (aUnread > bUnread) return -1;
-        if (aUnread < bUnread) return 1;
+        if (a.unreadCount > b.unreadCount) return -1;
+        if (a.unreadCount < b.unreadCount) return 1;
         
         // Alphabetical
         return a.username.localeCompare(b.username);
     });
 
     let html = '';  
-    profiles.forEach(profile => {  
-        const isOnline = profile.status === 'online';  
-        const lastSeen = profile.last_seen ? new Date(profile.last_seen) : new Date();  
+    friends.forEach(friend => {  
+        const isOnline = friend.status === 'online';  
+        const lastSeen = friend.last_seen ? new Date(friend.last_seen) : new Date();  
         const timeAgo = getTimeAgo(lastSeen);  
-        const firstLetter = profile.username ? profile.username.charAt(0).toUpperCase() : '?';  
-        const unreadCount = unreadCounts[profile.id] || 0;
+        const firstLetter = friend.username ? friend.username.charAt(0).toUpperCase() : '?';  
+        const avatarUrl = friend.avatar_url || `https://ui-avatars.com/api/?name=${friend.username}&background=667eea&color=fff`;
 
         html += `  
-            <div class="friend-item-whatsapp" onclick="openChat('${profile.id}', '${profile.username}')">  
+            <div class="friend-item-whatsapp" onclick="openChat('${friend.id}', '${friend.username}')">  
                 <div class="friend-avatar-whatsapp">  
-                    <div class="friend-avatar-initial">${firstLetter}</div>  
+                    <img src="${avatarUrl}" alt="${friend.username}" class="friend-avatar-image" 
+                         onerror="this.src='https://ui-avatars.com/api/?name=${friend.username}&background=667eea&color=fff'">
                     <span class="status-indicator-whatsapp ${isOnline ? 'online' : 'offline'}"></span>
                 </div>  
                 <div class="friend-info-whatsapp">  
                     <div class="friend-name-status">  
-                        <div class="friend-name-whatsapp">${profile.username}</div>  
+                        <div class="friend-name-whatsapp">${friend.username}</div>  
                         <div class="friend-status-whatsapp">  
                             ${isOnline ? 'Online' : 'Last seen ' + timeAgo}  
                         </div>  
                     </div>  
-                    ${unreadCount > 0 ? `  
+                    ${friend.unreadCount > 0 ? `  
                         <div class="unread-badge">  
-                            ${unreadCount > 9 ? '9+' : unreadCount}  
+                            ${friend.unreadCount > 9 ? '9+' : friend.unreadCount}  
                         </div>  
                     ` : ''}  
                 </div>  
@@ -338,6 +354,19 @@ function showEmptyFriends(container) {
     `;
 }
 
+function showErrorState(container, errorMessage) {
+    container.innerHTML = `  
+        <div class="empty-state">  
+            <div class="empty-icon">⚠️</div>  
+            <h3 class="empty-title">Connection Error</h3>  
+            <p class="empty-desc">${errorMessage || 'Could not load friends'}</p>  
+            <button class="search-btn" onclick="loadFriendsList()" style="margin-top: 20px;">
+                <i class="fas fa-sync"></i> Try Again
+            </button>
+        </div>  
+    `;
+}
+
 // Get time ago string
 function getTimeAgo(date) {
     const now = new Date();
@@ -355,6 +384,56 @@ function getTimeAgo(date) {
     return past.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
+// Set up search functionality
+function setupSearch() {
+    const searchInput = document.getElementById('searchFriendsInput');
+    if (!searchInput) return;
+    
+    let searchTimeout;
+    
+    searchInput.addEventListener('input', function() {
+        clearTimeout(searchTimeout);
+        const searchTerm = this.value.trim();
+        
+        searchTimeout = setTimeout(() => {
+            loadFriendsList(searchTerm);
+        }, 300);
+    });
+}
+
+// Set up real-time updates for online status
+function setupRealtimeUpdates() {
+    // Subscribe to profile changes (for online status)
+    const subscription = supabase
+        .channel('profiles-changes')
+        .on('postgres_changes', 
+            { 
+                event: 'UPDATE', 
+                schema: 'public', 
+                table: 'profiles',
+                filter: `id=in.(${allFriends.map(f => f.id).join(',')})`
+            }, 
+            (payload) => {
+                console.log('Profile updated:', payload.new);
+                // Update the specific friend in our list
+                const updatedFriend = allFriends.find(f => f.id === payload.new.id);
+                if (updatedFriend) {
+                    updatedFriend.status = payload.new.status;
+                    updatedFriend.last_seen = payload.new.last_seen;
+                    // Re-render the list
+                    displayFriendsWhatsAppStyle(allFriends, document.getElementById('friendsContainer'));
+                    updateFriendsStats(allFriends);
+                }
+            }
+        )
+        .subscribe();
+    
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', () => {
+        supabase.removeChannel(subscription);
+    });
+}
+
 // CORRECT PATH for chats page
 async function openChat(friendId, friendUsername = 'Friend') {
     console.log("Opening chat with:", friendId);
@@ -368,11 +447,12 @@ async function openChat(friendId, friendUsername = 'Friend') {
         username: friendUsername  
     }));  
     
-    // CORRECT PATH to chats page
-    window.location.href = '../chats/index.html?friendId=' + friendId;  // Adjust if needed
+    // CORRECT PATH - Adjust based on your structure
+    // If chats are at: app/pages/chats/index.html
+    window.location.href = '../chats/index.html?friendId=' + friendId;
 }
 
-// Mark messages as read when opening chat
+// Mark messages as read
 async function markMessagesAsRead(friendId) {
     try {
         await supabase
@@ -382,8 +462,12 @@ async function markMessagesAsRead(friendId) {
             .eq('sender_id', friendId)
             .eq('read', false);
         
-        // Reload friends list to update unread badges
-        setTimeout(() => loadFriendsList(), 500);
+        // Update unread count locally
+        const friend = allFriends.find(f => f.id === friendId);
+        if (friend) {
+            friend.unreadCount = 0;
+            displayFriendsWhatsAppStyle(allFriends, document.getElementById('friendsContainer'));
+        }
     } catch (error) {
         console.log("Could not mark messages as read:", error.message);
     }
@@ -391,17 +475,15 @@ async function markMessagesAsRead(friendId) {
 
 // Navigation functions
 function goToHome() {
-    window.location.href = '../index.html';  // Adjust if needed
+    // If home is at: app/pages/home/index.html
+    window.location.href = '../index.html';
 }
 
 function openSearch() {
-    // Show search modal or redirect to search
     const modal = document.getElementById('searchModal');
     if (modal) {
         modal.style.display = 'flex';
         loadSearchResults();
-    } else {
-        window.location.href = '../index.html#search';  // Adjust
     }
 }
 
@@ -417,6 +499,17 @@ function closeModal() {
     document.querySelectorAll('.modal-overlay').forEach(modal => {
         modal.style.display = 'none';
     });
+}
+
+// Search modal functions (for adding new friends)
+async function loadSearchResults() {
+    // Implementation for adding new friends
+    toast.info("Search", "Find new friends feature");
+}
+
+async function loadNotifications() {
+    // Implementation for notifications
+    toast.info("Notifications", "View friend requests");
 }
 
 // Make functions available globally
