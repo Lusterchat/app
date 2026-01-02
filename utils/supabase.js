@@ -11,17 +11,17 @@ const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYm
 const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 // ================================================
-// 🔥 CRITICAL: EXPOSE SUPABASE GLOBALLY
+// 🔥 EXPORTS SECTION - MULTIPLE OPTIONS
 // ================================================
-// Export for ES6 modules (for files that import it)
-export { supabase }
 
-// ALSO expose globally for regular scripts
+// Option 1: Named export (for pages using: import { supabase } from './supabase.js')
+export { supabase };
+
+// Option 2: Default export (for pages using: import supabase from './supabase.js')
+export default supabase;
+
+// Option 3: Global exposure (for pages using regular <script> tags)
 if (typeof window !== 'undefined') {
     window.supabase = supabase;
     console.log('✅ Supabase exposed globally as window.supabase');
 }
-// ================================================
-
-// Optional: Log when supabase is loaded
-console.log('🚀 Supabase client initialized');
