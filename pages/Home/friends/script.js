@@ -1,4 +1,4 @@
-// Friends Page Script - WITH ABSOLUTE PATHS
+// Friends Page Script - WITH ABSOLUTE PATHS AND CALL FUNCTIONALITY
 import { auth } from '/app/utils/auth.js'
 import { supabase } from '/app/utils/supabase.js'
 
@@ -11,7 +11,9 @@ const PATHS = {
     LOGIN: '/app/pages/login/index.html',  
     SIGNUP: '/app/pages/auth/index.html',
     CHATS: '/app/pages/chats/index.html',
-    FRIENDS: '/app/pages/home/friends/index.html'
+    FRIENDS: '/app/pages/home/friends/index.html',
+    PHONE: '/app/pages/phone/index.html',
+    PHONE_CALL: '/app/pages/phone/call.html'
 };
 // ==================== END PATHS CONFIG ====================
 
@@ -308,7 +310,7 @@ function updateFriendsStats(friends) {
     }
 }
 
-// Display friends in CLEAN style
+// Display friends in CLEAN style WITH CALL BUTTONS
 function displayFriendsCleanStyle(friends, container) {
     // Sort: online first, then by unread count, then by name
     friends.sort((a, b) => {
@@ -333,8 +335,13 @@ function displayFriendsCleanStyle(friends, container) {
         // Get ONLY FIRST LETTER (uppercase)
         const firstLetter = friend.username ? friend.username.charAt(0).toUpperCase() : '?';  
 
-        // Simple avatar color (all same color)
+        // Simple avatar color
         const avatarColor = '#667eea';
+
+        // Phone icon SVG
+        const phoneIconSVG = `<svg class="phone-icon" viewBox="0 0 24 24" width="20" height="20">
+            <path fill="white" d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/>
+        </svg>`;
 
         html += `  
             <div class="friend-item-clean" onclick="openChat('${friend.id}', '${friend.username}')">  
@@ -349,11 +356,19 @@ function displayFriendsCleanStyle(friends, container) {
                             ${isOnline ? 'Online' : 'Last seen ' + timeAgo}  
                         </div>  
                     </div>  
-                    ${friend.unreadCount > 0 ? `  
-                        <div class="unread-badge-clean">  
-                            ${friend.unreadCount > 9 ? '9+' : friend.unreadCount}  
-                        </div>  
-                    ` : ''}  
+                    <div class="friend-actions" style="display: flex; align-items: center; gap: 10px;">
+                        ${friend.unreadCount > 0 ? `  
+                            <div class="unread-badge-clean">  
+                                ${friend.unreadCount > 9 ? '9+' : friend.unreadCount}  
+                            </div>  
+                        ` : ''}
+                        <button class="call-button ${isOnline ? '' : 'offline'}" 
+                                onclick="startCall('${friend.id}', '${friend.username}', event)"
+                                ${!isOnline ? 'disabled' : ''}
+                                title="${isOnline ? 'Call ' + friend.username : 'Friend is offline'}">
+                            ${phoneIconSVG}
+                        </button>
+                    </div>
                 </div>  
             </div>  
         `;  
@@ -387,6 +402,306 @@ function showErrorState(container, errorMessage) {
         </div>  
     `;
 }
+
+// ==================== CALL FUNCTIONALITY ====================
+
+// Start a call with friend
+async function startCall(friendId, friendName, event) {
+    if (event) {
+        event.stopPropagation(); // Prevent opening chat
+        event.preventDefault();
+    }
+    
+    const isOnline = await checkFriendOnline(friendId);
+    
+    if (!isOnline) {
+        toast.info("Friend Offline", `${friendName} is currently offline`);
+        return;
+    }
+    
+    // Show call options modal
+    showCallOptions(friendId, friendName);
+}
+
+// Check if friend is online
+async function checkFriendOnline(friendId) {
+    try {
+        const { data: presence } = await supabase
+            .from('user_presence')
+            .select('is_online')
+            .eq('user_id', friendId)
+            .single();
+            
+        return presence?.is_online || false;
+    } catch (error) {
+        console.log("Error checking online status:", error);
+        return false;
+    }
+}
+
+// Show call options modal
+function showCallOptions(friendId, friendName) {
+    // Create modal if it doesn't exist
+    let modal = document.getElementById('callOptionsModal');
+    
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'callOptionsModal';
+        modal.className = 'modal-overlay';
+        modal.innerHTML = `
+            <div class="modal-content call-options-modal">
+                <div class="call-modal-header">
+                    <div class="call-modal-avatar">${friendName.charAt(0).toUpperCase()}</div>
+                    <div class="call-modal-info">
+                        <h3>Call ${friendName}</h3>
+                        <p>Choose call type</p>
+                    </div>
+                </div>
+                
+                <div class="call-modal-options">
+                    <button class="call-option voice-call-option" onclick="initiateVoiceCall('${friendId}', '${friendName}')">
+                        <i class="fas fa-phone"></i>
+                        <span>Voice Call</span>
+                    </button>
+                    <button class="call-option video-call-option" onclick="initiateVideoCall('${friendId}', '${friendName}')">
+                        <i class="fas fa-video"></i>
+                        <span>Video Call</span>
+                    </button>
+                    <button class="call-option message-option" onclick="openChat('${friendId}', '${friendName}')">
+                        <i class="fas fa-comment"></i>
+                        <span>Send Message</span>
+                    </button>
+                </div>
+                
+                <div class="call-modal-actions">
+                    <button class="modal-close-btn" onclick="closeCallOptions()">Cancel</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        
+        // Add styles for call modal
+        if (!document.querySelector('#callOptionsStyles')) {
+            const styles = document.createElement('style');
+            styles.id = 'callOptionsStyles';
+            styles.textContent = `
+                .call-options-modal {
+                    max-width: 400px;
+                    background: rgba(26, 26, 46, 0.95);
+                    backdrop-filter: blur(20px);
+                    border: 1px solid rgba(255,255,255,0.1);
+                    border-radius: 20px;
+                }
+                
+                .call-modal-header {
+                    text-align: center;
+                    padding: 30px 20px;
+                }
+                
+                .call-modal-avatar {
+                    width: 80px;
+                    height: 80px;
+                    border-radius: 50%;
+                    background: linear-gradient(135deg, #667eea, #764ba2);
+                    margin: 0 auto 15px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 2rem;
+                    font-weight: bold;
+                    color: white;
+                }
+                
+                .call-modal-info h3 {
+                    color: white;
+                    font-size: 1.5rem;
+                    margin-bottom: 5px;
+                }
+                
+                .call-modal-info p {
+                    color: #a0a0c0;
+                    font-size: 0.9rem;
+                }
+                
+                .call-modal-options {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 12px;
+                    padding: 0 20px 20px;
+                }
+                
+                .call-option {
+                    display: flex;
+                    align-items: center;
+                    gap: 15px;
+                    padding: 18px;
+                    background: rgba(255,255,255,0.05);
+                    border: 1px solid rgba(255,255,255,0.1);
+                    border-radius: 15px;
+                    color: white;
+                    font-size: 1.1rem;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                    border: none;
+                    -webkit-tap-highlight-color: transparent;
+                }
+                
+                .call-option:active {
+                    background: rgba(255,255,255,0.1);
+                    transform: scale(0.98);
+                }
+                
+                .call-option i {
+                    font-size: 1.3rem;
+                }
+                
+                .voice-call-option i {
+                    color: #4CAF50;
+                }
+                
+                .video-call-option i {
+                    color: #667eea;
+                }
+                
+                .message-option i {
+                    color: #FF9500;
+                }
+                
+                .call-modal-actions {
+                    padding: 20px;
+                    border-top: 1px solid rgba(255,255,255,0.1);
+                }
+                
+                .modal-close-btn {
+                    width: 100%;
+                    padding: 15px;
+                    background: rgba(255,255,255,0.05);
+                    border: 1px solid rgba(255,255,255,0.1);
+                    border-radius: 15px;
+                    color: white;
+                    font-size: 1rem;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                    border: none;
+                    -webkit-tap-highlight-color: transparent;
+                }
+                
+                .modal-close-btn:active {
+                    background: rgba(255,255,255,0.1);
+                    transform: scale(0.98);
+                }
+            `;
+            document.head.appendChild(styles);
+        }
+    }
+    
+    // Update modal content
+    modal.querySelector('.call-modal-avatar').textContent = friendName.charAt(0).toUpperCase();
+    modal.querySelector('.call-modal-info h3').textContent = `Call ${friendName}`;
+    
+    // Update button onclick handlers
+    modal.querySelector('.voice-call-option').onclick = () => initiateVoiceCall(friendId, friendName);
+    modal.querySelector('.video-call-option').onclick = () => initiateVideoCall(friendId, friendName);
+    modal.querySelector('.message-option').onclick = () => openChat(friendId, friendName);
+    
+    // Show modal
+    modal.style.display = 'flex';
+}
+
+// Close call options modal
+function closeCallOptions() {
+    const modal = document.getElementById('callOptionsModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
+// Initiate voice call
+function initiateVoiceCall(friendId, friendName) {
+    closeCallOptions();
+    
+    // Create call record in database
+    createCallRecord(friendId, 'voice').then(callId => {
+        if (callId) {
+            // Navigate to call page
+            window.location.href = `${PATHS.PHONE_CALL}?type=outgoing&callId=${callId}&contactId=${friendId}&name=${encodeURIComponent(friendName)}`;
+        }
+    });
+}
+
+// Initiate video call
+function initiateVideoCall(friendId, friendName) {
+    closeCallOptions();
+    
+    // Create call record in database
+    createCallRecord(friendId, 'video').then(callId => {
+        if (callId) {
+            // Navigate to call page (with video flag)
+            window.location.href = `${PATHS.PHONE_CALL}?type=outgoing&callId=${callId}&contactId=${friendId}&name=${encodeURIComponent(friendName)}&video=true`;
+        }
+    });
+}
+
+// Create call record in database
+async function createCallRecord(friendId, callType) {
+    if (!currentUser) return null;
+    
+    try {
+        const roomId = 'call_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        
+        const { data: call, error } = await supabase
+            .from('calls')
+            .insert({
+                room_id: roomId,
+                caller_id: currentUser.id,
+                receiver_id: friendId,
+                status: 'ringing',
+                call_type: callType,
+                initiated_at: new Date().toISOString()
+            })
+            .select()
+            .single();
+            
+        if (error) throw error;
+        
+        // Send notification to friend
+        sendCallNotification(friendId, call.id);
+        
+        toast.success("Calling", `Calling your friend...`);
+        return call.id;
+        
+    } catch (error) {
+        console.error("Error creating call record:", error);
+        toast.error("Call Failed", "Could not initiate call");
+        return null;
+    }
+}
+
+// Send call notification to friend
+async function sendCallNotification(friendId, callId) {
+    try {
+        // Create notification for friend
+        await supabase
+            .from('notifications')
+            .insert({
+                user_id: friendId,
+                type: 'call',
+                title: 'Incoming Call',
+                body: `${currentUser.email?.split('@')[0] || 'Someone'} is calling you`,
+                action_url: `${PATHS.PHONE_CALL}?type=incoming&callId=${callId}`,
+                metadata: {
+                    call_id: callId,
+                    caller_id: currentUser.id,
+                    call_type: 'voice'
+                }
+            });
+            
+    } catch (error) {
+        console.log("Notification not sent:", error.message);
+    }
+}
+
+// ==================== CHAT FUNCTIONALITY ====================
 
 // Get time ago string
 function getTimeAgo(date) {
@@ -459,6 +774,8 @@ async function markMessagesAsRead(friendId) {
         console.log("Could not mark messages as read:", error.message);
     }
 }
+
+// ==================== MODAL FUNCTIONS ====================
 
 // Search modal functions
 function openSearchModal() {
@@ -585,8 +902,9 @@ async function loadNotifications() {
             `;
             return;
         }
+
         // Get sender usernames
-          const senderIds = requests.map(r => r.sender_id);
+        const senderIds = requests.map(r => r.sender_id);
         const { data: profiles } = await supabase
             .from('profiles')
             .select('id, username')
@@ -597,25 +915,32 @@ async function loadNotifications() {
             profiles.forEach(p => profileMap[p.id] = p.username);
         }
 
-        html += `  
-    <div class="notification-item">  
-        <div class="notification-avatar" style="background: #667eea;">${firstLetter}</div>
-        <div class="notification-content">  
-            <div class="notification-text">  
-                <div class="notification-title">${senderName} wants to be friends</div>  
-                <div class="notification-time">${timeAgo}</div>  
-            </div>  
-            <div class="notification-actions">  
-                <button class="accept-btn" onclick="window.acceptFriendRequest('${notification.id}', '${notification.sender_id}', '${senderName}', this)">  
-                    Accept  
-                </button>  
-                <button class="decline-btn" onclick="window.declineFriendRequest('${notification.id}', this)">  
-                    Decline  
-                </button>  
-            </div>  
-        </div>  
-    </div>  
-`;
+        let html = '';
+        requests.forEach(notification => {
+            const senderName = profileMap[notification.sender_id] || 'Unknown';
+            const firstLetter = senderName.charAt(0).toUpperCase();
+            const timeAgo = getTimeAgo(new Date(notification.created_at));
+            
+            html += `  
+                <div class="notification-item">  
+                    <div class="notification-avatar" style="background: #667eea;">${firstLetter}</div>
+                    <div class="notification-content">  
+                        <div class="notification-text">  
+                            <div class="notification-title">${senderName} wants to be friends</div>  
+                            <div class="notification-time">${timeAgo}</div>  
+                        </div>  
+                        <div class="notification-actions">  
+                            <button class="accept-btn" onclick="acceptRequest('${notification.id}', '${notification.sender_id}', this)">  
+                                Accept  
+                            </button>  
+                            <button class="decline-btn" onclick="declineRequest('${notification.id}', this)">  
+                                Decline  
+                            </button>  
+                        </div>  
+                    </div>  
+                </div>  
+            `;
+        });
 
         container.innerHTML = html;
 
@@ -702,6 +1027,13 @@ window.openChat = openChat;
 window.sendFriendRequest = sendFriendRequest;
 window.acceptRequest = acceptRequest;
 window.declineRequest = declineRequest;
+
+// Call functions
+window.startCall = startCall;
+window.showCallOptions = showCallOptions;
+window.closeCallOptions = closeCallOptions;
+window.initiateVoiceCall = initiateVoiceCall;
+window.initiateVideoCall = initiateVideoCall;
 
 // Initialize when page loads
 document.addEventListener('DOMContentLoaded', initFriendsPage);
