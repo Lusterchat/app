@@ -1,4 +1,4 @@
-// /app/utils/presence.js - FIXED VERSION WITHOUT RLS ISSUES
+// /app/utils/presence.js - FIXED VERSION
 import { supabase } from './supabase.js';
 
 class PresenceTracker {
@@ -16,17 +16,23 @@ class PresenceTracker {
 
         console.log("👁️ Presence tracking started for:", userId);
 
-        // Initial online status - WITHOUT UPSERT (using direct SQL call)
-        await this.updatePresenceWithFunction(true);
+        // Initial online status
+        await this.updatePresenceWithFunction('general', 'online');
 
         // Periodic updates (every 45 seconds)
         this.intervalId = setInterval(() => {
-            this.updatePresenceWithFunction(document.visibilityState === 'visible');
+            this.updatePresenceWithFunction(
+                'general', 
+                document.visibilityState === 'visible' ? 'online' : 'away'
+            );
         }, 45000);
 
         // Visibility changes
         document.addEventListener('visibilitychange', () => {
-            this.updatePresenceWithFunction(document.visibilityState === 'visible');
+            this.updatePresenceWithFunction(
+                'general',
+                document.visibilityState === 'visible' ? 'online' : 'away'
+            );
         });
 
         // Page unload
@@ -35,45 +41,72 @@ class PresenceTracker {
         return true;
     }
 
-    // NEW METHOD: Use Supabase function to avoid RLS issues
-    async updatePresenceWithFunction(isOnline) {
-    if (!this.userId || !this.isTracking) return;
+    async updatePresenceWithFunction(roomId = 'general', status = 'online') {
+        if (!this.userId || !this.isTracking) return;
 
-    try {
-        // Convert userId to UUID format if needed
-        const userId = this.userId;
-        
-        // If userId is not a valid UUID (like email), get the actual user UUID
-        let userUuid = userId;
-        
-        // If it's not a valid UUID format, try to get from auth
-        if (!userId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+        try {
+            // Get the current user's UUID
             const { data: { user } } = await supabase.auth.getUser();
-            if (user) {
-                userUuid = user.id;
+            if (!user) {
+                console.error("No user found");
+                return false;
             }
+
+            // Call database function with CORRECT 3 PARAMETERS
+            const { error } = await supabase.rpc('update_user_presence', {
+                p_user_id: user.id,        // UUID
+                p_room_id: roomId,         // TEXT
+                p_status: status           // TEXT
+            });
+
+            if (error) {
+                console.error("Presence function error:", error);
+                
+                // Fallback to direct upsert if function fails
+                return await this.updatePresenceDirectly(roomId, status);
+            }
+
+            console.log(`✅ Presence updated via function: ${status}`);
+            this.retryCount = 0;
+            return true;
+
+        } catch (error) {
+            console.error(`❌ Presence update failed:`, error.message);
+            return false;
         }
-
-        // Call database function
-        const { error } = await supabase.rpc('update_user_presence', {
-            p_user_id: userUuid,
-            p_is_online: isOnline
-        });
-
-        if (error) {
-            console.error("Presence function error:", error);
-            throw error;
-        }
-
-        console.log(`✅ Presence updated via function: ${isOnline ? 'Online' : 'Offline'}`);
-        this.retryCount = 0;
-        return true;
-
-    } catch (error) {
-        console.error(`❌ Presence update failed:`, error.message);
-        return false;
     }
-}
+
+    async updatePresenceDirectly(roomId = 'general', status = 'online') {
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return false;
+
+            const { error } = await supabase
+                .from('user_presence')
+                .upsert({
+                    user_id: user.id,
+                    room_id: roomId,
+                    status: status,
+                    is_online: (status === 'online' || status === 'in-call'),
+                    last_seen: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                }, {
+                    onConflict: 'user_id, room_id'
+                });
+
+            if (error) {
+                console.error("Direct presence update failed:", error);
+                return false;
+            }
+
+            console.log(`✅ Presence updated directly: ${status}`);
+            return true;
+
+        } catch (error) {
+            console.error("Direct update error:", error);
+            return false;
+        }
+    }
 
     async stop() {
         this.isTracking = false;
@@ -83,10 +116,10 @@ class PresenceTracker {
             this.intervalId = null;
         }
 
-        // Mark as offline on exit using function
+        // Mark as offline on exit
         if (this.userId) {
             try {
-                await this.updatePresenceWithFunction(false);
+                await this.updatePresenceWithFunction('general', 'offline');
             } catch (error) {
                 console.log("Note: Could not update offline status on exit");
             }
@@ -97,19 +130,24 @@ class PresenceTracker {
 
     async checkOnlineStatus(userId) {
         try {
-            // Use select with simple condition - no RLS recursion
             const { data: presence, error } = await supabase
                 .from('user_presence')
-                .select('is_online, last_seen')
+                .select('is_online, last_seen, status')
                 .eq('user_id', userId)
-                .maybeSingle(); // Use maybeSingle to avoid errors if no record
+                .order('updated_at', { ascending: false })
+                .limit(1)
+                .maybeSingle();
 
             if (error || !presence) {
-                return { online: false, lastSeen: null };
+                return { online: false, lastSeen: null, status: 'offline' };
             }
 
             if (presence.is_online) {
-                return { online: true, lastSeen: presence.last_seen };
+                return { 
+                    online: true, 
+                    lastSeen: presence.last_seen, 
+                    status: presence.status 
+                };
             }
 
             const lastSeen = new Date(presence.last_seen);
@@ -117,14 +155,20 @@ class PresenceTracker {
             const minutesAway = (now - lastSeen) / (1000 * 60);
 
             return { 
-                online: minutesAway < 5,
-                lastSeen: presence.last_seen 
+                online: minutesAway < 2,
+                lastSeen: presence.last_seen,
+                status: presence.status
             };
 
         } catch (error) {
             console.error("Error checking online status:", error);
-            return { online: false, lastSeen: null };
+            return { online: false, lastSeen: null, status: 'offline' };
         }
+    }
+
+    // Helper method for updating in specific rooms (like calls)
+    async updateCallPresence(roomId, callStatus = 'in-call') {
+        return await this.updatePresenceWithFunction(roomId, callStatus);
     }
 }
 
