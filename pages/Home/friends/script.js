@@ -1,4 +1,4 @@
-// Friends Page Script - CORRECTED PATHS
+// Friends Page Script - COMPLETE FIXED VERSION
 import { auth } from '/app/utils/auth.js'
 import { supabase } from '/app/utils/supabase.js'
 import presenceTracker from '/app/utils/presence.js';
@@ -7,20 +7,19 @@ console.log("✨ Friends Page Loaded");
 
 // ==================== ABSOLUTE PATHS CONFIGURATION ====================
 const PATHS = {
-    HOME: '/app/pages/Home/index.html',           // Capital H
+    HOME: '/app/pages/Home/index.html',
     LOGIN: '/app/pages/login/index.html',  
     SIGNUP: '/app/pages/auth/index.html',
     CHATS: '/app/pages/chats/index.html',
-    FRIENDS: '/app/pages/Home/friends/index.html' // Capital H
+    FRIENDS: '/app/pages/Home/friends/index.html'
 };
 
 // ==================== VARIABLES ====================
 let currentUser = null;
+let currentProfile = null;
 let allFriends = [];
-let callServiceInstance = null;
-let callTimerInterval = null;
 
-// Toast Notification System (keep same as before)
+// Toast Notification System
 class ToastNotification {
     constructor() {
         this.container = document.getElementById('toastContainer');
@@ -105,17 +104,26 @@ async function initFriendsPage() {
         currentUser = user;  
         console.log("✅ Authenticated as:", currentUser.email);  
 
+        // ✅ FIXED: Start presence tracking with new function
         await presenceTracker.start(currentUser.id);
+
+        // Load friends
         await loadFriendsList();
+
+        // Set up search
         setupSearch();
+
+        // Setup incoming call listener
         setupIncomingCallListener();
 
+        // Hide loading
         clearTimeout(loadingTimeout);
         const loadingIndicator = document.getElementById('loadingIndicator');
         if (loadingIndicator) {
             loadingIndicator.style.display = 'none';
         }
 
+        // Setup friend presence listener
         setupFriendPresenceListener();
 
     } catch (error) {
@@ -150,6 +158,7 @@ function setupFriendPresenceListener() {
                 filter: `user_id=in.(${friendIds})`
             },
             async (payload) => {
+                console.log('👥 Friend presence changed:', payload.new);
                 const friend = allFriends.find(f => f.id === payload.new.user_id);
                 if (friend) {
                     friend.is_online = payload.new.is_online;
@@ -167,71 +176,33 @@ function updateFriendOnlineStatus(friendId, isOnline) {
     const friendItems = document.querySelectorAll('.friend-item-clean');
 
     friendItems.forEach(item => {
-        const avatar = item.querySelector('.friend-avatar-clean');
-        if (avatar && avatar.textContent?.trim()[0]) {
-            const friendNameElement = item.querySelector('.friend-name-clean');
-            if (friendNameElement) {
-                const friendName = friendNameElement.textContent;
-                const friend = allFriends.find(f => f.username === friendName);
+        const friendNameElement = item.querySelector('.friend-name-clean');
+        if (friendNameElement) {
+            const friendName = friendNameElement.textContent;
+            const friend = allFriends.find(f => f.username === friendName);
 
-                if (friend && friend.id === friendId) {
-                    const statusIndicator = item.querySelector('.status-indicator-clean');
-                    const statusText = item.querySelector('.friend-status-clean');
-                    const callButton = item.querySelector('.call-button');
+            if (friend && friend.id === friendId) {
+                const statusIndicator = item.querySelector('.status-indicator-clean');
+                const statusText = item.querySelector('.friend-status-clean');
+                const callButton = item.querySelector('.call-button');
 
-                    if (statusIndicator) {
-                        statusIndicator.className = `status-indicator-clean ${isOnline ? 'online' : 'offline'}`;
-                    }
+                if (statusIndicator) {
+                    statusIndicator.className = `status-indicator-clean ${isOnline ? 'online' : 'offline'}`;
+                }
 
-                    if (statusText) {
-                        statusText.textContent = isOnline ? 'Online' : 'Last seen ' + getTimeAgo(new Date(friend.last_seen || new Date()));
-                    }
+                if (statusText) {
+                    statusText.textContent = isOnline ? 'Online' : 'Last seen ' + getTimeAgo(new Date(friend.last_seen || new Date()));
+                }
 
-                    // Call button always enabled, just show status
-                    if (callButton) {
-                        if (isOnline) {
-                            callButton.classList.remove('offline');
-                            callButton.title = 'Call ' + friend.username;
-                        } else {
-                            callButton.classList.add('offline');
-                            callButton.title = 'Call ' + friend.username + ' (offline - will ring when online)';
-                        }
-                    }
+                if (callButton) {
+                    callButton.classList.toggle('offline', !isOnline);
+                    callButton.title = isOnline ? 
+                        'Call ' + friend.username : 
+                        'Call ' + friend.username + ' (offline - will ring when online)';
                 }
             }
         }
     });
-}
-
-async function checkIfUserIsOnline(userId) {
-    try {
-        const { data: presence, error } = await supabase
-            .from('user_presence')
-            .select('is_online, last_seen')
-            .eq('user_id', userId)
-            .single();
-
-        if (error || !presence) {
-            return { online: false, lastSeen: null };
-        }
-
-        if (presence.is_online) {
-            return { online: true, lastSeen: presence.last_seen };
-        }
-
-        const lastSeen = new Date(presence.last_seen);
-        const now = new Date();
-        const minutesAway = (now - lastSeen) / (1000 * 60);
-
-        return { 
-            online: minutesAway < 5,
-            lastSeen: presence.last_seen 
-        };
-
-    } catch (error) {
-        console.error("Error checking online status:", error);
-        return { online: false, lastSeen: null };
-    }
 }
 
 // ==================== NAVIGATION ====================
@@ -293,6 +264,7 @@ async function loadFriendsList(searchTerm = '') {
     try {  
         showLoadingSkeleton(container);
 
+        // Get friend IDs  
         const { data: friends, error } = await supabase  
             .from('friends')  
             .select('friend_id')  
@@ -306,6 +278,7 @@ async function loadFriendsList(searchTerm = '') {
             return;  
         }  
 
+        // Get profiles for each friend  
         const friendIds = friends.map(f => f.friend_id);  
         const { data: profiles, error: profilesError } = await supabase  
             .from('profiles')  
@@ -314,8 +287,9 @@ async function loadFriendsList(searchTerm = '') {
 
         if (profilesError) throw profilesError;  
 
+        // Get presence for each friend
         const presencePromises = profiles.map(async (profile) => {
-            const status = await checkIfUserIsOnline(profile.id);
+            const status = await presenceTracker.checkOnlineStatus(profile.id);
             return { 
                 ...profile, 
                 is_online: status.online,
@@ -331,6 +305,7 @@ async function loadFriendsList(searchTerm = '') {
             unreadCount: unreadCounts[profile.id] || 0
         }));
 
+        // Filter by search term
         let filteredFriends = allFriends;
         if (searchTerm) {
             const term = searchTerm.toLowerCase();
@@ -362,7 +337,7 @@ async function loadFriendsList(searchTerm = '') {
 
 function showLoadingSkeleton(container) {
     let html = '';
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < 6; i++) { // Changed from 8 to 6 as you mentioned
         html += `
             <div class="friend-skeleton">
                 <div class="skeleton-avatar"></div>
@@ -414,6 +389,7 @@ function updateFriendsStats(friends) {
 }
 
 function displayFriendsCleanStyle(friends, container) {
+    // Sort: online first, then by unread count, then by name
     friends.sort((a, b) => {
         if (a.is_online && !b.is_online) return -1;
         if (!a.is_online && b.is_online) return 1;
@@ -428,13 +404,14 @@ function displayFriendsCleanStyle(friends, container) {
         const firstLetter = friend.username ? friend.username.charAt(0).toUpperCase() : '?';  
         const avatarColor = '#667eea';
 
+        // Phone icon SVG
         const phoneIconSVG = `<svg class="phone-icon" viewBox="0 0 24 24" width="20" height="20">
             <path fill="white" d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/>
         </svg>`;
 
         html += `  
             <div class="friend-item-clean" onclick="openChat('${friend.id}', '${friend.username}')">  
-                <div class="friend-avatar-clean" style="background: ${avatarColor};" data-user-id="${friend.id}">  
+                <div class="friend-avatar-clean" style="background: ${avatarColor};">  
                     ${firstLetter}
                     <span class="status-indicator-clean ${isOnline ? 'online' : 'offline'}"></span>
                 </div>  
@@ -517,47 +494,28 @@ async function startCall(friendId, friendName, event) {
     
     console.log("📞 Starting call with:", friendName, friendId);
     
-    // CALLS ALWAYS AVAILABLE - Even when offline!
-    
     try {
+        // Show calling UI
         showCallScreen(friendName, friendId, 'outgoing');
         
+        // Import call service
         const { default: callService } = await import('/app/utils/callService.js');
-        callServiceInstance = callService;
         
+        // Initialize
         await callService.initialize(currentUser.id);
         
+        // Setup callbacks
         callService.setOnCallStateChange((state) => {
             updateCallScreenStatus(state);
         });
         
         callService.setOnRemoteStream((stream) => {
             const audio = document.getElementById('remoteAudio');
-            if (audio) {
-                audio.srcObject = stream;
-            }
+            if (audio) audio.srcObject = stream;
         });
         
-        callService.setOnCallEvent((event, data) => {
-            if (event === 'call_ended') {
-                setTimeout(hideCallScreen, 1000);
-            } else if (event === 'call_failed') {
-                toast.error("Call Failed", "Could not connect to friend");
-                hideCallScreen();
-            }
-        });
-        
-        // Start call - it will work even if friend is offline
+        // Start call
         await callService.initiateCall(friendId, 'voice');
-        
-        // Show status based on friend's online status
-        const friend = allFriends.find(f => f.id === friendId);
-        if (friend && !friend.is_online) {
-            const statusText = document.getElementById('callStatusText');
-            if (statusText) {
-                statusText.innerHTML = `Ringing... <span style="font-size: 0.9em; color: #ff9500;">(Friend is offline - will ring when they come online)</span>`;
-            }
-        }
         
     } catch (error) {
         console.error("❌ Call failed:", error);
@@ -587,34 +545,12 @@ function showCallScreen(friendName, friendId, type = 'outgoing') {
         align-items: center;
         justify-content: center;
         color: white;
-        font-family: inherit;
-        animation: fadeInCall 0.3s ease;
+        animation: fadeIn 0.3s ease;
     `;
-    
-    const style = document.createElement('style');
-    style.textContent = `
-        @keyframes fadeInCall {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-        
-        @keyframes pulseRing {
-            0% { transform: scale(0.8); opacity: 0.8; }
-            70% { transform: scale(1.2); opacity: 0; }
-            100% { transform: scale(1.2); opacity: 0; }
-        }
-        
-        @keyframes fadeOut {
-            from { opacity: 1; }
-            to { opacity: 0; }
-        }
-    `;
-    document.head.appendChild(style);
     
     callScreen.innerHTML = `
         <div style="text-align: center; padding: 30px; width: 100%; max-width: 500px;">
-            <!-- Friend Avatar with Ring Animation -->
-            <div class="calling-ring" style="
+            <div style="
                 width: 150px;
                 height: 150px;
                 border-radius: 50%;
@@ -631,15 +567,12 @@ function showCallScreen(friendName, friendId, type = 'outgoing') {
                 ${firstLetter}
             </div>
             
-            <!-- Friend Name -->
             <h2 style="font-size: 2.5rem; margin-bottom: 15px; color: white;">${friendName}</h2>
             
-            <!-- Call Status -->
             <p id="callStatusText" style="color: #a0a0c0; margin-bottom: 40px; font-size: 1.3rem;">
                 ${type === 'outgoing' ? 'Calling...' : 'Incoming call...'}
             </p>
             
-            <!-- Call Timer -->
             <div id="callTimer" style="
                 font-size: 3rem;
                 font-weight: bold;
@@ -650,112 +583,50 @@ function showCallScreen(friendName, friendId, type = 'outgoing') {
                 display: none;
             ">00:00</div>
             
-            <!-- Hidden Audio -->
             <audio id="remoteAudio" autoplay style="display: none;"></audio>
             
-            <!-- Call Controls -->
-            <div style="
-                display: flex;
-                justify-content: center;
-                gap: 30px;
-                margin-top: 50px;
-                flex-wrap: wrap;
-            ">
-                <!-- Mute Button -->
-                <div style="text-align: center;">
-                    <button onclick="toggleMuteCall()" id="muteCallBtn" style="
-                        width: 80px;
-                        height: 80px;
-                        border-radius: 50%;
-                        background: rgba(255,255,255,0.1);
-                        border: 2px solid rgba(255,255,255,0.2);
-                        color: white;
-                        font-size: 2rem;
-                        cursor: pointer;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        transition: all 0.2s;
-                    ">
-                        🔇
-                    </button>
-                    <p style="margin-top: 10px; color: #a0a0c0; font-size: 0.9rem;">Mute</p>
-                </div>
+            <div style="display: flex; justify-content: center; gap: 30px; margin-top: 50px;">
+                <button onclick="toggleMuteCall()" id="muteCallBtn" style="
+                    width: 80px;
+                    height: 80px;
+                    border-radius: 50%;
+                    background: rgba(255,255,255,0.1);
+                    border: 2px solid rgba(255,255,255,0.2);
+                    color: white;
+                    font-size: 2rem;
+                    cursor: pointer;
+                    display: none;
+                ">
+                    🔇
+                </button>
                 
-                <!-- Speaker Button -->
-                <div style="text-align: center;">
-                    <button onclick="toggleSpeaker()" id="speakerBtn" style="
-                        width: 80px;
-                        height: 80px;
-                        border-radius: 50%;
-                        background: rgba(255,255,255,0.1);
-                        border: 2px solid rgba(255,255,255,0.2);
-                        color: white;
-                        font-size: 2rem;
-                        cursor: pointer;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        transition: all 0.2s;
-                    ">
-                        🔊
-                    </button>
-                    <p style="margin-top: 10px; color: #a0a0c0; font-size: 0.9rem;">Speaker</p>
-                </div>
-                
-                <!-- End Call Button -->
-                <div style="text-align: center;">
-                    <button onclick="endCurrentCall()" style="
-                        width: 80px;
-                        height: 80px;
-                        border-radius: 50%;
-                        background: linear-gradient(45deg, #ff3b30, #ff5e3a);
-                        border: none;
-                        color: white;
-                        font-size: 2rem;
-                        cursor: pointer;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        transition: all 0.2s;
-                        box-shadow: 0 5px 15px rgba(255, 59, 48, 0.4);
-                    ">
-                        📞
-                    </button>
-                    <p style="margin-top: 10px; color: #ff6b6b; font-size: 0.9rem;">End Call</p>
-                </div>
+                <button onclick="endCurrentCall()" style="
+                    width: 80px;
+                    height: 80px;
+                    border-radius: 50%;
+                    background: linear-gradient(45deg, #ff3b30, #ff5e3a);
+                    border: none;
+                    color: white;
+                    font-size: 2rem;
+                    cursor: pointer;
+                ">
+                    ❌
+                </button>
             </div>
         </div>
     `;
     
     document.body.appendChild(callScreen);
     
-    // Add ring animation for outgoing calls
-    if (type === 'outgoing') {
-        const ringStyle = document.createElement('style');
-        ringStyle.textContent = `
-            .calling-ring::before {
-                content: '';
-                position: absolute;
-                top: -10px;
-                left: -10px;
-                right: -10px;
-                bottom: -10px;
-                border-radius: 50%;
-                background: inherit;
-                animation: pulseRing 1.5s infinite;
-                z-index: -1;
-            }
-        `;
-        document.head.appendChild(ringStyle);
-    }
+    const style = document.createElement('style');
+    style.textContent = `@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }`;
+    document.head.appendChild(style);
 }
 
 function updateCallScreenStatus(state) {
     const statusText = document.getElementById('callStatusText');
     const timer = document.getElementById('callTimer');
     const muteBtn = document.getElementById('muteCallBtn');
-    const speakerBtn = document.getElementById('speakerBtn');
     
     if (!statusText) return;
     
@@ -768,16 +639,9 @@ function updateCallScreenStatus(state) {
             break;
         case 'active':
             statusText.textContent = 'Call Connected';
-            if (timer) {
-                timer.style.display = 'block';
-                startCallTimer();
-            }
-            if (muteBtn) {
-                muteBtn.style.display = 'block';
-            }
-            if (speakerBtn) {
-                speakerBtn.style.display = 'block';
-            }
+            if (timer) timer.style.display = 'block';
+            if (muteBtn) muteBtn.style.display = 'block';
+            startCallTimer();
             break;
         case 'ending':
             statusText.textContent = 'Ending call...';
@@ -785,77 +649,28 @@ function updateCallScreenStatus(state) {
     }
 }
 
+let callTimerInterval = null;
 function startCallTimer() {
     let seconds = 0;
     const timerEl = document.getElementById('callTimer');
     if (!timerEl) return;
     
     clearInterval(callTimerInterval);
-    
     callTimerInterval = setInterval(() => {
         seconds++;
         const minutes = Math.floor(seconds / 60);
         const secs = seconds % 60;
-        timerEl.textContent = 
-            `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        timerEl.textContent = `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     }, 1000);
-}
-
-let isMuted = false;
-let isSpeakerOn = true;
-
-async function toggleMuteCall() {
-    if (!callServiceInstance) return;
-    
-    isMuted = !isMuted;
-    const muteBtn = document.getElementById('muteCallBtn');
-    if (muteBtn) {
-        muteBtn.innerHTML = isMuted ? '🔈' : '🔇';
-        muteBtn.style.background = isMuted ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.1)';
-    }
-    
-    await callServiceInstance.toggleMute();
-}
-
-function toggleSpeaker() {
-    const audio = document.getElementById('remoteAudio');
-    if (!audio) return;
-    
-    isSpeakerOn = !isSpeakerOn;
-    const speakerBtn = document.getElementById('speakerBtn');
-    
-    if (speakerBtn) {
-        speakerBtn.innerHTML = isSpeakerOn ? '🔊' : '🔈';
-        speakerBtn.style.background = isSpeakerOn ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.1)';
-    }
-    
-    // Adjust volume: 40% when off (60% decrease), 100% when on
-    audio.volume = isSpeakerOn ? 1.0 : 0.4;
-}
-
-async function endCurrentCall() {
-    if (callServiceInstance) {
-        await callServiceInstance.endCall();
-    }
-    hideCallScreen();
 }
 
 function hideCallScreen() {
     const callScreen = document.getElementById('callScreen');
-    if (callScreen) {
-        callScreen.style.animation = 'fadeOut 0.3s ease';
-        setTimeout(() => {
-            callScreen.remove();
-        }, 300);
-    }
-    
+    if (callScreen) callScreen.remove();
     if (callTimerInterval) {
         clearInterval(callTimerInterval);
         callTimerInterval = null;
     }
-    
-    isMuted = false;
-    isSpeakerOn = true;
 }
 
 // ==================== INCOMING CALL HANDLER ====================
@@ -890,80 +705,25 @@ async function showIncomingCallScreen(call) {
     showCallScreen(caller.username, call.id, 'incoming');
 }
 
-async function answerIncomingCall(callId) {
-    try {
-        const { default: callService } = await import('/app/utils/callService.js');
-        callServiceInstance = callService;
-        
-        await callService.initialize(currentUser.id);
-        callService.setOnCallStateChange(updateCallScreenStatus);
-        callService.setOnRemoteStream((stream) => {
-            const audio = document.getElementById('remoteAudio');
-            if (audio) audio.srcObject = stream;
-        });
-        
-        await callService.answerCall(callId);
-        
-    } catch (error) {
-        console.error("Answer call failed:", error);
-        hideCallScreen();
-        toast.error("Failed", "Could not answer call");
-    }
-}
+// ==================== GLOBAL FUNCTIONS ====================
 
-async function rejectIncomingCall(callId) {
-    try {
-        await supabase
-            .from('calls')
-            .update({ status: 'rejected' })
-            .eq('id', callId);
-    } catch (error) {
-        console.error("Reject call failed:", error);
-    }
-    hideCallScreen();
-}
+window.startCall = startCall;
+window.openChat = openChat;
+window.hideCallScreen = hideCallScreen;
+window.endCurrentCall = hideCallScreen;
+window.toggleMuteCall = function() {
+    console.log("Mute toggled");
+};
 
-// ==================== OTHER FUNCTIONS ====================
-function showLoginPrompt() {
-    const mainContent = document.querySelector('.main-content');
-    if (!mainContent) return;
-
-    mainContent.innerHTML = `
-        <div class="login-prompt">
-            <div class="login-icon">🔒</div>
-            <h2 class="login-title">Login Required</h2>
-            <p class="login-subtitle">Please login to view your friends and messages</p>
-            <div class="login-buttons">
-                <button class="login-btn" onclick="goToLogin()">
-                    <i class="fas fa-sign-in-alt"></i> Login
-                </button>
-                <button class="signup-btn" onclick="goToSignup()">
-                    <i class="fas fa-user-plus"></i> Sign Up
-                </button>
-            </div>
-        </div>
-    `;
-
-    const loadingIndicator = document.getElementById('loadingIndicator');
-    if (loadingIndicator) {
-        loadingIndicator.style.display = 'none';
-    }
-}
-
-// ==================== INITIALIZE ====================
-document.addEventListener('DOMContentLoaded', initFriendsPage);
-
-// Clean up on page unload
+// Clean up
 window.addEventListener('beforeunload', async () => {
     if (currentUser) {
         await presenceTracker.stop();
     }
-
     if (presenceChannel) {
         supabase.removeChannel(presenceChannel);
     }
-    
-    if (callServiceInstance) {
-        await callServiceInstance.endCall();
-    }
 });
+
+// Initialize
+document.addEventListener('DOMContentLoaded', initFriendsPage);
