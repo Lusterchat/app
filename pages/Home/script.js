@@ -159,24 +159,147 @@ let currentUser = null;
 let currentProfile = null;
 
 // Initialize home page
-async function initHomePage() {
-    console.log("Initializing home page...");
 
-    // Check if user is logged in  
-    const { success, user } = await auth.getCurrentUser();  
+// Initialize friends page
+async function initFriendsPage() {
+    console.log("Initializing friends page...");
+    console.log("Using absolute paths:", PATHS);
 
-    if (!success || !user) {  
-        showError("Login Required", "Please login to continue");
-        setTimeout(() => {
-            window.location.href = '../auth/index.html';  
-        }, 1500);
-        return;  
-    }  
+    // Set up loading timeout safety
+    const loadingTimeout = setTimeout(() => {
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        if (loadingIndicator) {
+            loadingIndicator.style.display = 'none';
+            console.log("Safety timeout: Hid loading indicator");
+        }
+    }, 8000);
 
-    currentUser = user;  
-    console.log("Logged in as:", currentUser.email);  
+    try {
+        const { success, user } = await auth.getCurrentUser();  
 
-    // Get user profile  
+        if (!success || !user) {  
+            clearTimeout(loadingTimeout);
+            showLoginPrompt();
+            return;  
+        }  
+
+        currentUser = user;  
+        console.log("✅ Authenticated as:", currentUser.email);  
+
+        // ✅ START PRESENCE TRACKING - ADDED HERE
+        await startPresenceTracking(currentUser.id);
+
+        // Load friends
+        await loadFriendsList();
+
+        // Set up search
+        setupSearch();
+
+        // Hide loading
+        clearTimeout(loadingTimeout);
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        if (loadingIndicator) {
+            loadingIndicator.style.display = 'none';
+        }
+
+        // Setup real-time listeners for friend status changes
+        setupFriendPresenceListener();
+
+    } catch (error) {
+        console.error("Init error:", error);
+        clearTimeout(loadingTimeout);
+        toast.error("Error", "Failed to load page");
+
+        // Hide loading on error
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        if (loadingIndicator) {
+            loadingIndicator.style.display = 'none';
+        }
+    }
+}
+ // ==================== PRESENCE FUNCTIONS FOR HOME PAGE ====================
+
+// ==================== PRESENCE FUNCTIONS FOR HOME PAGE ====================
+
+let presenceTrackerInterval = null;
+
+async function startPresenceTracking(userId) {
+    console.log("👁️ Starting presence tracking for user:", userId);
+    
+    try {
+        // Mark user as online immediately
+        await updateUserPresence(userId, true);
+        
+        // Update presence every 30 seconds
+        presenceTrackerInterval = setInterval(async () => {
+            await updateUserPresence(userId, document.visibilityState === 'visible');
+        }, 30000);
+        
+        // Setup visibility change listener
+        document.addEventListener('visibilitychange', async () => {
+            const isOnline = document.visibilityState === 'visible';
+            await updateUserPresence(userId, isOnline);
+        });
+        
+        console.log("✅ Presence tracking started on home page");
+        
+    } catch (error) {
+        console.error("❌ Failed to start presence tracking:", error);
+    }
+}
+
+async function updateUserPresence(userId, isOnline) {
+    try {
+        const now = new Date().toISOString();
+        
+        const { error } = await supabase
+            .from('user_presence')
+            .upsert({
+                user_id: userId,
+                is_online: isOnline,
+                last_seen: now,
+                updated_at: now
+            }, {
+                onConflict: 'user_id'
+            });
+        
+        if (error) {
+            console.error("❌ Failed to update presence:", error);
+            return false;
+        }
+        
+        console.log(`✅ Home page presence: ${isOnline ? 'Online' : 'Offline'}`);
+        return true;
+        
+    } catch (error) {
+        console.error("❌ Error updating presence:", error);
+        return false;
+    }
+}
+
+// Stop presence tracking when leaving home page
+function stopPresenceTracking() {
+    console.log("👋 Stopping presence tracking from home page");
+    
+    if (presenceTrackerInterval) {
+        clearInterval(presenceTrackerInterval);
+        presenceTrackerInterval = null;
+    }
+    
+    // Mark as offline when leaving
+    if (currentUser) {
+        updateUserPresence(currentUser.id, false);
+    }
+}
+
+// Add cleanup on page unload
+window.addEventListener('beforeunload', stopPresenceTracking);
+document.addEventListener('visibilitychange', function() {
+    if (document.hidden && currentUser) {
+        updateUserPresence(currentUser.id, false);
+    }
+});
+   // Get user profile  
     await loadUserProfile();  
 
     // Update UI  
