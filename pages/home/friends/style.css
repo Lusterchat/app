@@ -1,4 +1,4 @@
-/* friends/style.css - FINAL WITH FIXES */
+/* friends/style.css - CLEAN DESIGN */
 
 /* Prevent text selection and blue tap highlight */
 * {
@@ -30,8 +30,9 @@ a:active {
     -webkit-tap-highlight-color: transparent !important;
 }
 
-/* WhatsApp Style Friend Items */
-.friend-item-whatsapp {
+/* ==================== CLEAN FRIEND ITEMS ==================== */
+
+.friend-item-clean {
     display: flex;
     align-items: center;
     gap: 15px;
@@ -45,30 +46,34 @@ a:active {
     -webkit-tap-highlight-color: transparent;
 }
 
-.friend-item-whatsapp:active {
+.friend-item-clean:active {
     background: rgba(255, 255, 255, 0.1);
     transform: scale(0.98);
 }
 
-.friend-item-whatsapp:hover {
+.friend-item-clean:hover {
     background: rgba(255, 255, 255, 0.1);
     border-color: rgba(102, 126, 234, 0.2);
 }
 
-.friend-avatar-whatsapp {
+/* Single color avatar for all friends */
+.friend-avatar-clean {
+    width: 55px;
+    height: 55px;
+    background: #667eea; /* Single color for all */
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.3rem;
+    font-weight: bold;
+    color: white;
     position: relative;
     flex-shrink: 0;
 }
 
-.friend-avatar-image {
-    width: 55px;
-    height: 55px;
-    border-radius: 50%;
-    object-fit: cover;
-    background: linear-gradient(45deg, #667eea, #764ba2);
-}
-
-.status-indicator-whatsapp {
+/* Status indicator */
+.status-indicator-clean {
     position: absolute;
     bottom: 2px;
     right: 2px;
@@ -78,16 +83,16 @@ a:active {
     border: 2px solid #1a1a2e;
 }
 
-.status-indicator-whatsapp.online {
+.status-indicator-clean.online {
     background: #28a745;
     box-shadow: 0 0 8px #28a745;
 }
 
-.status-indicator-whatsapp.offline {
+.status-indicator-clean.offline {
     background: #6c757d;
 }
 
-.friend-info-whatsapp {
+.friend-info-clean {
     flex: 1;
     min-width: 0;
     display: flex;
@@ -101,16 +106,17 @@ a:active {
     min-width: 0;
 }
 
-.friend-name-whatsapp {
+.friend-name-clean {
     font-size: 1.1rem;
     font-weight: 500;
     margin-bottom: 4px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    color: white;
 }
 
-.friend-status-whatsapp {
+.friend-status-clean {
     font-size: 0.85rem;
     color: #a0a0c0;
     white-space: nowrap;
@@ -118,15 +124,15 @@ a:active {
     text-overflow: ellipsis;
 }
 
-/* Unread Message Badge */
-.unread-badge {
-    background: linear-gradient(45deg, #ff6b8b, #ff8e53);
+/* Unread Message Badge (clean) */
+.unread-badge-clean {
+    background: #667eea;
     color: white;
     font-size: 0.8rem;
     font-weight: bold;
-    min-width: 24px;
-    height: 24px;
-    border-radius: 12px;
+    min-width: 22px;
+    height: 22px;
+    border-radius: 11px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -134,7 +140,8 @@ a:active {
     flex-shrink: 0;
 }
 
-/* Loading Skeleton */
+/* ==================== LOADING SKELETON ==================== */
+
 .friend-skeleton {
     display: flex;
     align-items: center;
@@ -143,6 +150,12 @@ a:active {
     background: rgba(255, 255, 255, 0.05);
     border-radius: 15px;
     margin-bottom: 10px;
+    animation: skeleton-pulse 1.5s infinite;
+}
+
+@keyframes skeleton-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
 }
 
 .skeleton-avatar {
@@ -173,7 +186,8 @@ a:active {
     border-radius: 4px;
 }
 
-/* Login Prompt Styles */
+/* ==================== LOGIN PROMPT ==================== */
+
 .login-prompt {
     text-align: center;
     padding: 60px 20px;
@@ -193,6 +207,7 @@ a:active {
     background: linear-gradient(45deg, #667eea, #764ba2);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
+    background-clip: text;
 }
 
 .login-subtitle {
@@ -243,7 +258,8 @@ a:active {
     background: rgba(255, 255, 255, 0.2);
 }
 
-/* Update container */
+/* ==================== CONTAINERS ==================== */
+
 .friends-container {
     display: flex;
     flex-direction: column;
@@ -269,7 +285,7 @@ a:active {
     box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
-/* All buttons in the page */
+/* All buttons */
 button, .search-btn, .view-all-btn, .nav-btn, .back-btn,
 .send-request-btn, .accept-btn, .decline-btn, .modal-close,
 .toast-close {
@@ -282,24 +298,146 @@ button:active, .search-btn:active, .nav-btn:active,
     transform: scale(0.98) !important;
 }
 
-/* Responsive */
+/* ==================== STATS CARDS ==================== */
+
+.friends-header {
+    text-align: center;
+    margin: 20px 0 25px;
+}
+
+.friends-title {
+    font-size: 2rem;
+    background: linear-gradient(45deg, #667eea, #764ba2);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 10px;
+}
+
+.friends-subtitle {
+    color: #a0a0c0;
+    font-size: 1rem;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.friends-stats {
+    display: flex;
+    justify-content: center;
+    gap: 25px;
+    margin-top: 25px;
+    flex-wrap: wrap;
+}
+
+.stat-card {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 20px;
+    padding: 15px 25px;
+    text-align: center;
+    min-width: 180px;
+    transition: all 0.2s;
+    height: 100px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.stat-card:hover {
+    background: rgba(255, 255, 255, 0.08);
+    transform: translateY(-5px);
+}
+
+.stat-number {
+    font-size: 2.2rem;
+    font-weight: 700;
+    background: linear-gradient(45deg, #667eea, #764ba2);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    line-height: 1.2;
+}
+
+.stat-label {
+    color: #a0a0c0;
+    font-size: 0.9rem;
+    margin-top: 5px;
+}
+
+/* Search icon */
+.search-friends-container {
+    margin-bottom: 20px;
+}
+
+.search-friends-wrapper {
+    position: relative;
+    max-width: 500px;
+    margin: 0 auto;
+}
+
+.search-friends-icon {
+    position: absolute;
+    left: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #667eea;
+    font-size: 1.2rem;
+}
+
+/* ==================== RESPONSIVE ==================== */
+
 @media (max-width: 768px) {
-    .friend-item-whatsapp {
+    .friend-item-clean {
         padding: 12px;
     }
     
-    .friend-avatar-image {
+    .friend-avatar-clean {
         width: 50px;
         height: 50px;
+        font-size: 1.2rem;
     }
     
-    .friend-name-whatsapp {
+    .friend-name-clean {
         font-size: 1rem;
     }
     
-    .unread-badge {
-        min-width: 22px;
-        height: 22px;
+    .unread-badge-clean {
+        min-width: 20px;
+        height: 20px;
         font-size: 0.75rem;
+    }
+    
+    .friends-stats {
+        gap: 15px;
+    }
+    
+    .stat-card {
+        min-width: 140px;
+        padding: 12px 18px;
+        height: 90px;
+    }
+    
+    .stat-number {
+        font-size: 1.8rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .stat-card {
+        min-width: 120px;
+        padding: 10px 15px;
+        height: 80px;
+    }
+    
+    .stat-number {
+        font-size: 1.6rem;
+    }
+    
+    .friend-avatar-clean {
+        width: 45px;
+        height: 45px;
+        font-size: 1.1rem;
+    }
+    
+    .friend-name-clean {
+        font-size: 0.95rem;
     }
 }
