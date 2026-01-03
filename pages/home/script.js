@@ -402,6 +402,7 @@ async function updateNotificationsBadge() {
         hideNotificationBadge();  
     }
 }
+
 function updateBadgeDisplay(count) {
     const badge = document.getElementById('notificationBadge');
     if (badge) {
@@ -687,13 +688,7 @@ async function loadNotifications() {
     try {
         const { data: requests, error } = await supabase
             .from('friend_requests')
-            .select(`
-                id,
-                sender_id,
-                status,
-                sent_at,
-                profiles:sender_id(username, full_name)
-            `)
+            .select(`id, sender_id, status, sent_at, profiles:sender_id(username, full_name)`)
             .eq('receiver_id', currentUser.id)
             .eq('status', 'pending')
             .order('sent_at', { ascending: false });
@@ -716,11 +711,14 @@ async function loadNotifications() {
             const sender = request.profiles;
             const sentTime = new Date(request.sent_at);
             const timeAgo = getTimeAgo(sentTime);
+            
+            // Get first letter for avatar
+            const firstLetter = sender.username ? sender.username.charAt(0).toUpperCase() : '?';
 
             html += `
                 <div class="notification-item">
                     <div class="notification-avatar" style="background: linear-gradient(45deg, #667eea, #764ba2);">
-                        ${sender.username ? sender.username.charAt(0).toUpperCase() : '?'}
+                        ${firstLetter}
                     </div>
                     <div class="notification-content">
                         <div class="notification-text">
@@ -728,7 +726,7 @@ async function loadNotifications() {
                             <span class="notification-time">${timeAgo}</span>
                         </div>
                         <div class="notification-actions">
-                            <button class="accept-btn" onclick="window.acceptFriendRequest('${request.id}', '${sender.username}')">
+                            <button class="accept-btn" onclick="window.acceptFriendRequest('${request.id}', '${sender.username.replace(/'/g, "\\'")}')">
                                 ✓ Accept
                             </button>
                             <button class="decline-btn" onclick="window.declineFriendRequest('${request.id}')">
@@ -756,20 +754,28 @@ async function loadNotifications() {
 
 // Accept friend request
 async function acceptFriendRequest(requestId, senderUsername) {
+    if (!currentUser) return;
+
+    // Find the button that was clicked and update its state
+    const acceptBtn = event?.target;
+    if (acceptBtn) {
+        acceptBtn.textContent = 'Accepting...';
+        acceptBtn.disabled = true;
+    }
+
     try {
-        const { data, error } = await supabase
+        // Update friend request status
+        const { error: updateError } = await supabase
             .from('friend_requests')
             .update({ 
                 status: 'accepted',
                 responded_at: new Date().toISOString()
             })
-            .eq('id', requestId)
-            .select()
-            .single();
+            .eq('id', requestId);
 
-        if (error) throw error;
+        if (updateError) throw updateError;
 
-        // Get sender ID
+        // Get sender ID from the request
         const { data: request, error: requestError } = await supabase
             .from('friend_requests')
             .select('sender_id')
@@ -778,44 +784,64 @@ async function acceptFriendRequest(requestId, senderUsername) {
 
         if (requestError) throw requestError;
 
-        // Add to friends table for both users
         const senderId = request.sender_id;
 
-        // Add sender as friend to current user
-        const { error: addFriendError1 } = await supabase
+        // Add to friends table for BOTH users
+        const friendData = [
+            { user_id: currentUser.id, friend_id: senderId },
+            { user_id: senderId, friend_id: currentUser.id }
+        ];
+
+        // Insert both friendship records
+        const { error: insertError } = await supabase
             .from('friends')
-            .insert({ user_id: currentUser.id, friend_id: senderId });
+            .insert(friendData);
 
-        if (addFriendError1) throw addFriendError1;
+        if (insertError) throw insertError;
 
-        // Add current user as friend to sender
-        const { error: addFriendError2 } = await supabase
-            .from('friends')
-            .insert({ user_id: senderId, friend_id: currentUser.id });
-
-        if (addFriendError2) throw addFriendError2;
-
-        // Show success message
+        // Show success toast
         showFriendAdded(
             "Friend Request Accepted!",
             `You are now friends with ${senderUsername}`
         );
 
-        // Update notifications
+        // Update UI
         await loadNotifications();
         await updateNotificationsBadge();
         await loadFriends();
 
+        // Remove notification item from UI
+        const notificationItem = acceptBtn?.closest('.notification-item');
+        if (notificationItem) {
+            notificationItem.remove();
+        }
+
     } catch (error) {
         console.error("Error accepting friend request:", error);
         showError("Accept Failed", "Could not accept friend request. Please try again.");
+        
+        // Reset button state on error
+        if (acceptBtn) {
+            acceptBtn.textContent = '✓ Accept';
+            acceptBtn.disabled = false;
+        }
     }
 }
 
 // Decline friend request
 async function declineFriendRequest(requestId) {
+    if (!currentUser) return;
+
+    // Find the button that was clicked and update its state
+    const declineBtn = event?.target;
+    if (declineBtn) {
+        declineBtn.textContent = 'Declining...';
+        declineBtn.disabled = true;
+    }
+
     try {
-        const { data, error } = await supabase
+        // Update friend request status
+        const { error } = await supabase
             .from('friend_requests')
             .update({ 
                 status: 'declined',
@@ -825,11 +851,17 @@ async function declineFriendRequest(requestId) {
 
         if (error) throw error;
 
-        // Remove from UI
-        const notificationItem = event.target.closest('.notification-item');
+        // Show info toast
+        showInfo("Request Declined", "Friend request has been declined");
+
+        // Remove notification item from UI
+        const notificationItem = declineBtn?.closest('.notification-item');
         if (notificationItem) {
             notificationItem.remove();
         }
+
+        // Update badge
+        await updateNotificationsBadge();
 
         // Check if there are no more notifications
         const container = document.getElementById('notificationsList');
@@ -843,14 +875,15 @@ async function declineFriendRequest(requestId) {
             `;
         }
 
-        // Update badge
-        await updateNotificationsBadge();
-
-        showInfo("Request Declined", "Friend request has been declined");
-
     } catch (error) {
         console.error("Error declining friend request:", error);
         showError("Decline Failed", "Could not decline friend request. Please try again.");
+        
+        // Reset button state on error
+        if (declineBtn) {
+            declineBtn.textContent = '× Decline';
+            declineBtn.disabled = false;
+        }
     }
 }
 
