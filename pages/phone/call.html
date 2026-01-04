@@ -127,9 +127,37 @@
             margin: 20px;
             max-width: 400px;
         }
+        
+        /* Simple audio status indicator */
+        .audio-indicator {
+            position: fixed;
+            top: 15px;
+            left: 15px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #4cd964;
+            box-shadow: 0 0 10px #4cd964;
+            animation: pulse 2s infinite;
+            z-index: 100;
+        }
+        
+        .audio-indicator.muted {
+            background: #ff3b30;
+            box-shadow: 0 0 10px #ff3b30;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 0.7; }
+            50% { opacity: 1; }
+            100% { opacity: 0.7; }
+        }
     </style>
 </head>
 <body>
+    <!-- Audio indicator -->
+    <div class="audio-indicator" id="audioIndicator"></div>
+    
     <div class="call-container" id="callContainer">
         <div class="caller-avatar" id="callerAvatar">?</div>
         <h1 class="caller-name" id="callerName">Loading...</h1>
@@ -147,324 +175,95 @@
         <div class="error-message" id="errorMessage" style="display: none;"></div>
     </div>
 
-    <!-- Audio Status Indicator -->
-    <div id="audioStatus" style="
-        position: fixed;
-        top: 20px;
-        left: 20px;
-        background: rgba(0,0,0,0.7);
-        color: white;
-        padding: 10px 15px;
-        border-radius: 10px;
-        font-size: 14px;
-        z-index: 9999;
-        display: none;
-        border-left: 4px solid #667eea;
-        max-width: 250px;
-    ">
-        <div style="font-weight: bold; margin-bottom: 5px;">🔊 Audio Status</div>
-        <div id="audioStatusText">Checking...</div>
-    </div>
-
-    <!-- WebRTC Debug Panel -->
-    <div id="webrtcDebug" style="
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        background: rgba(0,0,0,0.8);
-        color: white;
-        padding: 15px;
-        border-radius: 10px;
-        font-family: monospace;
-        font-size: 12px;
-        z-index: 9998;
-        max-width: 300px;
-        max-height: 400px;
-        overflow-y: auto;
-        display: none;
-        border-left: 4px solid #4cd964;
-    ">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-            <div style="font-weight: bold;">🌐 WebRTC Debug</div>
-            <button onclick="toggleDebugPanel()" style="
-                background: transparent;
-                color: white;
-                border: 1px solid #666;
-                border-radius: 5px;
-                padding: 2px 8px;
-                cursor: pointer;
-                font-size: 10px;
-            ">Toggle</button>
-        </div>
-        <div id="webrtcInfo"></div>
-        <div style="margin-top: 10px; display: flex; gap: 5px;">
-            <button onclick="runAudioTest()" style="
-                background: #667eea;
-                color: white;
-                border: none;
-                padding: 5px 10px;
-                border-radius: 5px;
-                cursor: pointer;
-                font-size: 11px;
-                flex: 1;
-            ">Test Audio</button>
-            <button onclick="forceAudioPlay()" style="
-                background: #4cd964;
-                color: white;
-                border: none;
-                padding: 5px 10px;
-                border-radius: 5px;
-                cursor: pointer;
-                font-size: 11px;
-                flex: 1;
-            ">Force Play</button>
-        </div>
-    </div>
-
-    <!-- Audio Unlock Button (shown when needed) -->
-    <div id="audioUnlockOverlay" style="
+    <!-- Simple audio help overlay (shown only when needed) -->
+    <div id="audioHelpOverlay" style="
         display: none;
         position: fixed;
         top: 0;
         left: 0;
         right: 0;
         bottom: 0;
-        background: rgba(10, 10, 26, 0.9);
-        z-index: 10000;
+        background: rgba(10, 10, 26, 0.95);
+        z-index: 9999;
         display: flex;
-        flex-direction: column;
         align-items: center;
         justify-content: center;
-        text-align: center;
     ">
         <div style="
             background: rgba(26, 26, 46, 0.95);
             border-radius: 20px;
-            padding: 40px;
-            max-width: 400px;
+            padding: 30px;
+            max-width: 350px;
+            text-align: center;
             border: 2px solid #667eea;
         ">
-            <div style="font-size: 4rem; margin-bottom: 20px;">🔇</div>
-            <h3 style="margin-bottom: 15px; color: white;">Audio Permission Required</h3>
-            <p style="color: #a0a0c0; margin-bottom: 25px;">
-                Your browser requires permission to play audio. 
-                Please click the button below to enable audio for this call.
+            <div style="font-size: 3rem; margin-bottom: 15px;">🔊</div>
+            <h3 style="margin-bottom: 10px; color: white;">Enable Audio</h3>
+            <p style="color: #a0a0c0; margin-bottom: 20px;">
+                Click anywhere to enable audio for this call
             </p>
-            <button onclick="enableCallAudio()" style="
-                background: linear-gradient(45deg, #667eea, #764ba2);
+            <button onclick="document.getElementById('audioHelpOverlay').style.display = 'none';" style="
+                background: #667eea;
                 color: white;
                 border: none;
-                padding: 15px 40px;
-                border-radius: 25px;
-                font-size: 16px;
-                font-weight: bold;
+                padding: 12px 30px;
+                border-radius: 20px;
                 cursor: pointer;
-                margin-bottom: 15px;
-                width: 100%;
+                font-size: 14px;
             ">
-                🔊 ENABLE AUDIO
+                Got it!
             </button>
-            <p style="color: #888; font-size: 12px;">
-                You may also need to click anywhere on the screen
-            </p>
         </div>
     </div>
 
     <script type="module" src="call.js"></script>
     
-    <!-- Global Audio Functions -->
     <script>
-    let debugPanelVisible = false;
-    
-    // Show debug panel after 3 seconds
-    setTimeout(() => {
-        document.getElementById('webrtcDebug').style.display = 'block';
-        debugPanelVisible = true;
-        updateDebugInfo();
-    }, 3000);
-    
-    function toggleDebugPanel() {
-        debugPanelVisible = !debugPanelVisible;
-        document.getElementById('webrtcDebug').style.display = debugPanelVisible ? 'block' : 'none';
-    }
-    
-    function updateDebugInfo() {
-        const debugEl = document.getElementById('webrtcInfo');
-        const remoteAudio = document.getElementById('remoteAudio');
-        const localAudio = document.getElementById('localAudio');
-        
-        let info = '';
-        
-        // Audio elements status
-        info += '<strong>Audio Elements:</strong><br>';
-        info += `Remote: ${remoteAudio ? '✓' : '✗'}`;
-        if (remoteAudio) {
-            info += ` (${remoteAudio.paused ? 'Paused' : 'Playing'})<br>`;
-            info += `Muted: ${remoteAudio.muted ? 'Yes' : 'No'}<br>`;
-            info += `Volume: ${remoteAudio.volume}<br>`;
-            if (remoteAudio.srcObject) {
-                const stream = remoteAudio.srcObject;
-                const tracks = stream.getAudioTracks();
-                info += `Tracks: ${tracks.length}<br>`;
-                if (tracks.length > 0) {
-                    info += `Track 0: ${tracks[0].enabled ? 'Enabled' : 'Disabled'}<br>`;
-                }
-            }
-        } else {
-            info += '<br>';
-        }
-        
-        // WebRTC states
-        info += '<br><strong>Connection:</strong><br>';
-        if (window.globalCallService && window.globalCallService.peerConnection) {
-            const pc = window.globalCallService.peerConnection;
-            info += `State: ${pc.connectionState}<br>`;
-            info += `ICE: ${pc.iceConnectionState}<br>`;
-            info += `Signaling: ${pc.signalingState}<br>`;
-        } else {
-            info += 'No connection<br>';
-        }
-        
-        debugEl.innerHTML = info;
-        
-        // Update audio status indicator
-        updateAudioStatus();
-        
-        // Continue updating every 2 seconds
-        if (debugPanelVisible) {
-            setTimeout(updateDebugInfo, 2000);
-        }
-    }
-    
-    function updateAudioStatus() {
-        const statusEl = document.getElementById('audioStatus');
-        const textEl = document.getElementById('audioStatusText');
+    // Simple audio monitoring
+    function updateAudioIndicator() {
+        const indicator = document.getElementById('audioIndicator');
         const remoteAudio = document.getElementById('remoteAudio');
         
-        if (!remoteAudio || !statusEl) return;
-        
-        if (remoteAudio.srcObject) {
-            statusEl.style.display = 'block';
+        if (remoteAudio && remoteAudio.srcObject) {
             const stream = remoteAudio.srcObject;
             const audioTracks = stream.getAudioTracks();
             
             if (audioTracks.length > 0) {
                 const track = audioTracks[0];
-                if (remoteAudio.paused || !track.enabled) {
-                    textEl.innerHTML = '🔇 Audio Paused<br><small>Tap to enable</small>';
-                    statusEl.style.borderLeftColor = '#ff3b30';
+                if (track.enabled && !remoteAudio.paused) {
+                    indicator.classList.remove('muted');
+                } else {
+                    indicator.classList.add('muted');
                     
-                    // Show unlock overlay if audio is paused for more than 3 seconds
+                    // Show help overlay if audio is muted/paused for too long
                     setTimeout(() => {
-                        if (remoteAudio.paused && !document.getElementById('audioUnlockOverlay').style.display) {
-                            showAudioUnlockOverlay();
+                        if (track.enabled && remoteAudio.paused) {
+                            document.getElementById('audioHelpOverlay').style.display = 'flex';
                         }
                     }, 3000);
-                } else {
-                    textEl.innerHTML = '🔊 Audio Active<br><small>Call connected</small>';
-                    statusEl.style.borderLeftColor = '#4cd964';
-                    
-                    // Hide unlock overlay if shown
-                    document.getElementById('audioUnlockOverlay').style.display = 'none';
                 }
-            } else {
-                textEl.innerHTML = '🔇 No Audio<br><small>Waiting for stream</small>';
-                statusEl.style.borderLeftColor = '#ff9500';
             }
-        } else {
-            textEl.innerHTML = '🔇 No Stream<br><small>Connecting...</small>';
-            statusEl.style.borderLeftColor = '#ff9500';
         }
     }
     
-    function showAudioUnlockOverlay() {
-        document.getElementById('audioUnlockOverlay').style.display = 'flex';
-    }
+    // Update audio indicator every second
+    setInterval(updateAudioIndicator, 1000);
     
-    window.enableCallAudio = function() {
-        const remoteAudio = document.getElementById('remoteAudio');
-        if (remoteAudio) {
-            remoteAudio.muted = false;
-            remoteAudio.volume = 1.0;
-            
-            remoteAudio.play().then(() => {
-                console.log("✅ Audio enabled via overlay");
-                document.getElementById('audioUnlockOverlay').style.display = 'none';
-                
-                // Also try to unlock audio context
-                if (window.AudioContext) {
-                    const audioContext = new AudioContext();
-                    if (audioContext.state === 'suspended') {
-                        audioContext.resume();
-                    }
-                }
-            }).catch(error => {
-                console.log("Overlay button failed:", error);
-                alert("Please click anywhere on the screen to enable audio");
-            });
-        }
-        document.getElementById('audioUnlockOverlay').style.display = 'none';
-    };
-    
-    window.runAudioTest = async function() {
-        console.log("🎵 Running audio hardware test...");
-        
-        try {
-            // Test microphone
-            const stream = await navigator.mediaDevices.getUserMedia({ 
-                audio: true 
-            });
-            console.log("✅ Microphone access granted");
-            
-            // Test speaker
-            const audio = new Audio();
-            audio.srcObject = stream;
-            audio.volume = 0.3; // Low volume to avoid feedback
-            audio.muted = false;
-            
-            await audio.play();
-            console.log("✅ Speaker test passed");
-            
-            // Stop after 2 seconds
-            setTimeout(() => {
-                stream.getTracks().forEach(track => track.stop());
-                audio.srcObject = null;
-                console.log("✅ Audio hardware test complete");
-                alert("Audio hardware test passed! ✓");
-            }, 2000);
-            
-        } catch (error) {
-            console.error("❌ Audio test failed:", error);
-            alert("Audio test failed: " + error.message);
-        }
-    };
-    
-    window.forceAudioPlay = function() {
-        const remoteAudio = document.getElementById('remoteAudio');
-        if (remoteAudio) {
-            remoteAudio.play().then(() => {
-                console.log("✅ Forced audio play successful");
-                updateAudioStatus();
-            }).catch(error => {
-                console.log("Force play failed:", error);
-                alert("Can't force play: " + error.message);
-            });
-        }
-    };
-    
-    // Click anywhere to try to enable audio
+    // Click anywhere to try to play audio
     document.addEventListener('click', function() {
         const remoteAudio = document.getElementById('remoteAudio');
         if (remoteAudio && remoteAudio.paused && remoteAudio.srcObject) {
             remoteAudio.play().catch(() => {});
+            document.getElementById('audioHelpOverlay').style.display = 'none';
         }
     });
     
-    // Initialize audio status updates
-    setInterval(updateAudioStatus, 1000);
-    
-    // Show debug info after page loads
-    setTimeout(updateDebugInfo, 1000);
+    // Remove any YouTube iframe errors by preventing postMessage to YouTube
+    window.addEventListener('message', function(event) {
+        if (event.origin.includes('youtube.com') || event.origin.includes('google.com')) {
+            event.stopImmediatePropagation();
+        }
+    }, true);
     </script>
 </body>
 </html>
