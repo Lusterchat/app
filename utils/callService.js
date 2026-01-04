@@ -1,4 +1,4 @@
-// /app/utils/callService.js - FIXED VERSION
+// /app/utils/callService.js - FIXED VERSION with better audio
 import { supabase } from './supabase.js';
 
 class CallService {
@@ -73,6 +73,7 @@ class CallService {
             // 5. Add local tracks
             this.localStream.getTracks().forEach(track => {
                 this.peerConnection.addTrack(track, this.localStream);
+                console.log(`Added ${track.kind} track:`, track.label);
             });
 
             // 6. Setup event handlers
@@ -144,6 +145,7 @@ class CallService {
             // 5. Add local tracks
             this.localStream.getTracks().forEach(track => {
                 this.peerConnection.addTrack(track, this.localStream);
+                console.log(`Added ${track.kind} track:`, track.label);
             });
 
             // 6. Setup event handlers
@@ -210,13 +212,19 @@ class CallService {
         try {
             console.log("🎤 Requesting microphone permission...");
 
+            // Check available devices
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const audioDevices = devices.filter(d => d.kind === 'audioinput');
+            console.log("Available audio devices:", audioDevices);
+
             const constraints = {
                 audio: {
-                    echoCancellation: true,
-                    noiseSuppression: true,
-                    autoGainControl: true,
-                    channelCount: 1,
-                    sampleRate: 48000
+                    echoCancellation: { ideal: true },
+                    noiseSuppression: { ideal: true },
+                    autoGainControl: { ideal: true },
+                    // Simpler constraints for better compatibility
+                    sampleSize: 16,
+                    channelCount: 1
                 },
                 video: video ? {
                     width: { ideal: 640 },
@@ -228,7 +236,21 @@ class CallService {
             console.log("Media constraints:", constraints);
             const stream = await navigator.mediaDevices.getUserMedia(constraints);
 
-            console.log("✅ Media access granted, tracks:", stream.getTracks().map(t => t.kind));
+            // Log stream details
+            const audioTracks = stream.getAudioTracks();
+            const videoTracks = stream.getVideoTracks();
+            console.log("✅ Media access granted:");
+            console.log("Audio tracks:", audioTracks.length);
+            console.log("Video tracks:", videoTracks.length);
+            
+            audioTracks.forEach((track, i) => {
+                console.log(`Audio track ${i}:`, {
+                    enabled: track.enabled,
+                    label: track.label || 'Default',
+                    readyState: track.readyState
+                });
+            });
+
             return stream;
 
         } catch (error) {
@@ -298,7 +320,15 @@ class CallService {
 
         // Remote stream
         this.peerConnection.ontrack = (event) => {
+            console.log("📻 Received remote track:", event.track.kind);
             this.remoteStream = event.streams[0];
+            
+            // Log remote stream details
+            if (this.remoteStream) {
+                console.log("Remote stream audio tracks:", this.remoteStream.getAudioTracks().length);
+                console.log("Remote stream video tracks:", this.remoteStream.getVideoTracks().length);
+            }
+            
             if (this.onRemoteStream) {
                 this.onRemoteStream(this.remoteStream);
             }
@@ -440,6 +470,8 @@ class CallService {
         if (!this.localStream) return false;
 
         const audioTracks = this.localStream.getAudioTracks();
+        if (audioTracks.length === 0) return false;
+        
         const isMuted = audioTracks[0]?.enabled === false;
         const newState = !isMuted;
 
@@ -447,6 +479,7 @@ class CallService {
             track.enabled = newState;
         });
 
+        console.log("Microphone", newState ? "unmuted" : "muted");
         return newState;
     }
 
