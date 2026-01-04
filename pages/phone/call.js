@@ -68,11 +68,15 @@ async function initCallPage() {
         callService.setOnRemoteStream(handleRemoteStream);
         callService.setOnCallEvent(handleCallEvent);
 
+        // Mark as ready for global functions
+        window.callServiceReady = true;
+        console.log("✅ Call service marked as ready");
+
         // Start or answer call
         if (isIncoming && currentCallId) {
             // Incoming call
             document.getElementById('callStatus').textContent = 'Incoming call...';
-            setupIncomingCallControls(currentCallId);
+            setupIncomingCallControls();
         } else if (friendId) {
             // Outgoing call
             document.getElementById('callStatus').textContent = 'Calling...';
@@ -108,19 +112,116 @@ function startOutgoingCall(friendId, friendName, type) {
     });
 }
 
-function setupIncomingCallControls(callId) {
+function setupIncomingCallControls() {
     console.log("Setting up incoming call controls");
 
     const controls = document.getElementById('callControls');
     controls.innerHTML = `
-        <button class="control-btn accept-btn" onclick="window.answerCall()">
+        <button class="control-btn accept-btn" onclick="handleAnswerClick()">
             <i class="fas fa-phone"></i>
         </button>
-        <button class="control-btn decline-btn" onclick="window.declineCall()">
+        <button class="control-btn decline-btn" onclick="handleDeclineClick()">
             <i class="fas fa-phone-slash"></i>
         </button>
     `;
 }
+
+// Handle answer button click with waiting mechanism
+async function handleAnswerClick() {
+    console.log("Answer button clicked");
+    
+    // Show loading state
+    document.getElementById('callStatus').textContent = 'Answering...';
+    
+    // Wait for call service to be ready (max 5 seconds)
+    for (let i = 0; i < 50; i++) {
+        if (window.globalCallService && window.currentCallId) {
+            try {
+                console.log("Answering call:", window.currentCallId);
+                await window.globalCallService.answerCall(window.currentCallId);
+                
+                // Update controls to show mute/end
+                const controls = document.getElementById('callControls');
+                if (controls) {
+                    controls.innerHTML = `
+                        <button class="control-btn mute-btn" onclick="window.toggleMute()">
+                            <i class="fas fa-microphone"></i>
+                        </button>
+                        <button class="control-btn end-btn" onclick="window.endCall()">
+                            <i class="fas fa-phone-slash"></i>
+                        </button>
+                    `;
+                }
+                
+                console.log("✅ Call answered successfully");
+                return;
+            } catch (error) {
+                console.error("Answer call failed:", error);
+                showError("Failed to answer: " + error.message);
+                return;
+            }
+        }
+        await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    
+    // If we get here, service never became ready
+    showError("Call service is taking too long to load. Please try again.");
+}
+
+// Handle decline button click
+async function handleDeclineClick() {
+    console.log("Decline button clicked");
+    
+    if (window.globalSupabase && window.currentCallId) {
+        try {
+            await window.globalSupabase
+                .from('calls')
+                .update({ 
+                    status: 'rejected',
+                    ended_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', window.currentCallId);
+        } catch (error) {
+            console.error("Decline failed:", error);
+        }
+    }
+    
+    window.history.back();
+}
+
+// Global functions (for inline onclick handlers)
+window.toggleMute = async () => {
+    if (!window.globalCallService) {
+        alert("Call service not ready yet");
+        return;
+    }
+    
+    try {
+        const isMuted = await window.globalCallService.toggleMute();
+        const muteBtn = document.querySelector('.mute-btn');
+        if (muteBtn) {
+            if (isMuted) {
+                muteBtn.innerHTML = '<i class="fas fa-microphone-slash"></i>';
+                muteBtn.style.background = 'linear-gradient(45deg, #ff9500, #ff5e3a)';
+            } else {
+                muteBtn.innerHTML = '<i class="fas fa-microphone"></i>';
+                muteBtn.style.background = 'rgba(255, 255, 255, 0.1)';
+            }
+        }
+    } catch (error) {
+        console.error("Toggle mute failed:", error);
+    }
+};
+
+window.endCall = () => {
+    if (window.globalCallService) {
+        window.globalCallService.endCall();
+    }
+    setTimeout(() => {
+        window.history.back();
+    }, 1000);
+};
 
 function handleCallStateChange(state) {
     console.log("Call state changed:", state);
@@ -163,7 +264,12 @@ function handleCallEvent(event, data) {
     console.log("Call event:", event, data);
 
     if (event === 'call_ended') {
-        endCall();
+        if (window.globalCallService) {
+            window.globalCallService.endCall();
+        }
+        setTimeout(() => {
+            window.history.back();
+        }, 1000);
     }
 }
 
