@@ -6,8 +6,14 @@ let supabase;
 let callService;
 let currentCallId = null;
 
+// Audio context for unlocking audio
+let audioContext = null;
+
 async function initCallPage() {
     console.log("Initializing call page...");
+    
+    // FIX: Set up audio unlock on user interaction
+    setupAudioUnlock();
 
     // Get URL parameters
     const urlParams = new URLSearchParams(window.location.search);
@@ -91,6 +97,38 @@ async function initCallPage() {
     }
 }
 
+function setupAudioUnlock() {
+    // Create audio context
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    
+    // Function to unlock audio
+    const unlockAudio = () => {
+        if (audioContext.state === 'suspended') {
+            audioContext.resume().then(() => {
+                console.log("✅ Audio context resumed");
+            });
+        }
+        
+        // Also try to play any existing audio elements
+        const audioElements = document.querySelectorAll('audio');
+        audioElements.forEach(audio => {
+            if (audio.paused && audio.srcObject) {
+                audio.play().catch(e => {
+                    console.log("Audio play attempt:", e.message);
+                });
+            }
+        });
+    };
+    
+    // Unlock on any interaction
+    document.addEventListener('click', unlockAudio);
+    document.addEventListener('touchstart', unlockAudio);
+    document.addEventListener('keydown', unlockAudio);
+    
+    // Also unlock after a short delay (some browsers allow this)
+    setTimeout(unlockAudio, 1000);
+}
+
 function startOutgoingCall(friendId, friendName, type) {
     console.log("Starting outgoing call to:", friendName);
 
@@ -134,6 +172,11 @@ window.handleAnswerClick = async function() {
     const statusEl = document.getElementById('callStatus');
     if (statusEl) {
         statusEl.textContent = 'Answering...';
+    }
+    
+    // Unlock audio on user interaction
+    if (audioContext && audioContext.state === 'suspended') {
+        await audioContext.resume();
     }
     
     // Wait for call service to be ready (max 5 seconds)
@@ -247,6 +290,10 @@ function handleCallStateChange(state) {
                 timerEl.style.display = 'block';
                 startCallTimer();
             }
+            // Try to unlock audio when call becomes active
+            if (audioContext && audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
             break;
         case 'ending':
             statusEl.textContent = 'Ending call...';
@@ -255,12 +302,84 @@ function handleCallStateChange(state) {
 }
 
 function handleRemoteStream(stream) {
-    console.log("Remote stream received:", stream);
+    console.log("Remote stream received. Audio tracks:", stream.getAudioTracks().length);
+    
     const audio = document.getElementById('remoteAudio');
     if (audio) {
+        // Clear previous stream
+        audio.srcObject = null;
+        
+        // Set new stream
         audio.srcObject = stream;
-        console.log("Remote audio setup");
+        
+        // Important settings
+        audio.volume = 1.0;
+        audio.muted = false;
+        
+        // Try to play immediately
+        const playAudio = () => {
+            const playPromise = audio.play();
+            if (playPromise !== undefined) {
+                playPromise.then(() => {
+                    console.log("✅ Remote audio playing successfully");
+                }).catch(error => {
+                    console.log("Audio play prevented:", error.name);
+                    
+                    // Show unmute button if needed
+                    if (error.name === 'NotAllowedError') {
+                        showUnmuteButton();
+                    }
+                });
+            }
+        };
+        
+        // Try to play now
+        playAudio();
+        
+        // Also try after a short delay
+        setTimeout(playAudio, 500);
+        
+        console.log("✅ Remote audio element configured");
     }
+}
+
+function showUnmuteButton() {
+    // Check if button already exists
+    if (document.getElementById('unmuteButton')) return;
+    
+    const button = document.createElement('button');
+    button.id = 'unmuteButton';
+    button.textContent = '🔇 Tap to Unmute';
+    button.style.cssText = `
+        position: fixed;
+        bottom: 100px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: linear-gradient(45deg, #667eea, #764ba2);
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 25px;
+        cursor: pointer;
+        z-index: 1000;
+        font-size: 16px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    `;
+    
+    button.onclick = () => {
+        const audio = document.getElementById('remoteAudio');
+        if (audio) {
+            audio.play().then(() => {
+                console.log("✅ Audio unmuted by user");
+                button.remove();
+            }).catch(e => {
+                console.log("Still can't play audio:", e);
+            });
+        }
+        button.remove();
+    };
+    
+    document.body.appendChild(button);
 }
 
 function handleCallEvent(event, data) {
