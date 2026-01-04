@@ -1,4 +1,4 @@
-// /app/utils/callService.js - COMPLETELY FIXED VERSION
+// /app/utils/callService.js - WITH IMPROVED DATABASE ERROR HANDLING
 import { supabase } from './supabase.js';
 
 class CallService {
@@ -14,7 +14,7 @@ class CallService {
         this.callState = 'idle';
         this.callStartTime = null;
         this.isInCall = false;
-        this.lastSpeakerMode = null; // Track last mode to prevent loops
+        this.lastSpeakerMode = null;
         
         this.iceServers = [
             { urls: 'stun:stun.l.google.com:19302' },
@@ -29,7 +29,7 @@ class CallService {
 
     async initialize(userId) {
         this.userId = userId;
-        console.log("CallService initialized for:", userId);
+        console.log("CallService initialized for user:", userId);
         return true;
     }
 
@@ -39,32 +39,37 @@ class CallService {
             const roomId = `call_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
             this.currentRoomId = roomId;
 
-            console.log("Creating call in database...");
+            console.log("Creating call in database for friend:", friendId);
+            
+            // First, get microphone access
+            await this.getLocalMedia();
+            
+            // Create call record
+            const callData = {
+                room_id: roomId,
+                caller_id: this.userId,
+                receiver_id: friendId,
+                call_type: type,
+                status: 'ringing',
+                audio_mode: 'mic',
+                initiated_at: new Date().toISOString()
+            };
+            
+            console.log("Inserting call data:", callData);
             
             const { data: call, error } = await supabase
                 .from('calls')
-                .insert({
-                    room_id: roomId,
-                    caller_id: this.userId,
-                    receiver_id: friendId,
-                    call_type: type,
-                    status: 'ringing',
-                    audio_mode: 'mic', // Default to microphone mode
-                    initiated_at: new Date().toISOString()
-                })
+                .insert(callData)
                 .select()
                 .single();
 
             if (error) {
-                console.error("Database error:", error);
-                throw error;
+                console.error("Database insert error:", error);
+                throw new Error(`Failed to create call: ${error.message}`);
             }
             
             this.currentCall = call;
-            console.log("Call created with ID:", call.id);
-
-            // Get microphone stream
-            await this.getLocalMedia();
+            console.log("Call created successfully with ID:", call.id);
 
             // Create peer connection
             this.peerConnection = new RTCPeerConnection({ 
@@ -83,21 +88,26 @@ class CallService {
             this.setupPeerConnection();
 
             // Create and save offer
-            console.log("Creating SDP offer...");
             const offer = await this.peerConnection.createOffer({
                 offerToReceiveAudio: true,
                 offerToReceiveVideo: type === 'video'
             });
             await this.peerConnection.setLocalDescription(offer);
 
-            console.log("Saving SDP offer to database...");
-            await supabase
+            // Save SDP offer to database
+            const updateResult = await supabase
                 .from('calls')
                 .update({ 
                     sdp_offer: JSON.stringify(offer),
                     updated_at: new Date().toISOString()
                 })
                 .eq('id', call.id);
+
+            if (updateResult.error) {
+                console.warn("Failed to save SDP offer:", updateResult.error);
+            } else {
+                console.log("SDP offer saved successfully");
+            }
 
             // Listen for answer
             this.listenForAnswer();
@@ -120,19 +130,27 @@ class CallService {
             this.isCaller = false;
             console.log("Answering call:", callId);
 
-            const { data: call, error } = await supabase
+            // Fetch call from database
+            const { data: call, error: fetchError } = await supabase
                 .from('calls')
                 .select('*')
                 .eq('id', callId)
                 .single();
 
-            if (error) throw error;
+            if (fetchError) {
+                console.error("Failed to fetch call:", fetchError);
+                throw new Error(`Call not found: ${fetchError.message}`);
+            }
+            
+            if (!call) {
+                throw new Error("Call not found");
+            }
             
             this.currentCall = call;
             this.currentRoomId = call.room_id;
-            console.log("Call found:", call.id);
+            console.log("Call found:", call.id, "Status:", call.status);
 
-            // Get microphone stream
+            // Get microphone access
             await this.getLocalMedia();
 
             // Create peer connection
@@ -152,30 +170,36 @@ class CallService {
             this.setupPeerConnection();
 
             // Set remote offer
-            console.log("Setting remote description...");
             if (!call.sdp_offer) {
-                throw new Error("No SDP offer found in call");
+                throw new Error("No SDP offer found for this call");
             }
             
             const offer = JSON.parse(call.sdp_offer);
             await this.peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
 
             // Create and save answer
-            console.log("Creating SDP answer...");
             const answer = await this.peerConnection.createAnswer();
             await this.peerConnection.setLocalDescription(answer);
 
-            console.log("Saving SDP answer to database...");
-            await supabase
+            // Update call status in database
+            const updateData = {
+                sdp_answer: JSON.stringify(answer),
+                status: 'active',
+                audio_mode: this.speakerMode ? 'speaker' : 'mic',
+                started_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+            };
+            
+            const { error: updateError } = await supabase
                 .from('calls')
-                .update({ 
-                    sdp_answer: JSON.stringify(answer),
-                    status: 'active',
-                    audio_mode: this.speakerMode ? 'speaker' : 'mic',
-                    started_at: new Date().toISOString(),
-                    updated_at: new Date().toISOString()
-                })
+                .update(updateData)
                 .eq('id', callId);
+
+            if (updateError) {
+                console.warn("Failed to update call status:", updateError);
+            } else {
+                console.log("Call status updated to active");
+            }
 
             // Listen for connection updates
             this.listenForAnswer();
@@ -203,7 +227,7 @@ class CallService {
 
             console.log("Requesting microphone access...");
             
-            // ALWAYS get microphone - speaker mode only affects OUTPUT
+            // Request microphone access
             this.localStream = await navigator.mediaDevices.getUserMedia({
                 audio: {
                     echoCancellation: true,
@@ -213,30 +237,18 @@ class CallService {
                 video: false
             });
             
-            console.log("Microphone access granted. Tracks:", this.localStream.getAudioTracks().length);
-
-        } catch (error) {
-            console.error("Error getting local media:", error.name, error.message);
+            console.log("Microphone access granted");
             
-            // Create fallback silent stream
-            console.log("Creating fallback silent stream...");
-            try {
-                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                const oscillator = audioContext.createOscillator();
-                const gainNode = audioContext.createGain();
-                gainNode.gain.value = 0; // Silent
-                
-                oscillator.connect(gainNode);
-                oscillator.start();
-                
-                const destination = audioContext.createMediaStreamDestination();
-                gainNode.connect(destination);
-                
-                this.localStream = destination.stream;
-                console.log("Created silent fallback stream");
-            } catch (fallbackError) {
-                console.error("Failed to create fallback stream:", fallbackError);
-                throw error;
+        } catch (error) {
+            console.error("Error getting microphone access:", error.name, error.message);
+            
+            // Show user-friendly error
+            if (error.name === 'NotAllowedError') {
+                throw new Error("Microphone access denied. Please allow microphone permissions.");
+            } else if (error.name === 'NotFoundError') {
+                throw new Error("No microphone found on this device.");
+            } else {
+                throw new Error(`Microphone error: ${error.message}`);
             }
         }
     }
@@ -265,16 +277,13 @@ class CallService {
                 this.updateState('active');
                 this.callStartTime = Date.now();
             } else if (state === 'disconnected' || state === 'failed' || state === 'closed') {
+                console.log("Connection lost, ending call");
                 this.endCall();
             }
         };
 
         this.peerConnection.oniceconnectionstatechange = () => {
-            const state = this.peerConnection.iceConnectionState;
-            console.log("ICE connection state:", state);
-            if (state === 'failed') {
-                this.endCall();
-            }
+            console.log("ICE connection state:", this.peerConnection.iceConnectionState);
         };
     }
 
@@ -304,59 +313,65 @@ class CallService {
     }
 
     listenForAnswer() {
-        if (!this.currentCall) return;
+        if (!this.currentCall) {
+            console.log("No current call to listen for");
+            return;
+        }
 
-        const channel = supabase.channel(`call-${this.currentCall.room_id}`);
+        try {
+            const channel = supabase.channel(`call-${this.currentCall.room_id}`);
 
-        // Listen for ICE candidates
-        channel.on('broadcast', { event: 'ice-candidate' }, async (payload) => {
-            const { candidate, senderId } = payload.payload;
-            if (senderId !== this.userId && this.peerConnection) {
-                try {
-                    await this.peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
-                } catch (error) {
-                    console.log("Failed to add ICE candidate:", error);
+            // Listen for ICE candidates
+            channel.on('broadcast', { event: 'ice-candidate' }, async (payload) => {
+                const { candidate, senderId } = payload.payload;
+                if (senderId !== this.userId && this.peerConnection) {
+                    try {
+                        await this.peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+                    } catch (error) {
+                        console.log("Failed to add ICE candidate:", error);
+                    }
                 }
-            }
-        });
+            });
 
-        // Listen for call updates
-        channel.on('postgres_changes', {
-            event: 'UPDATE',
-            schema: 'public',
-            table: 'calls',
-            filter: `id=eq.${this.currentCall.id}`
-        }, async (payload) => {
-            const call = payload.new;
-            console.log("Call updated:", call.status);
+            // Listen for call updates
+            channel.on('postgres_changes', {
+                event: 'UPDATE',
+                schema: 'public',
+                table: 'calls',
+                filter: `id=eq.${this.currentCall.id}`
+            }, async (payload) => {
+                const call = payload.new;
+                console.log("Call updated - Status:", call.status);
 
-            // If we're the caller and an answer was received
-            if (this.isCaller && call.sdp_answer && !call.sdp_answer.includes('null')) {
-                try {
-                    const answer = JSON.parse(call.sdp_answer);
-                    if (this.peerConnection.signalingState !== 'stable') {
+                // If we're the caller and an answer was received
+                if (this.isCaller && call.sdp_answer && this.peerConnection) {
+                    try {
+                        const answer = JSON.parse(call.sdp_answer);
                         await this.peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
                         this.updateState('active');
+                    } catch (error) {
+                        console.log("Failed to set answer:", error);
                     }
-                } catch (error) {
-                    console.log("Failed to set answer:", error);
                 }
-            }
 
-            // If call was ended or rejected
-            if (call.status === 'ended' || call.status === 'rejected') {
-                this.endCall();
-            }
-        });
+                // If call was ended or rejected
+                if (call.status === 'ended' || call.status === 'rejected') {
+                    this.endCall();
+                }
+            });
 
-        channel.subscribe();
-        console.log("Subscribed to call channel");
+            channel.subscribe();
+            console.log("Subscribed to call channel:", this.currentCall.room_id);
+            
+        } catch (error) {
+            console.error("Failed to set up channel listener:", error);
+        }
     }
 
     async toggleSpeakerMode() {
         console.log("Toggling speaker mode. Current:", this.speakerMode);
         
-        // Simple toggle - no renegotiation needed
+        // Toggle the mode
         this.speakerMode = !this.speakerMode;
         
         console.log("New speaker mode:", this.speakerMode);
@@ -364,44 +379,54 @@ class CallService {
         // Update database if we have a call
         if (this.currentCall) {
             try {
-                await supabase
+                const { error } = await supabase
                     .from('calls')
                     .update({
                         audio_mode: this.speakerMode ? 'speaker' : 'mic',
                         updated_at: new Date().toISOString()
                     })
                     .eq('id', this.currentCall.id);
+
+                if (error) {
+                    console.warn("Failed to update audio mode in database:", error);
+                } else {
+                    console.log("Audio mode updated in database");
+                }
             } catch (error) {
-                console.error("Failed to update audio mode in database:", error);
+                console.error("Error updating audio mode:", error);
             }
         }
         
-        // Notify UI with debounce to prevent loops
-        if (this.onSpeakerModeChange && this.lastSpeakerMode !== this.speakerMode) {
-            this.lastSpeakerMode = this.speakerMode;
-            setTimeout(() => {
-                this.onSpeakerModeChange(this.speakerMode);
-            }, 50);
+        // Notify UI
+        if (this.onSpeakerModeChange) {
+            this.onSpeakerModeChange(this.speakerMode);
         }
         
         return this.speakerMode;
     }
 
     async toggleMute() {
-        if (!this.localStream) return false;
+        if (!this.localStream) {
+            console.log("No local stream to mute");
+            return false;
+        }
         
         const audioTracks = this.localStream.getAudioTracks();
-        if (audioTracks.length === 0) return false;
+        if (audioTracks.length === 0) {
+            console.log("No audio tracks to mute");
+            return false;
+        }
         
         const isMuted = !audioTracks[0].enabled;
         const newState = !isMuted;
+        
+        console.log("Setting microphone to:", newState ? "unmuted" : "muted");
         
         audioTracks.forEach(track => {
             track.enabled = newState;
         });
         
-        console.log("Microphone", newState ? "unmuted" : "muted");
-        return !newState; // Return true if muted, false if unmuted
+        return !newState; // Return true if now muted, false if now unmuted
     }
 
     async endCall() {
@@ -412,7 +437,7 @@ class CallService {
                 const duration = this.callStartTime ? 
                     Math.floor((Date.now() - this.callStartTime) / 1000) : 0;
 
-                await supabase
+                const { error } = await supabase
                     .from('calls')
                     .update({
                         status: 'ended',
@@ -422,14 +447,18 @@ class CallService {
                     })
                     .eq('id', this.currentCall.id);
 
-                console.log("Call ended in database");
+                if (error) {
+                    console.error("Error updating call status in database:", error);
+                } else {
+                    console.log("Call ended in database. Duration:", duration, "seconds");
+                }
 
                 if (this.onCallEvent) {
                     this.onCallEvent('call_ended', { duration });
                 }
 
             } catch (error) {
-                console.error("Error ending call in database:", error);
+                console.error("Error in endCall:", error);
             }
         }
 
@@ -437,6 +466,7 @@ class CallService {
     }
 
     updateState(state) {
+        console.log("Call state updating to:", state);
         this.callState = state;
         if (this.onCallStateChange) {
             this.onCallStateChange(state);
@@ -473,19 +503,18 @@ class CallService {
         console.log("Call service cleaned up");
     }
 
-    // Get current speaker mode
+    // Getters
     getSpeakerMode() {
         return this.speakerMode;
     }
 
-    // Get current mute state
     getMuteState() {
         if (!this.localStream) return false;
         const audioTracks = this.localStream.getAudioTracks();
         return audioTracks.length > 0 ? !audioTracks[0].enabled : false;
     }
 
-    // Setter methods for callbacks
+    // Setter methods
     setOnCallStateChange(callback) { 
         this.onCallStateChange = callback; 
     }
@@ -499,13 +528,7 @@ class CallService {
     }
     
     setOnSpeakerModeChange(callback) { 
-        this.onSpeakerModeChange = (mode) => {
-            // Prevent duplicate events
-            if (this.lastSpeakerMode !== mode) {
-                this.lastSpeakerMode = mode;
-                callback(mode);
-            }
-        };
+        this.onSpeakerModeChange = callback; 
     }
 }
 
