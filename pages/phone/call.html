@@ -128,29 +128,16 @@
             max-width: 400px;
         }
         
-        /* Simple audio status indicator */
+        /* Audio indicator */
         .audio-indicator {
             position: fixed;
             top: 15px;
             left: 15px;
-            width: 12px;
-            height: 12px;
+            width: 10px;
+            height: 10px;
             border-radius: 50%;
             background: #4cd964;
-            box-shadow: 0 0 10px #4cd964;
-            animation: pulse 2s infinite;
             z-index: 100;
-        }
-        
-        .audio-indicator.muted {
-            background: #ff3b30;
-            box-shadow: 0 0 10px #ff3b30;
-        }
-        
-        @keyframes pulse {
-            0% { opacity: 0.7; }
-            50% { opacity: 1; }
-            100% { opacity: 0.7; }
         }
     </style>
 </head>
@@ -168,102 +155,33 @@
             <!-- Controls will be added by JavaScript -->
         </div>
 
-        <audio id="remoteAudio" autoplay class="audio-container"></audio>
-        <audio id="localAudio" autoplay muted class="audio-container"></audio>
+        <!-- CRITICAL: Audio elements MUST be present -->
+        <audio id="remoteAudio" autoplay playsinline></audio>
+        <audio id="localAudio" autoplay muted playsinline></audio>
 
         <div class="loading" id="loadingMessage">Setting up call...</div>
         <div class="error-message" id="errorMessage" style="display: none;"></div>
     </div>
 
-    <!-- Simple audio help overlay (shown only when needed) -->
-    <div id="audioHelpOverlay" style="
-        display: none;
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(10, 10, 26, 0.95);
-        z-index: 9999;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    ">
-        <div style="
-            background: rgba(26, 26, 46, 0.95);
-            border-radius: 20px;
-            padding: 30px;
-            max-width: 350px;
-            text-align: center;
-            border: 2px solid #667eea;
-        ">
-            <div style="font-size: 3rem; margin-bottom: 15px;">🔊</div>
-            <h3 style="margin-bottom: 10px; color: white;">Enable Audio</h3>
-            <p style="color: #a0a0c0; margin-bottom: 20px;">
-                Click anywhere to enable audio for this call
-            </p>
-            <button onclick="document.getElementById('audioHelpOverlay').style.display = 'none';" style="
-                background: #667eea;
-                color: white;
-                border: none;
-                padding: 12px 30px;
-                border-radius: 20px;
-                cursor: pointer;
-                font-size: 14px;
-            ">
-                Got it!
-            </button>
-        </div>
-    </div>
-
     <script type="module" src="call.js"></script>
     
     <script>
-    // Simple audio monitoring
-    function updateAudioIndicator() {
-        const indicator = document.getElementById('audioIndicator');
-        const remoteAudio = document.getElementById('remoteAudio');
-        
-        if (remoteAudio && remoteAudio.srcObject) {
-            const stream = remoteAudio.srcObject;
-            const audioTracks = stream.getAudioTracks();
-            
-            if (audioTracks.length > 0) {
-                const track = audioTracks[0];
-                if (track.enabled && !remoteAudio.paused) {
-                    indicator.classList.remove('muted');
-                } else {
-                    indicator.classList.add('muted');
-                    
-                    // Show help overlay if audio is muted/paused for too long
-                    setTimeout(() => {
-                        if (track.enabled && remoteAudio.paused) {
-                            document.getElementById('audioHelpOverlay').style.display = 'flex';
-                        }
-                    }, 3000);
-                }
+    // Block YouTube/Google postMessage errors
+    if (window.addEventListener) {
+        window.addEventListener('message', function(e) {
+            if (e.origin.includes('youtube.com') || e.origin.includes('google.com')) {
+                e.stopImmediatePropagation();
             }
-        }
+        }, true);
     }
     
-    // Update audio indicator every second
-    setInterval(updateAudioIndicator, 1000);
-    
-    // Click anywhere to try to play audio
+    // Click anywhere to enable audio
     document.addEventListener('click', function() {
-        const remoteAudio = document.getElementById('remoteAudio');
-        if (remoteAudio && remoteAudio.paused && remoteAudio.srcObject) {
-            remoteAudio.play().catch(() => {});
-            document.getElementById('audioHelpOverlay').style.display = 'none';
+        const audio = document.getElementById('remoteAudio');
+        if (audio && audio.paused) {
+            audio.play().catch(() => {});
         }
     });
-    
-    // Remove any YouTube iframe errors by preventing postMessage to YouTube
-    window.addEventListener('message', function(event) {
-        if (event.origin.includes('youtube.com') || event.origin.includes('google.com')) {
-            event.stopImmediatePropagation();
-        }
-    }, true);
     </script>
 </body>
 </html>
