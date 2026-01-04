@@ -1,4 +1,4 @@
-// /app/utils/callService.js - GUARANTEED AUDIO VERSION
+// /app/utils/callService.js - COMPLETE WORKING VERSION
 import { supabase } from './supabase.js';
 
 class CallService {
@@ -10,15 +10,12 @@ class CallService {
         this.isCaller = false;
         this.userId = null;
         this.currentRoomId = null;
-
         this.callState = 'idle';
         this.callStartTime = null;
 
         this.iceServers = [
             { urls: 'stun:stun.l.google.com:19302' },
-            { urls: 'stun:stun1.l.google.com:19302' },
-            { urls: 'stun:stun2.l.google.com:19302' },
-            { urls: 'stun:stun.voipstunt.com:3478' }
+            { urls: 'stun:stun1.l.google.com:19302' }
         ];
 
         this.onCallStateChange = null;
@@ -34,8 +31,6 @@ class CallService {
     async initiateCall(friendId, type = 'voice') {
         try {
             this.isCaller = true;
-
-            // 1. Create call record
             const roomId = `call_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
             this.currentRoomId = roomId;
 
@@ -55,34 +50,34 @@ class CallService {
             if (error) throw error;
             this.currentCall = call;
 
-            // 2. Update presence
-            await this.updateCallPresence('in-call');
-
-            // 3. Get user media - SIMPLIFIED FOR RELIABILITY
-            this.localStream = await this.getLocalMedia(type === 'video');
-
-            // 4. Create peer connection
-            this.peerConnection = new RTCPeerConnection({
-                iceServers: this.iceServers
+            // Get user media FIRST
+            this.localStream = await navigator.mediaDevices.getUserMedia({
+                audio: {
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true
+                },
+                video: type === 'video'
             });
 
-            // 5. Add local tracks
+            // Create peer connection
+            this.peerConnection = new RTCPeerConnection({ iceServers: this.iceServers });
+
+            // Add local tracks
             this.localStream.getTracks().forEach(track => {
                 this.peerConnection.addTrack(track, this.localStream);
             });
 
-            // 6. Setup event handlers
+            // Setup event handlers
             this.setupPeerConnection();
 
-            // 7. Create offer
+            // Create and save offer
             const offer = await this.peerConnection.createOffer({
                 offerToReceiveAudio: true,
                 offerToReceiveVideo: type === 'video'
             });
-
             await this.peerConnection.setLocalDescription(offer);
 
-            // 8. Save offer to DB
             await supabase
                 .from('calls')
                 .update({ 
@@ -91,10 +86,8 @@ class CallService {
                 })
                 .eq('id', call.id);
 
-            // 9. Listen for answer
+            // Listen for answer
             this.listenForAnswer();
-
-            // 10. Update state
             this.updateState('ringing');
 
             return call;
@@ -110,7 +103,6 @@ class CallService {
         try {
             this.isCaller = false;
 
-            // 1. Get call data
             const { data: call, error } = await supabase
                 .from('calls')
                 .select('*')
@@ -121,36 +113,35 @@ class CallService {
             this.currentCall = call;
             this.currentRoomId = call.room_id;
 
-            // 2. Update presence
-            await this.updateCallPresence('in-call');
-
-            // 3. Get user media
-            this.localStream = await this.getLocalMedia(call.call_type === 'video');
-
-            // 4. Create peer connection
-            this.peerConnection = new RTCPeerConnection({
-                iceServers: this.iceServers
+            // Get user media
+            this.localStream = await navigator.mediaDevices.getUserMedia({
+                audio: {
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true
+                },
+                video: call.call_type === 'video'
             });
 
-            // 5. Add local tracks
+            // Create peer connection
+            this.peerConnection = new RTCPeerConnection({ iceServers: this.iceServers });
+
+            // Add local tracks
             this.localStream.getTracks().forEach(track => {
                 this.peerConnection.addTrack(track, this.localStream);
             });
 
-            // 6. Setup event handlers
+            // Setup event handlers
             this.setupPeerConnection();
 
-            // 7. Set remote offer
+            // Set remote offer
             const offer = JSON.parse(call.sdp_offer);
-            await this.peerConnection.setRemoteDescription(
-                new RTCSessionDescription(offer)
-            );
+            await this.peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
 
-            // 8. Create answer
+            // Create and save answer
             const answer = await this.peerConnection.createAnswer();
             await this.peerConnection.setLocalDescription(answer);
 
-            // 9. Save answer to DB
             await supabase
                 .from('calls')
                 .update({ 
@@ -161,10 +152,8 @@ class CallService {
                 })
                 .eq('id', callId);
 
-            // 10. Listen for ICE candidates
+            // Listen for ICE candidates
             this.listenForAnswer();
-
-            // 11. Update state
             this.updateState('active');
 
             return true;
@@ -172,57 +161,6 @@ class CallService {
         } catch (error) {
             console.error("Answer call failed:", error);
             this.cleanup();
-            throw error;
-        }
-    }
-
-    async updateCallPresence(status) {
-        try {
-            if (!this.userId || !this.currentRoomId) return;
-
-            const { error } = await supabase.rpc('update_user_presence', {
-                p_user_id: this.userId,
-                p_room_id: this.currentRoomId,
-                p_status: status
-            });
-
-            if (error) {
-                console.log("Presence update error:", error.message);
-            }
-        } catch (error) {
-            // Silent fail
-        }
-    }
-
-    async getLocalMedia(video = false) {
-        try {
-            // ULTRA SIMPLE CONSTRAINTS - Most compatible
-            const constraints = {
-                audio: true, // Just true, let browser choose best
-                video: video ? {
-                    width: { min: 640, ideal: 1280 },
-                    height: { min: 480, ideal: 720 },
-                    facingMode: 'user'
-                } : false
-            };
-
-            const stream = await navigator.mediaDevices.getUserMedia(constraints);
-            
-            // Verify audio is working
-            const audioTracks = stream.getAudioTracks();
-            if (audioTracks.length === 0) {
-                throw new Error("No audio track found in stream");
-            }
-            
-            // Ensure audio track is enabled
-            audioTracks.forEach(track => {
-                track.enabled = true;
-            });
-
-            return stream;
-
-        } catch (error) {
-            console.error("Microphone access error:", error);
             throw error;
         }
     }
@@ -235,31 +173,46 @@ class CallService {
             }
         };
 
-        // CRITICAL FIX: Remote stream handling
+        // REMOTE STREAM - FIXED VERSION
         this.peerConnection.ontrack = (event) => {
-            console.log("🎯 WebRTC track received:", event.track.kind);
+            console.log("🎯 Received remote track:", event.track.kind);
             
-            // Use the stream from the event directly
-            if (event.streams && event.streams.length > 0) {
-                this.remoteStream = event.streams[0];
-                
-                // Ensure audio tracks are enabled
-                const audioTracks = this.remoteStream.getAudioTracks();
-                audioTracks.forEach(track => {
-                    track.enabled = true;
-                    console.log("Audio track enabled:", track.enabled);
+            // Create new stream or use existing
+            if (!this.remoteStream) {
+                this.remoteStream = new MediaStream();
+            }
+            
+            // Add the track to stream
+            this.remoteStream.addTrack(event.track);
+            
+            // IMPORTANT: Enable the track
+            event.track.enabled = true;
+            
+            console.log("🔊 Audio track added:", {
+                enabled: event.track.enabled,
+                muted: event.track.muted,
+                readyState: event.track.readyState
+            });
+
+            // Notify about stream
+            if (this.onRemoteStream) {
+                // Create a new stream reference to trigger update
+                const streamForCallback = new MediaStream();
+                this.remoteStream.getTracks().forEach(track => {
+                    streamForCallback.addTrack(track);
                 });
                 
-                if (this.onRemoteStream) {
-                    // Send the stream immediately
-                    this.onRemoteStream(this.remoteStream);
-                }
+                // Send it after a small delay
+                setTimeout(() => {
+                    this.onRemoteStream(streamForCallback);
+                }, 100);
             }
         };
 
         // Connection state
         this.peerConnection.onconnectionstatechange = () => {
             const state = this.peerConnection.connectionState;
+            console.log("Connection state:", state);
 
             if (state === 'connected') {
                 this.updateState('active');
@@ -269,7 +222,6 @@ class CallService {
             }
         };
 
-        // ICE connection state
         this.peerConnection.oniceconnectionstatechange = () => {
             const state = this.peerConnection.iceConnectionState;
             if (state === 'failed') {
@@ -299,7 +251,7 @@ class CallService {
                     }
                 });
         } catch (error) {
-            // Silent fail
+            console.log("Failed to send ICE candidate:", error);
         }
     }
 
@@ -308,21 +260,17 @@ class CallService {
 
         const channel = supabase.channel(`call-${this.currentCall.room_id}`);
 
-        // Listen for ICE candidates
         channel.on('broadcast', { event: 'ice-candidate' }, async (payload) => {
             const { candidate, senderId } = payload.payload;
             if (senderId !== this.userId && this.peerConnection) {
                 try {
-                    await this.peerConnection.addIceCandidate(
-                        new RTCIceCandidate(candidate)
-                    );
+                    await this.peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
                 } catch (error) {
-                    // Silent fail
+                    console.log("Failed to add ICE candidate:", error);
                 }
             }
         });
 
-        // Listen for call updates
         channel.on('postgres_changes', {
             event: 'UPDATE',
             schema: 'public',
@@ -331,20 +279,16 @@ class CallService {
         }, async (payload) => {
             const call = payload.new;
 
-            // Caller receives answer
             if (this.isCaller && call.sdp_answer) {
                 try {
                     const answer = JSON.parse(call.sdp_answer);
-                    await this.peerConnection.setRemoteDescription(
-                        new RTCSessionDescription(answer)
-                    );
+                    await this.peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
                     this.updateState('active');
                 } catch (error) {
                     console.log("Failed to set answer:", error);
                 }
             }
 
-            // Call ended
             if (call.status === 'ended' || call.status === 'rejected') {
                 this.endCall();
             }
@@ -368,8 +312,6 @@ class CallService {
                         updated_at: new Date().toISOString()
                     })
                     .eq('id', this.currentCall.id);
-
-                await this.updateCallPresence('online');
 
                 if (this.onCallEvent) {
                     this.onCallEvent('call_ended', { duration });
@@ -429,17 +371,9 @@ class CallService {
         this.isCaller = false;
     }
 
-    setOnCallStateChange(callback) { 
-        this.onCallStateChange = callback; 
-    }
-
-    setOnRemoteStream(callback) { 
-        this.onRemoteStream = callback; 
-    }
-
-    setOnCallEvent(callback) { 
-        this.onCallEvent = callback; 
-    }
+    setOnCallStateChange(callback) { this.onCallStateChange = callback; }
+    setOnRemoteStream(callback) { this.onRemoteStream = callback; }
+    setOnCallEvent(callback) { this.onCallEvent = callback; }
 }
 
 const callService = new CallService();
