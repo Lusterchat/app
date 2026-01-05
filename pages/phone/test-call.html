@@ -2,62 +2,217 @@
 <html>
 <head>
     <title>Test Call</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        button {
+            padding: 12px 24px;
+            margin: 10px;
+            font-size: 16px;
+            cursor: pointer;
+            border: none;
+            border-radius: 8px;
+            background: #4CAF50;
+            color: white;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        button:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+        }
+        #status {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f5f5f5;
+            border-radius: 8px;
+            min-height: 60px;
+            border-left: 4px solid #4CAF50;
+        }
+        .log {
+            background: #f0f0f0;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+    </style>
 </head>
 <body>
-    <h1>Test Speaker Toggle</h1>
-    <button onclick="startCall()">Start Call</button>
-    <button onclick="toggleSpeaker()">Toggle Speaker</button>
-    <button onclick="toggleMute()">Toggle Mute</button>
-    <button onclick="endCall()">End Call</button>
+    <h1>🎧 Test Speaker Toggle</h1>
     
-    <div id="status">Ready</div>
+    <div>
+        <button id="startBtn">Start Call</button>
+        <button id="speakerBtn">Toggle Speaker</button>
+        <button id="muteBtn">Toggle Mute</button>
+        <button id="endBtn">End Call</button>
+    </div>
+    
+    <div id="status">Ready to test...</div>
+    
+    <div class="log" id="log"></div>
     
     <script type="module">
         import callService from '/app/utils/callService.js';
         
-        window.callService = callService;
+        // Get DOM elements
+        const startBtn = document.getElementById('startBtn');
+        const speakerBtn = document.getElementById('speakerBtn');
+        const muteBtn = document.getElementById('muteBtn');
+        const endBtn = document.getElementById('endBtn');
+        const statusEl = document.getElementById('status');
+        const logEl = document.getElementById('log');
         
-        async function startCall() {
-            document.getElementById('status').textContent = 'Starting call...';
+        // Log function
+        function log(message) {
+            console.log(message);
+            logEl.textContent += new Date().toLocaleTimeString() + ' - ' + message + '\n';
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+        
+        // Initialize
+        let isCallActive = false;
+        
+        // Update button states
+        function updateButtons() {
+            speakerBtn.disabled = !isCallActive;
+            muteBtn.disabled = !isCallActive;
+            endBtn.disabled = !isCallActive;
+        }
+        
+        updateButtons();
+        
+        // Start Call
+        startBtn.addEventListener('click', async () => {
             try {
-                // Use a test friend ID
-                await callService.initialize('test-user-123');
-                const call = await callService.initiateCall('test-friend-456', 'voice');
-                document.getElementById('status').textContent = 'Call started: ' + call.id;
+                statusEl.textContent = 'Starting call...';
+                log('🚀 Initializing call service...');
+                
+                // Initialize with test user
+                await callService.initialize('test-user-' + Date.now());
+                log('✅ Call service initialized');
+                
+                // Start call
+                log('📞 Initiating call...');
+                const call = await callService.initiateCall('test-friend-' + Date.now(), 'voice');
+                
+                statusEl.textContent = `Call started! ID: ${call.id}`;
+                log(`✅ Call created: ${call.id}`);
+                log(`💾 Check database: SELECT * FROM calls WHERE id = '${call.id}';`);
                 
                 // Setup callbacks
                 callService.setOnSpeakerModeChange((mode) => {
-                    console.log('Speaker mode changed:', mode);
-                    document.getElementById('status').textContent = 'Speaker: ' + (mode ? 'ON' : 'OFF');
+                    log(`🔊 Speaker mode changed: ${mode ? 'SPEAKER' : 'MICROPHONE'}`);
+                    statusEl.textContent = `Speaker: ${mode ? 'ON 🔊' : 'OFF 🎤'}`;
                 });
                 
+                callService.setOnCallStateChange((state) => {
+                    log(`📊 Call state: ${state}`);
+                });
+                
+                callService.setOnRemoteStream((stream) => {
+                    log('🔊 Remote stream received');
+                });
+                
+                callService.setOnCallEvent((event, data) => {
+                    log(`📞 Call event: ${event}`, data);
+                });
+                
+                isCallActive = true;
+                updateButtons();
+                log('🎉 Call is active! Try toggling speaker...');
+                
             } catch (error) {
-                document.getElementById('status').textContent = 'Error: ' + error.message;
+                statusEl.textContent = `Error: ${error.message}`;
+                log(`❌ Error: ${error.message}`);
+                console.error(error);
             }
-        }
+        });
         
-        async function toggleSpeaker() {
+        // Toggle Speaker
+        speakerBtn.addEventListener('click', async () => {
             try {
+                log('🔄 Toggling speaker mode...');
                 const newMode = await callService.toggleSpeakerMode();
-                document.getElementById('status').textContent = 'Speaker toggled: ' + (newMode ? 'ON' : 'OFF');
+                
+                log(`✅ Speaker toggled to: ${newMode ? 'SPEAKER 🔊' : 'MICROPHONE 🎤'}`);
+                statusEl.textContent = `Speaker: ${newMode ? 'ON 🔊' : 'OFF 🎤'}`;
+                
+                // Check database
+                log(`💾 Database should show: audio_mode = '${newMode ? 'speaker' : 'mic'}'`);
+                log(`Run: SELECT audio_mode, updated_at FROM calls ORDER BY updated_at DESC LIMIT 1;`);
+                
             } catch (error) {
-                console.error('Toggle error:', error);
+                log(`❌ Toggle failed: ${error.message}`);
+                console.error(error);
             }
-        }
+        });
         
-        async function toggleMute() {
+        // Toggle Mute
+        muteBtn.addEventListener('click', async () => {
             try {
                 const muted = await callService.toggleMute();
-                document.getElementById('status').textContent = 'Mute: ' + (muted ? 'ON' : 'OFF');
+                log(`🎤 Microphone ${muted ? 'MUTED 🔇' : 'UNMUTED 🎤'}`);
+                statusEl.textContent = `Mic: ${muted ? 'MUTED 🔇' : 'UNMUTED 🎤'}`;
             } catch (error) {
-                console.error('Mute error:', error);
+                log(`❌ Mute failed: ${error.message}`);
+                console.error(error);
             }
-        }
+        });
         
-        async function endCall() {
-            await callService.endCall();
-            document.getElementById('status').textContent = 'Call ended';
-        }
+        // End Call
+        endBtn.addEventListener('click', async () => {
+            try {
+                log('📞 Ending call...');
+                await callService.endCall();
+                
+                statusEl.textContent = 'Call ended';
+                log('✅ Call ended');
+                
+                isCallActive = false;
+                updateButtons();
+                
+            } catch (error) {
+                log(`❌ End call failed: ${error.message}`);
+                console.error(error);
+            }
+        });
+        
+        // Make functions available globally for debugging
+        window.startTestCall = () => startBtn.click();
+        window.toggleTestSpeaker = () => speakerBtn.click();
+        window.toggleTestMute = () => muteBtn.click();
+        window.endTestCall = () => endBtn.click();
+        
+        log('✅ Test page loaded. Click "Start Call" to begin.');
+        
+    </script>
+    
+    <!-- Debug section -->
+    <script>
+        // Console debugging helpers
+        console.log('🔧 Debug helpers available:');
+        console.log('- window.startTestCall() - Start a test call');
+        console.log('- window.toggleTestSpeaker() - Toggle speaker');
+        console.log('- window.toggleTestMute() - Toggle mute');
+        console.log('- window.endTestCall() - End call');
+        
+        // Quick database check helper
+        window.checkDB = function() {
+            console.log('📊 Database check SQL:');
+            console.log(`1. Latest call: SELECT id, status, audio_mode FROM calls ORDER BY created_at DESC LIMIT 1;`);
+            console.log(`2. All calls: SELECT id, status, audio_mode, created_at FROM calls ORDER BY created_at DESC LIMIT 10;`);
+            console.log(`3. Speaker toggles: SELECT id, audio_mode, updated_at FROM calls WHERE audio_mode = 'speaker' ORDER BY updated_at DESC;`);
+        };
     </script>
 </body>
 </html>
