@@ -149,7 +149,7 @@ body {
     color: white;
 }
 
-/* MAIN CONTENT AREA - CRITICAL FIX */
+/* MAIN CONTENT AREA */
 .main-content {
     position: absolute;
     top: 80px;
@@ -161,7 +161,7 @@ body {
     overflow: hidden;
 }
 
-/* Messages Container - MUST WORK WITH YOUR JS */
+/* Messages Container */
 .messages-container {
     flex: 1;
     overflow-y: auto;
@@ -175,7 +175,7 @@ body {
     scroll-behavior: smooth;
 }
 
-/* Message Bubbles - MUST MATCH YOUR JS TEMPLATE */
+/* Message Bubbles */
 .message {
     max-width: 70%;
     padding: 13px 17px;
@@ -233,7 +233,7 @@ body {
     text-align: left;
 }
 
-/* Date Separator - MUST MATCH YOUR JS */
+/* Date Separator */
 .date-separator {
     text-align: center;
     margin: 18px 0;
@@ -250,7 +250,7 @@ body {
     font-weight: 300;
 }
 
-/* Empty Chat State - MUST MATCH YOUR JS TEMPLATE */
+/* Empty Chat State */
 .empty-chat {
     display: flex;
     flex-direction: column;
@@ -284,7 +284,7 @@ body {
     line-height: 1.5;
 }
 
-/* Typing Indicator - MUST MATCH YOUR JS */
+/* Typing Indicator */
 .typing-indicator {
     align-self: flex-start;
     background: rgba(255, 255, 255, 0.1);
@@ -402,10 +402,9 @@ body {
     cursor: not-allowed;
     transform: none;
     box-shadow: none;
-    background: linear-gradient(135deg, #666, #888);
 }
 
-/* Custom Alerts - MUST WORK WITH YOUR JS */
+/* Custom Alerts */
 .custom-alert-overlay {
     position: fixed;
     top: 0;
@@ -514,7 +513,7 @@ body {
     font-size: 1rem;
 }
 
-/* User Info Modal - MUST MATCH YOUR JS */
+/* User Info Modal */
 .modal-overlay {
     position: fixed;
     top: 0;
@@ -574,7 +573,7 @@ body {
     color: white;
 }
 
-/* User Info Styles - MUST MATCH YOUR JS TEMPLATE */
+/* User Info Styles */
 .user-info-avatar {
     width: 85px;
     height: 85px;
@@ -663,7 +662,6 @@ body {
 
 /* RESPONSIVE DESIGN */
 
-/* Tablet */
 @media (max-width: 768px) {
     .chat-header {
         padding: 14px 16px;
@@ -701,7 +699,6 @@ body {
     }
 }
 
-/* Mobile */
 @media (max-width: 600px) {
     .chat-header {
         padding: 12px 14px;
@@ -738,7 +735,6 @@ body {
     }
 }
 
-/* Small Mobile */
 @media (max-width: 480px) {
     .chat-header {
         padding: 10px 12px;
