@@ -6,16 +6,11 @@
     <title>✨ Relay - Chat</title>
     <link rel="stylesheet" href="../../style.css">
     <link rel="stylesheet" href="style.css">
-    <style>
-        /* Critical inline styles to prevent FOUC */
-        body {
-            overflow: hidden !important;
-            height: 100vh !important;
-        }
-    </style>
 </head>
 <body>
-    <!-- Chat Header - FIXED AT TOP -->
+    <!-- ========================== -->
+    <!-- CHAT HEADER SECTION        -->
+    <!-- ========================== -->
     <header class="chat-header">
         <button class="back-btn" onclick="goBack()">←</button>
 
@@ -31,24 +26,23 @@
         </div>
 
         <div class="chat-actions">
-            <button class="chat-action-btn" onclick="showUserInfo()" title="User Info">
-                ⓘ
-            </button>
-            <button class="chat-action-btn" onclick="clearChatPrompt()" title="Clear Chat">
-                🗑️
-            </button>
+            <button class="chat-action-btn" onclick="showUserInfo()" title="User Info">ⓘ</button>
+            <button class="chat-action-btn" onclick="clearChatPrompt()" title="Clear Chat">🗑️</button>
         </div>
     </header>
 
-    <!-- MAIN CONTENT - FIXED LAYOUT -->
+    <!-- ========================== -->
+    <!-- MAIN CONTENT SECTION       -->
+    <!-- ========================== -->
     <main class="main-content" id="mainContent">
-        <!-- Messages Container - SCROLLABLE -->
         <div class="messages-container" id="messagesContainer">
-            <!-- Messages will be loaded here by JavaScript -->
+            <!-- Messages loaded by JavaScript -->
         </div>
     </main>
 
-    <!-- Message Input - FIXED AT BOTTOM -->
+    <!-- ========================== -->
+    <!-- MESSAGE INPUT SECTION      -->
+    <!-- ========================== -->
     <div class="message-input-wrapper" id="messageInputWrapper">
         <div class="message-input-container">
             <textarea class="message-input" id="messageInput" 
@@ -57,18 +51,18 @@
                       onkeydown="handleKeyPress(event)"
                       oninput="autoResize(this)"></textarea>
 
-            <button class="send-btn" id="sendBtn" onclick="sendMessage()" disabled>
-                ➤
-            </button>
+            <button class="send-btn" id="sendBtn" onclick="sendMessage()" disabled>➤</button>
         </div>
     </div>
 
-    <!-- Custom Alert System -->
-    <div class="custom-alert-overlay" id="customAlert">
+    <!-- ========================== -->
+    <!-- ALERT SYSTEM (HIDDEN)      -->
+    <!-- ========================== -->
+    <div class="custom-alert-overlay" id="customAlert" style="display: none;">
         <div class="custom-alert">
             <div class="custom-alert-icon" id="alertIcon">⚠️</div>
-            <h3 class="custom-alert-title" id="alertTitle">Alert</h3>
-            <p class="custom-alert-message" id="alertMessage">Message here</p>
+            <h3 class="custom-alert-title" id="alertTitle"></h3>
+            <p class="custom-alert-message" id="alertMessage"></p>
             <div class="custom-alert-buttons">
                 <button class="alert-btn confirm" id="alertConfirm">OK</button>
                 <button class="alert-btn cancel" id="alertCancel" style="display: none;">Cancel</button>
@@ -76,22 +70,24 @@
         </div>
     </div>
 
-    <!-- Toast Notification -->
-    <div class="custom-toast" id="customToast">
+    <!-- ========================== -->
+    <!-- TOAST NOTIFICATION (HIDDEN) -->
+    <!-- ========================== -->
+    <div class="custom-toast" id="customToast" style="display: none;">
         <span class="toast-icon" id="toastIcon">ℹ️</span>
-        <span class="toast-message" id="toastMessage">Notification</span>
+        <span class="toast-message" id="toastMessage"></span>
     </div>
 
-    <!-- User Info Modal -->
-    <div class="modal-overlay" id="userInfoModal">
+    <!-- ========================== -->
+    <!-- USER INFO MODAL (HIDDEN)   -->
+    <!-- ========================== -->
+    <div class="modal-overlay" id="userInfoModal" style="display: none;">
         <div class="modal-content">
             <div class="modal-header">
                 <h2 class="modal-title">User Info</h2>
                 <button class="modal-close" onclick="closeModal()">×</button>
             </div>
-            <div id="userInfoContent">
-                <!-- User info will be loaded here -->
-            </div>
+            <div id="userInfoContent"></div>
         </div>
     </div>
 
