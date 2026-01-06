@@ -628,7 +628,7 @@ function showUserInfo() {
             <button class="info-action-btn secondary" onclick="viewSharedMedia()">
                 📷 Shared Media
             </button>
-           <button class="info-action-btn danger" onclick="blockUserPrompt()">
+                      <button class="info-action-btn danger" onclick="blockUserPrompt()">
                 🚫 Block User
             </button>
         </div>
