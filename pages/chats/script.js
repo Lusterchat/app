@@ -1,7 +1,7 @@
-import { auth } from '../../utils/auth.js'
-import { supabase } from '../../utils/supabase.js'
+import { auth } from '../../utils/auth.js';
+import { supabase } from '../../utils/supabase.js';
 
-console.log("✨ Chat Loaded");
+console.log('✨ Chat Loaded');
 
 let currentUser = null;
 let chatFriend = null;
@@ -9,16 +9,13 @@ let chatChannel = null;
 let statusChannel = null;
 let isLoadingMessages = false;
 let currentMessages = [];
-let isSending = false; // 🎯 FIX 2: Double sending prevention
-let isTyping = false; // 🎯 FIX 3: Typing indicator
+let isSending = false;
+let isTyping = false;
 let typingTimeout = null;
-let friendTyping = false;
 let friendTypingTimeout = null;
 
-// Initialize
 document.addEventListener('DOMContentLoaded', async () => {
     try {
-        // Check auth
         const { success, user } = await auth.getCurrentUser();
         if (!success || !user) {
             showLoginAlert();
@@ -26,20 +23,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         currentUser = user;
-        console.log("Current User:", user.id);
+        console.log('Current User:', user.id);
 
-        // Get friend ID
         const urlParams = new URLSearchParams(window.location.search);
         const friendId = urlParams.get('friendId');
 
         if (!friendId) {
-            showCustomAlert("No friend selected!", "😕", "Error", () => {
+            showCustomAlert('No friend selected!', '😕', 'Error', () => {
                 window.location.href = '../home/index.html';
             });
             return;
         }
 
-        // Load friend
         const { data: friend, error: friendError } = await supabase
             .from('profiles')
             .select('*')
@@ -52,47 +47,35 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('chatUserName').textContent = friend.username;
         document.getElementById('chatUserAvatar').textContent = friend.username.charAt(0).toUpperCase();
 
-        // Update friend status in UI
         updateFriendStatus(friend.status);
-
-        // Load old messages
         await loadOldMessages(friendId);
-
-        // Setup realtime
         setupRealtime(friendId);
-
-        // 🎯 FIX 3: Setup typing listener
         setupTypingListener();
         updateInputListener();
 
-        console.log("✅ Chat ready!");
-
+        console.log('✅ Chat ready!');
     } catch (error) {
-        console.error("Init error:", error);
-        showCustomAlert("Error loading chat: " + error.message, "❌", "Error", () => {
+        console.error('Init error:', error);
+        showCustomAlert('Error loading chat: ' + error.message, '❌', 'Error', () => {
             window.location.href = '../home/index.html';
         });
     }
 });
 
-// 🎯 FIX 3: Typing functions
 function handleTyping() {
     if (!isTyping) {
         isTyping = true;
         sendTypingStatus(true);
     }
     
-    // Clear existing timeout
     if (typingTimeout) clearTimeout(typingTimeout);
     
-    // Set timeout to stop typing after 2 seconds of inactivity
     typingTimeout = setTimeout(() => {
         isTyping = false;
         sendTypingStatus(false);
     }, 2000);
 }
 
-// Send typing status via Supabase
 async function sendTypingStatus(isTyping) {
     try {
         await supabase
@@ -108,11 +91,10 @@ async function sendTypingStatus(isTyping) {
                 }
             });
     } catch (error) {
-        console.log("Typing status error:", error);
+        console.log('Typing status error:', error);
     }
 }
 
-// Listen for friend's typing
 function setupTypingListener() {
     supabase
         .channel(`typing:${chatFriend.id}:${currentUser.id}`)
@@ -124,12 +106,10 @@ function setupTypingListener() {
         .subscribe();
 }
 
-// Show/hide typing indicator
 function showTypingIndicator(show) {
     const indicator = document.getElementById('typingIndicator');
     
     if (!indicator) {
-        // Create indicator if it doesn't exist
         const container = document.getElementById('messagesContainer');
         if (container) {
             const typingHTML = `
@@ -150,7 +130,6 @@ function showTypingIndicator(show) {
         indicatorElement.style.display = show ? 'flex' : 'none';
         
         if (show) {
-            // Auto-hide after 3 seconds (in case we miss the stop signal)
             if (friendTypingTimeout) clearTimeout(friendTypingTimeout);
             friendTypingTimeout = setTimeout(() => {
                 indicatorElement.style.display = 'none';
@@ -159,7 +138,6 @@ function showTypingIndicator(show) {
     }
 }
 
-// Update input event listener
 function updateInputListener() {
     const input = document.getElementById('messageInput');
     if (input) {
@@ -167,24 +145,23 @@ function updateInputListener() {
     }
 }
 
-// SOUND EFFECTS 🎵
 function playSentSound() {
     try {
         const audio = new Audio('sent.mp3');
         audio.volume = 0.3;
-        audio.play().catch(e => console.log("Sound play failed:", e));
+        audio.play().catch(e => console.log('Sound play failed:', e));
     } catch (error) {
-        console.log("Sound error:", error);
+        console.log('Sound error:', error);
     }
 }
 
 function playReceivedSound() {
     try {
-        const audio = new Audio('recieve.mp3'); // Fixed spelling
+        const audio = new Audio('recieve.mp3');
         audio.volume = 0.3;
-        audio.play().catch(e => console.log("Sound play failed:", e));
+        audio.play().catch(e => console.log('Sound play failed:', e));
     } catch (error) {
-        console.log("Sound error:", error);
+        console.log('Sound error:', error);
     }
 }
 
@@ -196,21 +173,20 @@ function showLoginAlert() {
     const alertConfirm = document.getElementById('alertConfirm');
     const alertCancel = document.getElementById('alertCancel');
 
-    alertIcon.textContent = "🔐";
-    alertTitle.textContent = "Login Required";
-    alertMessage.textContent = "Please login or signup to continue chatting!";
-
+    alertIcon.textContent = '🔐';
+    alertTitle.textContent = 'Login Required';
+    alertMessage.textContent = 'Please login or signup to continue chatting!';
     alertCancel.style.display = 'inline-block';
 
-    alertConfirm.textContent = "Login";
-    alertConfirm.className = "alert-btn confirm";
+    alertConfirm.textContent = 'Login';
+    alertConfirm.className = 'alert-btn confirm';
     alertConfirm.onclick = () => {
         alertOverlay.style.display = 'none';
         window.location.href = '../login/index.html';
     };
 
-    alertCancel.textContent = "Signup";
-    alertCancel.className = "alert-btn cancel";
+    alertCancel.textContent = 'Signup';
+    alertCancel.className = 'alert-btn cancel';
     alertCancel.onclick = () => {
         alertOverlay.style.display = 'none';
         window.location.href = '../auth/index.html';
@@ -224,7 +200,7 @@ async function loadOldMessages(friendId) {
     isLoadingMessages = true;
 
     try {
-        console.log("Loading messages for friend:", friendId);
+        console.log('Loading messages for friend:', friendId);
 
         const { data: messages, error } = await supabase
             .from('direct_messages')
@@ -233,17 +209,15 @@ async function loadOldMessages(friendId) {
             .order('created_at', { ascending: true });
 
         if (error) {
-            console.error("Query error:", error);
+            console.error('Query error:', error);
             throw error;
         }
 
-        console.log("Loaded", messages?.length || 0, "messages");
+        console.log('Loaded', messages?.length || 0, 'messages');
         currentMessages = messages || [];
-
         showMessages(currentMessages);
-
     } catch (error) {
-        console.error("Load error:", error);
+        console.error('Load error:', error);
         showMessages([]);
     } finally {
         isLoadingMessages = false;
@@ -254,7 +228,7 @@ function showMessages(messages) {
     const container = document.getElementById('messagesContainer');
     if (!container) return;
 
-    console.log("Showing", messages?.length || 0, "messages");
+    console.log('Showing', messages?.length || 0, 'messages');
 
     if (!messages || messages.length === 0) {
         container.innerHTML = `
@@ -296,7 +270,6 @@ function showMessages(messages) {
     setTimeout(() => scrollToBottom(), 150);
 }
 
-// 🎯 FIX 4: Improved scroll-to-bottom
 function scrollToBottom(instant = false) {
     const container = document.getElementById('messagesContainer');
     if (!container) return;
@@ -306,9 +279,7 @@ function scrollToBottom(instant = false) {
         if (instant) {
             lastMessage.scrollIntoView({ behavior: 'instant', block: 'end' });
         } else {
-            // Smooth scroll only if user is near bottom
             const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 100;
-            
             if (isNearBottom) {
                 lastMessage.scrollIntoView({ behavior: 'smooth', block: 'end' });
             }
@@ -316,7 +287,6 @@ function scrollToBottom(instant = false) {
     }
 }
 
-// 🎯 FIX 4: Improved addMessageToUI with duplicate prevention
 function addMessageToUI(message, isFromRealtime = false) {
     const container = document.getElementById('messagesContainer');
     if (!container || !message) return;
@@ -340,18 +310,12 @@ function addMessageToUI(message, isFromRealtime = false) {
 
     container.insertAdjacentHTML('beforeend', messageHTML);
     
-    // 🎯 FIX: Check for duplicate before adding to array
     const isDuplicate = currentMessages.some(msg => msg.id === message.id);
     if (!isDuplicate) {
         currentMessages.push(message);
     }
 
-    // Scroll to bottom if:
-    // 1. It's our own message (sent)
-    // 2. OR we're near the bottom already
-    // 3. OR it's from realtime and we're not actively scrolling up
     const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 200;
-    
     if (isSent || isNearBottom || isFromRealtime) {
         setTimeout(() => scrollToBottom(!isFromRealtime), 50);
     }
@@ -363,20 +327,20 @@ function updateFriendStatus(status) {
     const statusDot = document.getElementById('statusDot');
 
     if (isOnline) {
-        statusText.textContent = "Online";
-        statusText.style.color = "#28a745";
-        statusDot.className = "status-dot";
-        statusDot.style.boxShadow = "0 0 8px #28a745";
+        statusText.textContent = 'Online';
+        statusText.style.color = '#28a745';
+        statusDot.className = 'status-dot';
+        statusDot.style.boxShadow = '0 0 8px #28a745';
     } else {
-        statusText.textContent = "Offline";
-        statusText.style.color = "#6c757d";
-        statusDot.className = "status-dot offline";
-        statusDot.style.boxShadow = "none";
+        statusText.textContent = 'Offline';
+        statusText.style.color = '#6c757d';
+        statusDot.className = 'status-dot offline';
+        statusDot.style.boxShadow = 'none';
     }
 }
 
 function setupRealtime(friendId) {
-    console.log("🔧 Setting up realtime for friend:", friendId);
+    console.log('🔧 Setting up realtime for friend:', friendId);
 
     if (chatChannel) {
         supabase.removeChannel(chatChannel);
@@ -385,43 +349,34 @@ function setupRealtime(friendId) {
         supabase.removeChannel(statusChannel);
     }
 
-    // 🎯 FIX 5: Updated realtime listener to prevent duplicates
     chatChannel = supabase.channel(`dm:${currentUser.id}:${friendId}`)
         .on('postgres_changes', {
             event: 'INSERT',
             schema: 'public',
             table: 'direct_messages'
         }, (payload) => {
-            console.log("📨 Realtime INSERT detected:", payload.new);
-
+            console.log('📨 Realtime INSERT detected:', payload.new);
             const newMsg = payload.new;
-
-            // Filter messages more strictly
             const isOurMessage = 
                 (newMsg.sender_id === currentUser.id && newMsg.receiver_id === friendId) ||
                 (newMsg.sender_id === friendId && newMsg.receiver_id === currentUser.id);
 
             if (isOurMessage) {
-                // Check if message is already in UI (by ID)
                 const existingMessage = document.querySelector(`[data-message-id="${newMsg.id}"]`);
-                
                 if (!existingMessage) {
-                    console.log("✅ Adding new message to UI (from realtime)");
+                    console.log('✅ Adding new message to UI (from realtime)');
                     addMessageToUI(newMsg, true);
 
-                    // Play received sound if message is from friend
                     if (newMsg.sender_id === friendId) {
                         playReceivedSound();
-                        
-                        // Only flash title if window is not focused
                         if (!document.hasFocus()) {
                             const originalTitle = document.title;
-                            document.title = "💬 " + chatFriend.username;
+                            document.title = '💬 ' + chatFriend.username;
                             setTimeout(() => document.title = originalTitle, 1000);
                         }
                     }
                 } else {
-                    console.log("🔄 Message already in UI, skipping:", newMsg.id);
+                    console.log('🔄 Message already in UI, skipping:', newMsg.id);
                 }
             }
         })
@@ -434,30 +389,26 @@ function setupRealtime(friendId) {
             table: 'profiles',
             filter: `id=eq.${friendId}`
         }, (payload) => {
-            console.log("🔄 Friend status updated:", payload.new.status);
-
+            console.log('🔄 Friend status updated:', payload.new.status);
             if (payload.new.id === friendId) {
                 chatFriend.status = payload.new.status;
                 updateFriendStatus(payload.new.status);
 
-                // Show status change notification
                 if (payload.new.status === 'online') {
-                    showToast(`${chatFriend.username} is now online`, "🟢", 2000);
+                    showToast(`${chatFriend.username} is now online`, '🟢', 2000);
                 } else {
-                    showToast(`${chatFriend.username} is now offline`, "⚫", 2000);
+                    showToast(`${chatFriend.username} is now offline`, '⚫', 2000);
                 }
             }
         })
         .subscribe();
 
-    console.log("✅ Realtime active");
+    console.log('✅ Realtime active');
 }
 
-// 🎯 FIX 2: Updated sendMessage with double sending prevention
 async function sendMessage() {
-    // Prevent double sending
     if (isSending) {
-        console.log("🔄 Message already being sent, skipping...");
+        console.log('🔄 Message already being sent, skipping...');
         return;
     }
     
@@ -465,18 +416,16 @@ async function sendMessage() {
     const text = input.value.trim();
 
     if (!text || !chatFriend) {
-        showToast("Please type a message!", "⚠️");
+        showToast('Please type a message!', '⚠️');
         return;
     }
 
-    isSending = true; // Lock sending
+    isSending = true;
     const sendBtn = document.getElementById('sendBtn');
     const originalText = sendBtn.innerHTML;
 
     try {
-        console.log("📤 Sending message to:", chatFriend.id);
-
-        // Disable button and show loading
+        console.log('📤 Sending message to:', chatFriend.id);
         sendBtn.innerHTML = '<div class="typing-dots"><div></div><div></div><div></div></div>';
         sendBtn.disabled = true;
 
@@ -493,31 +442,20 @@ async function sendMessage() {
 
         if (error) throw error;
 
-        console.log("✅ Message sent to database:", data.id);
-
-        // Play sent sound 🎵
+        console.log('✅ Message sent to database:', data.id);
         playSentSound();
-
-        // Clear input but keep focus
         input.value = '';
         input.style.height = 'auto';
         
-        // Short delay before re-enabling
         setTimeout(() => {
             input.focus();
             isSending = false;
             sendBtn.innerHTML = originalText;
             sendBtn.disabled = false;
         }, 300);
-
-        // Don't add message here - let realtime handle it
-        // This prevents duplicates
-
     } catch (error) {
-        console.error("Send failed:", error);
-        showCustomAlert("Failed to send message: " + error.message, "❌", "Error");
-        
-        // Re-enable on error
+        console.error('Send failed:', error);
+        showCustomAlert('Failed to send message: ' + error.message, '❌', 'Error');
         isSending = false;
         sendBtn.innerHTML = originalText;
         sendBtn.disabled = false;
@@ -551,7 +489,7 @@ function autoResize(textarea) {
     }
 }
 
-function showCustomAlert(message, icon = "⚠️", title = "Alert", onConfirm = null) {
+function showCustomAlert(message, icon = '⚠️', title = 'Alert', onConfirm = null) {
     const alertOverlay = document.getElementById('customAlert');
     const alertIcon = document.getElementById('alertIcon');
     const alertTitle = document.getElementById('alertTitle');
@@ -564,7 +502,7 @@ function showCustomAlert(message, icon = "⚠️", title = "Alert", onConfirm = 
     alertMessage.textContent = message;
     alertCancel.style.display = 'none';
 
-    alertConfirm.textContent = "OK";
+    alertConfirm.textContent = 'OK';
     alertConfirm.onclick = () => {
         alertOverlay.style.display = 'none';
         if (onConfirm) onConfirm();
@@ -573,7 +511,7 @@ function showCustomAlert(message, icon = "⚠️", title = "Alert", onConfirm = 
     alertOverlay.style.display = 'flex';
 }
 
-function showConfirmAlert(message, icon = "❓", title = "Confirm", onConfirm, onCancel = null) {
+function showConfirmAlert(message, icon = '❓', title = 'Confirm', onConfirm, onCancel = null) {
     const alertOverlay = document.getElementById('customAlert');
     const alertIcon = document.getElementById('alertIcon');
     const alertTitle = document.getElementById('alertTitle');
@@ -586,13 +524,13 @@ function showConfirmAlert(message, icon = "❓", title = "Confirm", onConfirm, o
     alertMessage.textContent = message;
     alertCancel.style.display = 'inline-block';
 
-    alertConfirm.textContent = "Yes";
+    alertConfirm.textContent = 'Yes';
     alertConfirm.onclick = () => {
         alertOverlay.style.display = 'none';
         if (onConfirm) onConfirm();
     };
 
-    alertCancel.textContent = "No";
+    alertCancel.textContent = 'No';
     alertCancel.onclick = () => {
         alertOverlay.style.display = 'none';
         if (onCancel) onCancel();
@@ -601,7 +539,7 @@ function showConfirmAlert(message, icon = "❓", title = "Confirm", onConfirm, o
     alertOverlay.style.display = 'flex';
 }
 
-function showToast(message, icon = "ℹ️", duration = 3000) {
+function showToast(message, icon = 'ℹ️', duration = 3000) {
     const toast = document.getElementById('customToast');
     const toastIcon = document.getElementById('toastIcon');
     const toastMessage = document.getElementById('toastMessage');
@@ -625,7 +563,7 @@ function goBack() {
 
 window.showUserInfo = function() {
     if (!chatFriend) {
-        showToast("User information not available", "⚠️");
+        showToast('User information not available', '⚠️');
         return;
     }
 
@@ -666,20 +604,20 @@ window.closeModal = function() {
 };
 
 window.startVoiceCall = function() {
-    showToast("Voice call feature coming soon!", "📞");
+    showToast('Voice call feature coming soon!', '📞');
 };
 
 window.viewSharedMedia = function() {
-    showToast("Shared media feature coming soon!", "📷");
+    showToast('Shared media feature coming soon!', '📷');
 };
 
 window.blockUserPrompt = function() {
     showConfirmAlert(
         `Are you sure you want to block ${chatFriend.username}?`,
-        "🚫",
-        "Block User",
+        '🚫',
+        'Block User',
         () => {
-            showToast("User blocked!", "✅");
+            showToast('User blocked!', '✅');
             setTimeout(goBack, 1000);
         }
     );
@@ -687,9 +625,9 @@ window.blockUserPrompt = function() {
 
 window.clearChatPrompt = async function() {
     showConfirmAlert(
-        "Are you sure you want to clear all messages?",
-        "🗑️",
-        "Clear Chat",
+        'Are you sure you want to clear all messages?',
+        '🗑️',
+        'Clear Chat',
         async () => {
             try {
                 const friendId = new URLSearchParams(window.location.search).get('friendId');
@@ -700,18 +638,17 @@ window.clearChatPrompt = async function() {
 
                 if (error) throw error;
 
-                showToast("Chat cleared!", "✅");
+                showToast('Chat cleared!', '✅');
                 currentMessages = [];
                 showMessages([]);
             } catch (error) {
-                console.error("Clear chat error:", error);
-                showCustomAlert("Error clearing chat", "❌", "Error");
+                console.error('Clear chat error:', error);
+                showCustomAlert('Error clearing chat', '❌', 'Error');
             }
         }
     );
 };
 
-// Make functions global
 window.sendMessage = sendMessage;
 window.handleKeyPress = handleKeyPress;
 window.autoResize = autoResize;
@@ -719,379 +656,3 @@ window.goBack = goBack;
 window.showCustomAlert = showCustomAlert;
 window.showConfirmAlert = showConfirmAlert;
 window.showToast = showToast;
-
-/* Responsive Design for Chat Page - ADJUSTED FOR BIGGER SIZES */
-
-/* Large Desktop */
-@media (max-width: 1440px) {
-    .message {
-        max-width: 75%;
-    }
-}
-
-/* Desktop */
-@media (max-width: 1200px) {
-    .message {
-        max-width: 78%;
-    }
-}
-
-/* Small Desktop / Large Tablet */
-@media (max-width: 1024px) {
-    .chat-header {
-        padding: 16px 18px; /* Adjusted */
-        height: 76px; /* Adjusted */
-    }
-
-    .main-content {
-        margin-top: 76px; /* Adjusted */
-        margin-bottom: 92px; /* Adjusted */
-        height: calc(100vh - 168px); /* Adjusted */
-    }
-
-    .messages-container {
-        padding: 18px 18px 60px 18px; /* Adjusted */
-    }
-
-    .message {
-        max-width: 80%;
-    }
-
-    .message-input-wrapper {
-        padding: 14px 18px 17px 18px; /* Adjusted */
-        height: 90px; /* Adjusted */
-    }
-}
-
-/* Tablet Landscape */
-@media (max-width: 900px) {
-    .message {
-        max-width: 82%;
-    }
-}
-
-/* Tablet Portrait */
-@media (max-width: 768px) {
-    .chat-header {
-        padding: 14px 16px; /* Adjusted */
-        height: 72px; /* Adjusted */
-    }
-
-    .main-content {
-        margin-top: 72px; /* Adjusted */
-        margin-bottom: 88px; /* Adjusted */
-        height: calc(100vh - 160px); /* Adjusted */
-    }
-
-    .messages-container {
-        padding: 16px 16px 55px 16px; /* Adjusted */
-    }
-
-    .message-input-wrapper {
-        padding: 12px 16px 15px 16px; /* Adjusted */
-        height: 85px; /* Adjusted */
-    }
-
-    .message-input {
-        padding: 12px 16px; /* Adjusted */
-        min-height: 46px; /* Adjusted */
-        border-radius: 22px; /* Adjusted */
-        font-size: 16px !important;
-    }
-
-    .send-btn {
-        width: 46px; /* Adjusted */
-        height: 46px; /* Adjusted */
-        font-size: 1.1rem; /* Adjusted */
-    }
-
-    .message {
-        max-width: 85%;
-        padding: 12px 16px; /* Adjusted */
-    }
-
-    .chat-user-avatar {
-        width: 46px; /* Adjusted */
-        height: 46px; /* Adjusted */
-    }
-
-    .custom-alert {
-        padding: 24px; /* Adjusted */
-        max-width: 340px; /* Adjusted */
-    }
-}
-
-/* Mobile Landscape */
-@media (max-width: 667px) and (orientation: landscape) {
-    .chat-header {
-        height: 66px; /* Adjusted */
-        padding: 12px 15px; /* Adjusted */
-    }
-
-    .main-content {
-        margin-top: 66px; /* Adjusted */
-        margin-bottom: 75px; /* Adjusted */
-        height: calc(100vh - 141px); /* Adjusted */
-    }
-
-    .messages-container {
-        padding: 12px 15px 40px 15px; /* Adjusted */
-    }
-
-    .message-input-wrapper {
-        height: 75px; /* Adjusted */
-        padding: 10px 15px 13px 15px; /* Adjusted */
-    }
-
-    .message-input {
-        min-height: 44px; /* Adjusted */
-        padding: 10px 14px; /* Adjusted */
-    }
-
-    .send-btn {
-        width: 44px; /* Adjusted */
-        height: 44px; /* Adjusted */
-    }
-}
-
-/* Mobile Portrait */
-@media (max-width: 600px) {
-    .chat-header {
-        padding: 12px 14px; /* Adjusted */
-        height: 66px; /* Adjusted */
-    }
-
-    .main-content {
-        margin-top: 66px; /* Adjusted */
-        margin-bottom: 82px; /* Adjusted */
-        height: calc(100vh - 148px); /* Adjusted */
-    }
-
-    .messages-container {
-        padding: 14px 14px 50px 14px; /* Adjusted */
-    }
-
-    .message-input-wrapper {
-        padding: 10px 14px 13px 14px; /* Adjusted */
-        height: 80px; /* Adjusted */
-    }
-
-    .message-input-container {
-        gap: 12px; /* Adjusted */
-    }
-
-    .message {
-        max-width: 88%;
-        padding: 11px 15px; /* Adjusted */
-    }
-
-    .chat-user-avatar {
-        width: 44px; /* Adjusted */
-        height: 44px; /* Adjusted */
-        font-size: 1.2rem; /* Adjusted */
-    }
-
-    .back-btn,
-    .chat-action-btn {
-        width: 40px; /* Adjusted */
-        height: 40px; /* Adjusted */
-    }
-
-    .message-input {
-        font-size: 1rem; /* Adjusted */
-        min-height: 44px; /* Adjusted */
-        padding: 10px 14px; /* Adjusted */
-    }
-
-    .send-btn {
-        width: 44px; /* Adjusted */
-        height: 44px; /* Adjusted */
-        font-size: 1.05rem; /* Adjusted */
-    }
-
-    .custom-alert {
-        padding: 22px; /* Adjusted */
-        max-width: 330px; /* Adjusted */
-    }
-
-    .custom-alert-buttons {
-        flex-direction: column;
-        gap: 10px; /* Adjusted */
-    }
-
-    .alert-btn {
-        width: 100%;
-        min-width: auto;
-        padding: 11px 24px; /* Adjusted */
-    }
-}
-
-/* Small Mobile */
-@media (max-width: 480px) {
-    .chat-header {
-        padding: 10px 12px; /* Adjusted */
-        height: 62px; /* Adjusted */
-    }
-
-    .main-content {
-        margin-top: 62px; /* Adjusted */
-        margin-bottom: 78px; /* Adjusted */
-        height: calc(100vh - 140px); /* Adjusted */
-    }
-
-    .messages-container {
-        padding: 12px 12px 45px 12px; /* Adjusted */
-        gap: 12px; /* Adjusted */
-    }
-
-    .message-input-wrapper {
-        padding: 8px 12px 11px 12px; /* Adjusted */
-        height: 75px; /* Adjusted */
-    }
-
-    .message {
-        max-width: 90%;
-        padding: 10px 13px; /* Adjusted */
-        font-size: 0.98rem; /* Adjusted */
-    }
-
-    .chat-user-avatar {
-        width: 40px; /* Adjusted */
-        height: 40px; /* Adjusted */
-        font-size: 1.1rem; /* Adjusted */
-    }
-
-    .chat-user-details h3 {
-        font-size: 1.15rem; /* Adjusted */
-    }
-
-    .chat-user-status {
-        font-size: 0.85rem; /* Adjusted */
-    }
-
-    .message-input {
-        min-height: 42px; /* Adjusted */
-        font-size: 0.95rem; /* Adjusted */
-        padding: 9px 13px; /* Adjusted */
-    }
-
-    .send-btn {
-        width: 42px; /* Adjusted */
-        height: 42px; /* Adjusted */
-        font-size: 1rem; /* Adjusted */
-    }
-
-    .empty-chat-icon {
-        font-size: 3.5rem;
-    }
-
-    .empty-chat h3 {
-        font-size: 1.2rem;
-    }
-
-    .message-input-container {
-        gap: 10px; /* Adjusted */
-    }
-}
-
-/* Extra Small Mobile */
-@media (max-width: 360px) {
-    .chat-header {
-        padding: 8px 10px; /* Adjusted */
-        height: 60px; /* Adjusted */
-    }
-
-    .main-content {
-        margin-top: 60px; /* Adjusted */
-        margin-bottom: 72px; /* Adjusted */
-        height: calc(100vh - 132px); /* Adjusted */
-    }
-
-    .messages-container {
-        padding: 10px 10px 40px 10px; /* Adjusted */
-    }
-
-    .message {
-        max-width: 92%;
-        padding: 9px 12px; /* Adjusted */
-        font-size: 0.95rem; /* Adjusted */
-    }
-
-    .message-input-wrapper {
-        padding: 7px 10px 10px 10px; /* Adjusted */
-        height: 70px; /* Adjusted */
-    }
-
-    .message-input {
-        min-height: 40px; /* Adjusted */
-        padding: 8px 12px; /* Adjusted */
-        font-size: 0.9rem; /* Adjusted */
-    }
-
-    .send-btn {
-        width: 40px; /* Adjusted */
-        height: 40px; /* Adjusted */
-        font-size: 0.95rem; /* Adjusted */
-    }
-
-    .back-btn,
-    .chat-action-btn {
-        width: 38px; /* Adjusted */
-        height: 38px; /* Adjusted */
-        font-size: 1.2rem; /* Adjusted */
-    }
-
-    .chat-user-avatar {
-        width: 38px; /* Adjusted */
-        height: 38px; /* Adjusted */
-    }
-
-    .message-input-container {
-        gap: 8px; /* Adjusted */
-    }
-}
-
-/* Very Short Height Devices */
-@media (max-height: 600px) {
-    .chat-header {
-        height: 60px; /* Adjusted */
-        padding: 10px 15px; /* Adjusted */
-    }
-
-    .main-content {
-        margin-top: 60px; /* Adjusted */
-        margin-bottom: 72px; /* Adjusted */
-        height: calc(100vh - 132px); /* Adjusted */
-    }
-
-    .messages-container {
-        padding: 12px 15px 40px 15px; /* Adjusted */
-    }
-
-    .message {
-        padding: 9px 13px; /* Adjusted */
-        margin-bottom: 7px; /* Adjusted */
-    }
-
-    .message-input-wrapper {
-        height: 72px; /* Adjusted */
-        padding: 10px 15px 13px 15px; /* Adjusted */
-    }
-
-    .message-input {
-        min-height: 40px; /* Adjusted */
-        max-height: 85px; /* Adjusted */
-    }
-
-    .empty-chat-icon {
-        font-size: 3rem;
-        margin-bottom: 15px;
-    }
-}
-
-/* Prevent iOS zoom on input focus */
-@media (max-width: 768px) {
-    input, textarea {
-        font-size: 16px !important;
-    }
-}
