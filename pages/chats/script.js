@@ -14,6 +14,18 @@ let isTyping = false;
 let typingTimeout = null;
 let friendTypingTimeout = null;
 
+// GLOBAL FUNCTIONS
+window.sendMessage = sendMessage;
+window.handleKeyPress = handleKeyPress;
+window.autoResize = autoResize;
+window.goBack = goBack;
+window.showUserInfo = showUserInfo;
+window.closeModal = closeModal;
+window.startVoiceCall = startVoiceCall;
+window.viewSharedMedia = viewSharedMedia;
+window.blockUserPrompt = blockUserPrompt;
+window.clearChatPrompt = clearChatPrompt;
+
 document.addEventListener('DOMContentLoaded', async () => {
     try {
         const { success, user } = await auth.getCurrentUser();
@@ -267,10 +279,10 @@ function showMessages(messages) {
 
     html += `<div style="height: 10px;"></div>`;
     container.innerHTML = html;
-    setTimeout(() => scrollToBottom(), 150);
+    scrollToBottomMsg(true);
 }
 
-function scrollToBottom(instant = false) {
+function scrollToBottomMsg(instant = false) {
     const container = document.getElementById('messagesContainer');
     if (!container) return;
 
@@ -317,7 +329,7 @@ function addMessageToUI(message, isFromRealtime = false) {
 
     const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 200;
     if (isSent || isNearBottom || isFromRealtime) {
-        setTimeout(() => scrollToBottom(!isFromRealtime), 50);
+        setTimeout(() => scrollToBottomMsg(!isFromRealtime), 50);
     }
 }
 
@@ -561,7 +573,7 @@ function goBack() {
     window.location.href = '../home/index.html';
 }
 
-window.showUserInfo = function() {
+function showUserInfo() {
     if (!chatFriend) {
         showToast('User information not available', '⚠️');
         return;
@@ -597,21 +609,21 @@ window.showUserInfo = function() {
     `;
 
     modal.style.display = 'flex';
-};
+}
 
-window.closeModal = function() {
+function closeModal() {
     document.getElementById('userInfoModal').style.display = 'none';
-};
+}
 
-window.startVoiceCall = function() {
+function startVoiceCall() {
     showToast('Voice call feature coming soon!', '📞');
-};
+}
 
-window.viewSharedMedia = function() {
+function viewSharedMedia() {
     showToast('Shared media feature coming soon!', '📷');
-};
+}
 
-window.blockUserPrompt = function() {
+function blockUserPrompt() {
     showConfirmAlert(
         `Are you sure you want to block ${chatFriend.username}?`,
         '🚫',
@@ -621,9 +633,9 @@ window.blockUserPrompt = function() {
             setTimeout(goBack, 1000);
         }
     );
-};
+}
 
-window.clearChatPrompt = async function() {
+async function clearChatPrompt() {
     showConfirmAlert(
         'Are you sure you want to clear all messages?',
         '🗑️',
@@ -647,41 +659,4 @@ window.clearChatPrompt = async function() {
             }
         }
     );
-};
-
-
-// Add this function to ensure messages are always visible
-function ensureMessagesVisible() {
-    const messagesContainer = document.getElementById('messagesContainer');
-    const messages = messagesContainer.querySelectorAll('.message');
-    
-    messages.forEach(msg => {
-        msg.style.opacity = '1';
-        msg.style.visibility = 'visible';
-        msg.style.display = 'block';
-    });
-    
-    // Scroll to bottom to see new messages
-    scrollToBottom();
 }
-
-// Call this when loading messages or adding new ones
-function scrollToBottom() {
-    const container = document.getElementById('messagesContainer');
-    container.scrollTop = container.scrollHeight;
-}
-
-// Force messages to be visible on load
-window.addEventListener('load', ensureMessagesVisible);
-document.addEventListener('DOMContentLoaded', ensureMessagesVisible);
-
-// Check visibility periodically (remove if not needed)
-setInterval(ensureMessagesVisible, 1000);
-
-window.sendMessage = sendMessage;
-window.handleKeyPress = handleKeyPress;
-window.autoResize = autoResize;
-window.goBack = goBack;
-window.showCustomAlert = showCustomAlert;
-window.showConfirmAlert = showConfirmAlert;
-window.showToast = showToast;
