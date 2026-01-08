@@ -1,48 +1,50 @@
 // Service Worker for RelayTalk - Caches Everything
-const CACHE_NAME = 'relaytalk-cache-v21'; // Bumped version
-const APP_VERSION = '1.0.1';
+const CACHE_NAME = 'relaytalk-cache-v22'; 
+const APP_VERSION = '1.0.2';
 
-// Cache ALL files from the root now
 const FOLDERS_TO_CACHE = [
   // Root files
   '/',
   '/index.html',
   '/style.css',
+  '/script.js',
   '/opening.css',
-  '/utils/auth.js',
-  '/utils/supabase.js',
   '/relay.png',
   '/manifest.json',
   '/service-worker.js',
   
+  // Utils
+  '/utils/auth.js',
+  '/utils/supabase.js',
+  
   // Auth folder
-  '/pages/auth/',
   '/pages/auth/index.html',
   '/pages/auth/style.css',
   '/pages/auth/script.js',
   
   // Login folder
-  '/pages/login/',
   '/pages/login/index.html',
   '/pages/login/style.css',
   '/pages/login/script.js',
   
-  // Home folder
-  '/pages/home/',
+  // Home & Friends folder
   '/pages/home/index.html',
   '/pages/home/style.css',
   '/pages/home/script.js',
+  '/pages/home/friends/index.html',
+  '/pages/home/friends/style.css',
+  '/pages/home/friends/script.js',
   
-  // Chats folder
-  '/pages/chats/',
+  // Chats folder & Audio
   '/pages/chats/index.html',
   '/pages/chats/style.css',
   '/pages/chats/script.js',
+  '/pages/chats/chat-responsive.css',
+  '/pages/chats/sent.mp3',
+  '/pages/chats/recieve.mp3'
 ];
 
-// Install - Cache everything
 self.addEventListener('install', event => {
-  console.log('📦 Installing Service Worker...');
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
@@ -52,7 +54,6 @@ self.addEventListener('install', event => {
   );
 });
 
-// Activate - Clean old caches
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(cacheNames => {
@@ -67,7 +68,6 @@ self.addEventListener('activate', event => {
   );
 });
 
-// Fetch - Serve from cache, fallback to network
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
   if (event.request.url.includes('supabase.co')) return;
