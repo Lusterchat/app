@@ -7,11 +7,11 @@ console.log("✨ Friends Page Loaded");
 // ==================== ABSOLUTE PATHS CONFIGURATION ====================
 const PATHS = {
     // Absolute paths from root
-    HOME: '/app/pages/home/index.html',
-    LOGIN: '/app/pages/login/index.html',  
-    SIGNUP: '/app/pages/auth/index.html',
-    CHATS: '/app/pages/chats/index.html',
-    FRIENDS: '/app/pages/home/friends/index.html'
+    HOME: '../pages/home/index.html',
+    LOGIN: '../pages/login/index.html',  
+    SIGNUP: '../pages/auth/index.html',
+    CHATS: '../pages/chats/index.html',
+    FRIENDS: '../pages/home/friends/index.html'
 };
 // ==================== END PATHS CONFIG ====================
 
