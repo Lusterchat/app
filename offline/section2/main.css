@@ -23,16 +23,18 @@ body {
     padding: 20px;
 }
 
-header {
-    text-align: center;
+/* Fixed header area with proper back button placement */
+.header-area {
     margin-bottom: 30px;
     position: relative;
+    min-height: 80px;
 }
 
 .back-button {
     position: absolute;
     left: 0;
     top: 0;
+    z-index: 10;
 }
 
 .back-button a {
@@ -45,6 +47,7 @@ header {
     padding: 8px 15px;
     border-radius: 5px;
     background: rgba(106, 147, 255, 0.1);
+    border: 1px solid rgba(106, 147, 255, 0.3);
 }
 
 .back-button a:hover {
@@ -53,13 +56,17 @@ header {
     text-decoration: none;
 }
 
+header {
+    text-align: center;
+    padding-top: 5px;
+}
+
 h1 {
     font-size: 2.5rem;
     color: #6a93ff;
     margin-bottom: 10px;
     text-shadow: 0 0 10px rgba(106, 147, 255, 0.5);
     letter-spacing: 1px;
-    margin-top: 10px;
 }
 
 .subtitle {
@@ -75,11 +82,10 @@ h1 {
     margin-bottom: 30px;
 }
 
-/* TV Screen with 4:3 ratio */
+/* TV Screen with proper 4:3 ratio */
 .tv-screen {
     width: 100%;
-    max-width: 800px; /* Wider container */
-    height: 500px; /* Taller container */
+    max-width: 800px;
     background-color: #000;
     border-radius: 10px;
     position: relative;
@@ -89,12 +95,10 @@ h1 {
         0 0 30px rgba(0, 0, 0, 0.8),
         inset 0 0 20px rgba(0, 0, 0, 0.9);
     margin-bottom: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    aspect-ratio: 4/3; /* Perfect 4:3 ratio */
 }
 
-/* Video container with 4:3 aspect ratio */
+/* Video container for 16:9 videos in 4:3 TV */
 .video-container {
     width: 100%;
     height: 100%;
@@ -107,15 +111,16 @@ h1 {
 }
 
 #tv-video {
-    /* Maintain 4:3 aspect ratio */
+    /* Handle both 4:3 and 16:9 videos */
     width: 100%;
     height: 100%;
-    object-fit: contain; /* This ensures full video is visible */
+    object-fit: contain; /* Show full video with black bars */
+    object-position: center;
     display: block;
     background-color: #000;
 }
 
-/* 4:3 aspect ratio mask (black bars for widescreen videos) */
+/* Black bars for widescreen videos (authentic TV look) */
 .video-container::before {
     content: '';
     position: absolute;
@@ -124,14 +129,17 @@ h1 {
     width: 100%;
     height: 100%;
     background: linear-gradient(to bottom, 
-        rgba(0,0,0,0.8) 0%,
-        rgba(0,0,0,0) 10%,
-        rgba(0,0,0,0) 90%,
-        rgba(0,0,0,0.8) 100%);
+        rgba(0,0,0,0.9) 0%,
+        rgba(0,0,0,0.7) 5%,
+        transparent 10%,
+        transparent 90%,
+        rgba(0,0,0,0.7) 95%,
+        rgba(0,0,0,0.9) 100%);
     pointer-events: none;
     z-index: 1;
 }
 
+/* Retro effects that can be toggled */
 .pixel-overlay {
     position: absolute;
     top: 0;
@@ -139,11 +147,46 @@ h1 {
     width: 100%;
     height: 100%;
     background-image: 
-        linear-gradient(rgba(0, 0, 0, 0.1) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(0, 0, 0, 0.1) 1px, transparent 1px);
-    background-size: 8px 8px;
+        linear-gradient(rgba(0, 0, 0, 0.15) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 0, 0, 0.15) 1px, transparent 1px);
+    background-size: 6px 6px;
     pointer-events: none;
     z-index: 2;
+    opacity: 0.4;
+    transition: opacity 0.3s;
+}
+
+.pixel-overlay.retro-off {
+    opacity: 0;
+}
+
+.scanlines {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+        to bottom,
+        transparent 50%,
+        rgba(0, 0, 0, 0.2) 50%
+    );
+    background-size: 100% 3px;
+    pointer-events: none;
+    z-index: 3;
+    animation: scanline 6s linear infinite;
+    opacity: 0.3;
+    transition: opacity 0.3s;
+}
+
+.scanlines.retro-off {
+    opacity: 0;
+    animation: none;
+}
+
+@keyframes scanline {
+    0% { background-position: 0 0; }
+    100% { background-position: 0 100%; }
 }
 
 .channel-display {
@@ -158,7 +201,7 @@ h1 {
     display: flex;
     flex-direction: column;
     align-items: center;
-    z-index: 3;
+    z-index: 4;
     border: 1px solid #444;
 }
 
@@ -174,28 +217,6 @@ h1 {
     font-size: 1.4rem;
 }
 
-.scanlines {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(
-        to bottom,
-        transparent 50%,
-        rgba(0, 0, 0, 0.15) 50%
-    );
-    background-size: 100% 4px;
-    pointer-events: none;
-    z-index: 3;
-    animation: scanline 8s linear infinite;
-}
-
-@keyframes scanline {
-    0% { background-position: 0 0; }
-    100% { background-position: 0 100%; }
-}
-
 .static-overlay {
     position: absolute;
     top: 0;
@@ -203,8 +224,8 @@ h1 {
     width: 100%;
     height: 100%;
     background: 
-        radial-gradient(circle at 20% 30%, transparent 10%, rgba(0, 0, 0, 0.3) 20%),
-        radial-gradient(circle at 80% 70%, transparent 10%, rgba(0, 0, 0, 0.3) 20%);
+        radial-gradient(circle at 20% 30%, transparent 10%, rgba(0, 0, 0, 0.2) 20%),
+        radial-gradient(circle at 80% 70%, transparent 10%, rgba(0, 0, 0, 0.2) 20%);
     opacity: 0;
     pointer-events: none;
     z-index: 1;
@@ -225,6 +246,7 @@ h1 {
     border-radius: 8px 8px 0 0;
 }
 
+/* Remote Control */
 .tv-remote {
     background-color: #1a1a1a;
     border-radius: 15px;
@@ -269,6 +291,12 @@ h1 {
 .remote-status {
     color: #4caf50;
     font-weight: bold;
+}
+
+.retro-status {
+    color: #ff9800;
+    font-weight: bold;
+    font-size: 0.8rem;
 }
 
 .remote-buttons {
@@ -366,10 +394,14 @@ h1 {
     box-shadow: 0 3px 0 #111;
 }
 
-.empty-btn {
-    width: 60px;
-    height: 60px;
-    visibility: hidden;
+.retro-btn {
+    background: linear-gradient(to bottom, #333, #111);
+    font-size: 1.2rem;
+}
+
+.retro-btn.active {
+    background: linear-gradient(to bottom, #4caf50, #2e7d32);
+    box-shadow: 0 3px 0 #1b5e20, inset 0 0 10px rgba(255, 255, 255, 0.2);
 }
 
 .remote-btn, .num-btn {
@@ -407,15 +439,30 @@ footer {
     padding-top: 12px;
 }
 
+.aspect-info {
+    font-size: 0.7rem;
+    color: #888;
+    margin-top: 5px;
+}
+
+#aspect-info {
+    color: #6a93ff;
+    font-weight: bold;
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
     .tv-screen {
         max-width: 100%;
-        height: 400px; /* Adjust for mobile */
+        aspect-ratio: 4/3;
+    }
+    
+    .header-area {
+        min-height: 60px;
     }
     
     h1 {
-        font-size: 2rem;
+        font-size: 1.8rem;
     }
     
     .tv-remote {
@@ -433,24 +480,28 @@ footer {
         font-size: 1.6rem;
     }
     
-    .video-container {
-        /* On mobile, adjust 4:3 ratio */
-        padding: 0 10px;
+    .back-button a {
+        padding: 6px 12px;
+        font-size: 0.9rem;
     }
 }
 
-/* For very small screens */
 @media (max-width: 480px) {
     .tv-screen {
-        height: 300px;
         border-width: 10px;
     }
     
-    .video-container {
-        padding: 0 5px;
+    h1 {
+        font-size: 1.5rem;
     }
     
-    #tv-video {
-        object-fit: cover; /* On small screens, fill the space */
+    .subtitle {
+        font-size: 0.9rem;
+    }
+    
+    .remote-display {
+        flex-direction: column;
+        gap: 5px;
+        text-align: center;
     }
 }
