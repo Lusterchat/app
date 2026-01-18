@@ -8,18 +8,20 @@
 </head>
 <body>
     <div class="tv-container">
-        <header>
+        <div class="header-area">
             <div class="back-button">
                 <a href="../index.html">← Back to Home</a>
             </div>
-            <h1>Classic TV Entertainment</h1>
-            <p class="subtitle">5 offline video channels with 4:3 classic ratio</p>
-        </header>
+            <header>
+                <h1>Classic TV Entertainment</h1>
+                <p class="subtitle">5 offline video channels • 4:3 classic TV ratio</p>
+            </header>
+        </div>
         
         <main>
             <div class="tv-set">
                 <div class="tv-screen">
-                    <div class="pixel-overlay"></div>
+                    <div class="pixel-overlay" id="pixel-overlay"></div>
                     <div class="video-container">
                         <video id="tv-video" width="640" height="480">
                             <source src="../videos/vid1.mp4" type="video/mp4">
@@ -30,7 +32,7 @@
                         <span class="channel-label">CHANNEL</span>
                         <span class="channel-number" id="channel-number">01</span>
                     </div>
-                    <div class="scanlines"></div>
+                    <div class="scanlines" id="scanlines"></div>
                     <div class="static-overlay" id="static-overlay"></div>
                 </div>
                 
@@ -44,6 +46,7 @@
                     <div class="remote-display">
                         <div class="remote-channel">CHANNEL: <span id="remote-channel">01</span></div>
                         <div class="remote-status" id="remote-status">ON</div>
+                        <div class="retro-status" id="retro-status">RETRO ON</div>
                     </div>
                     
                     <div class="remote-buttons">
@@ -73,7 +76,9 @@
                             <div class="num-row">
                                 <button class="num-btn" data-channel="4">4</button>
                                 <button class="num-btn" data-channel="5">5</button>
-                                <div class="empty-btn"></div>
+                                <button id="retro-btn" class="num-btn retro-btn" title="Toggle Retro Effects">
+                                    <span class="btn-icon">👁️</span>
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -82,7 +87,8 @@
         </main>
         
         <footer>
-            <p>5 video channels • All videos work offline • 4:3 Classic TV Ratio</p>
+            <p>5 video channels • All videos work offline • 16:9 videos shown in 4:3 TV</p>
+            <p class="aspect-info">Current display: <span id="aspect-info">4:3 Classic TV</span></p>
         </footer>
     </div>
     
