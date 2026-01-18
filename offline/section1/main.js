@@ -1,7 +1,6 @@
 // section1/main.js
 document.addEventListener('DOMContentLoaded', function() {
     const shayariText = document.getElementById('shayari-text');
-    const shayariTheme = document.getElementById('shayari-theme');
     const currentShayari = document.getElementById('current-shayari');
     const prevBtn = document.getElementById('prev-btn');
     const nextBtn = document.getElementById('next-btn');
@@ -11,11 +10,12 @@ document.addEventListener('DOMContentLoaded', function() {
     const restartBtn = document.getElementById('restart-btn');
     
     let currentIndex = 0;
+    const totalShayaris = shayaris.length;
     
     // Initialize progress dots
     function initProgressDots() {
         progressDots.innerHTML = '';
-        for (let i = 0; i < shayaris.length; i++) {
+        for (let i = 0; i < totalShayaris; i++) {
             const dot = document.createElement('div');
             dot.className = 'progress-dot';
             dot.style.width = '16px';
@@ -32,12 +32,11 @@ document.addEventListener('DOMContentLoaded', function() {
     // Update the display
     function updateDisplay() {
         const shayari = shayaris[currentIndex];
-        shayariText.innerHTML = shayari.text;
-        shayariTheme.textContent = shayari.theme;
+        shayariText.innerHTML = shayari.text || "Add your shayari text in shayari-data.js";
         currentShayari.textContent = shayari.id;
         
         // Update progress bar
-        const progressPercentage = ((currentIndex + 1) / shayaris.length) * 100;
+        const progressPercentage = ((currentIndex + 1) / totalShayaris) * 100;
         progressBar.style.width = `${progressPercentage}%`;
         
         // Update progress dots
@@ -52,14 +51,14 @@ document.addEventListener('DOMContentLoaded', function() {
         prevBtn.style.opacity = currentIndex === 0 ? '0.5' : '1';
         
         // Check if we're at the last shayari
-        if (currentIndex === shayaris.length - 1) {
+        if (currentIndex === totalShayaris - 1) {
             nextBtn.innerHTML = 'Finish <span class="btn-icon">✓</span>';
         } else {
             nextBtn.innerHTML = 'Next <span class="btn-icon">→</span>';
         }
         
         // Show/hide restart screen
-        if (currentIndex === shayaris.length - 1) {
+        if (currentIndex === totalShayaris - 1) {
             setTimeout(() => {
                 restartScreen.style.display = 'block';
             }, 300);
@@ -70,7 +69,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Next button click
     nextBtn.addEventListener('click', function() {
-        if (currentIndex < shayaris.length - 1) {
+        if (currentIndex < totalShayaris - 1) {
             currentIndex++;
             updateDisplay();
         } else {
@@ -102,7 +101,7 @@ document.addEventListener('DOMContentLoaded', function() {
     document.addEventListener('keydown', function(event) {
         if (event.key === 'ArrowRight' || event.key === ' ') {
             // Next with right arrow or space
-            if (currentIndex < shayaris.length - 1) {
+            if (currentIndex < totalShayaris - 1) {
                 currentIndex++;
                 updateDisplay();
             }
