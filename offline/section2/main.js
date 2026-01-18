@@ -19,7 +19,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let currentChannel = 1;
     let isPoweredOn = true;
     let isVideoPlaying = false;
-    let isRetroMode = true; // Default: Retro effects ON
+    let isRetroMode = false; // Default: Retro effects ON
     
     // Video sources array (5 channels)
     const videoSources = [];
