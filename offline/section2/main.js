@@ -4,16 +4,22 @@ document.addEventListener('DOMContentLoaded', function() {
     const channelNumber = document.getElementById('channel-number');
     const remoteChannel = document.getElementById('remote-channel');
     const remoteStatus = document.getElementById('remote-status');
+    const retroStatus = document.getElementById('retro-status');
     const staticOverlay = document.getElementById('static-overlay');
+    const pixelOverlay = document.getElementById('pixel-overlay');
+    const scanlines = document.getElementById('scanlines');
     const powerBtn = document.getElementById('power-btn');
     const prevChannelBtn = document.getElementById('prev-channel');
     const nextChannelBtn = document.getElementById('next-channel');
     const numberButtons = document.querySelectorAll('.num-btn');
+    const retroBtn = document.getElementById('retro-btn');
+    const aspectInfo = document.getElementById('aspect-info');
     
     const totalChannels = 5;
     let currentChannel = 1;
     let isPoweredOn = true;
     let isVideoPlaying = false;
+    let isRetroMode = true; // Default: Retro effects ON
     
     // Video sources array (5 channels)
     const videoSources = [];
@@ -34,15 +40,16 @@ document.addEventListener('DOMContentLoaded', function() {
             remoteStatus.style.color = '#4caf50';
             powerBtn.style.background = 'linear-gradient(to bottom, #4caf50, #2e7d32)';
             
+            // Update aspect ratio info
+            updateAspectInfo();
+            
             // Try to play video
             const playPromise = tvVideo.play();
             if (playPromise !== undefined) {
                 playPromise.then(() => {
-                    // Video started playing
                     isVideoPlaying = true;
                 }).catch((error) => {
-                    console.log('Autoplay prevented:', error);
-                    // Show play button or controls
+                    console.log('Autoplay prevented, showing controls');
                     tvVideo.controls = true;
                     isVideoPlaying = false;
                 });
@@ -58,6 +65,62 @@ document.addEventListener('DOMContentLoaded', function() {
             remoteStatus.style.color = '#ff5252';
             powerBtn.style.background = 'linear-gradient(to bottom, #ff4444, #cc0000)';
             isVideoPlaying = false;
+            aspectInfo.textContent = 'TV OFF';
+        }
+    }
+    
+    // Function to update aspect ratio info
+    function updateAspectInfo() {
+        if (!isPoweredOn) return;
+        
+        tvVideo.addEventListener('loadedmetadata', function() {
+            const videoWidth = tvVideo.videoWidth;
+            const videoHeight = tvVideo.videoHeight;
+            const aspectRatio = videoWidth / videoHeight;
+            
+            if (Math.abs(aspectRatio - (4/3)) < 0.1) {
+                aspectInfo.textContent = '4:3 Native';
+            } else if (Math.abs(aspectRatio - (16/9)) < 0.1) {
+                aspectInfo.textContent = '16:9 in 4:3 TV';
+            } else if (Math.abs(aspectRatio - 1) < 0.1) {
+                aspectInfo.textContent = '1:1 Square';
+            } else {
+                aspectInfo.textContent = `${videoWidth}:${videoHeight}`;
+            }
+            
+            // Adjust object-fit based on aspect ratio
+            if (aspectRatio > 1.4) { // Widescreen (16:9)
+                tvVideo.style.objectFit = 'contain'; // Show with bars
+            } else if (aspectRatio < 1.2) { // Tall/square
+                tvVideo.style.objectFit = 'cover'; // Fill screen
+            } else { // 4:3-ish
+                tvVideo.style.objectFit = 'cover'; // Fill screen
+            }
+        }, { once: true });
+    }
+    
+    // Function to toggle retro effects
+    function toggleRetroMode() {
+        isRetroMode = !isRetroMode;
+        
+        if (isRetroMode) {
+            // Retro ON
+            pixelOverlay.classList.remove('retro-off');
+            scanlines.classList.remove('retro-off');
+            retroBtn.classList.remove('active');
+            retroBtn.style.background = 'linear-gradient(to bottom, #444, #222)';
+            retroStatus.textContent = 'RETRO ON';
+            retroStatus.style.color = '#ff9800';
+            retroBtn.title = "Turn off retro effects";
+        } else {
+            // Retro OFF
+            pixelOverlay.classList.add('retro-off');
+            scanlines.classList.add('retro-off');
+            retroBtn.classList.add('active');
+            retroBtn.style.background = 'linear-gradient(to bottom, #4caf50, #2e7d32)';
+            retroStatus.textContent = 'RETRO OFF';
+            retroStatus.style.color = '#4caf50';
+            retroBtn.title = "Turn on retro effects";
         }
     }
     
@@ -125,6 +188,17 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
     
+    // Retro mode toggle button
+    retroBtn.addEventListener('click', function() {
+        toggleRetroMode();
+        
+        // Animate button
+        retroBtn.style.transform = 'scale(0.9)';
+        setTimeout(() => {
+            retroBtn.style.transform = 'scale(1)';
+        }, 150);
+    });
+    
     // Keyboard controls
     document.addEventListener('keydown', function(event) {
         if (!isPoweredOn) return;
@@ -161,10 +235,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
         }
+        // R key to toggle retro mode
+        else if (event.key === 'r' || event.key === 'R') {
+            toggleRetroMode();
+        }
     });
     
     // Initialize TV
     updateTV();
+    toggleRetroMode(); // Set initial retro mode
     
     // Video event listeners
     tvVideo.addEventListener('playing', function() {
@@ -187,6 +266,7 @@ document.addEventListener('DOMContentLoaded', function() {
     tvVideo.addEventListener('error', function() {
         console.log('Video loading error for channel', currentChannel);
         staticOverlay.style.opacity = '0.8';
+        
         // Show error message
         const errorMsg = document.createElement('div');
         errorMsg.style.cssText = `
@@ -200,10 +280,12 @@ document.addEventListener('DOMContentLoaded', function() {
             border-radius: 10px;
             z-index: 10;
             text-align: center;
+            max-width: 80%;
         `;
         errorMsg.innerHTML = `
-            <p>Video not available for Channel ${currentChannel}</p>
-            <p>Please check if vid${currentChannel}.mp4 exists</p>
+            <p>⚠️ Video not available</p>
+            <p>Channel ${currentChannel}: vid${currentChannel}.mp4</p>
+            <p style="font-size: 0.8rem; margin-top: 10px;">Please check if file exists in /videos/ folder</p>
         `;
         
         const existingError = document.querySelector('.video-error');
@@ -211,24 +293,13 @@ document.addEventListener('DOMContentLoaded', function() {
             errorMsg.className = 'video-error';
             document.querySelector('.video-container').appendChild(errorMsg);
             
-            // Remove error after 3 seconds
             setTimeout(() => {
                 if (errorMsg.parentNode) {
                     errorMsg.parentNode.removeChild(errorMsg);
                 }
-            }, 3000);
+            }, 4000);
         }
     });
-    
-    // Add occasional static effect for realism
-    setInterval(() => {
-        if (isPoweredOn && isVideoPlaying && Math.random() < 0.05) {
-            staticOverlay.style.opacity = '0.3';
-            setTimeout(() => {
-                if (isPoweredOn) staticOverlay.style.opacity = '0';
-            }, 100);
-        }
-    }, 5000);
     
     // Click on video to play/pause
     tvVideo.addEventListener('click', function() {
@@ -242,4 +313,14 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     });
+    
+    // Add occasional static effect for realism (only in retro mode)
+    setInterval(() => {
+        if (isPoweredOn && isVideoPlaying && isRetroMode && Math.random() < 0.05) {
+            staticOverlay.style.opacity = '0.3';
+            setTimeout(() => {
+                if (isPoweredOn) staticOverlay.style.opacity = '0';
+            }, 100);
+        }
+    }, 5000);
 });
