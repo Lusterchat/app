@@ -20,10 +20,12 @@
             <div class="tv-set">
                 <div class="tv-screen">
                     <div class="pixel-overlay"></div>
-                    <video id="tv-video" width="640" height="480" controls>
-                        <source src="../videos/vid1.mp4" type="video/mp4">
-                        Your browser does not support the video tag.
-                    </video>
+                    <div class="video-container">
+                        <video id="tv-video" width="640" height="480">
+                            <source src="../videos/vid1.mp4" type="video/mp4">
+                            Your browser does not support the video tag.
+                        </video>
+                    </div>
                     <div class="channel-display">
                         <span class="channel-label">CHANNEL</span>
                         <span class="channel-number" id="channel-number">01</span>
