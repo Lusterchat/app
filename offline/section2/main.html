@@ -3,19 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TV Section - Entertainment</title>
+    <title>TV Section - Offline Entertainment</title>
     <link rel="stylesheet" href="main.css">
 </head>
 <body>
     <div class="tv-container">
-        <div class="header-wrapper">
+        <div class="header-horizontal">
             <div class="back-button">
                 <a href="../index.html">← Back</a>
             </div>
-            <div class="header-content">
-                <h1>Classic TV Entertainment</h1>
-                <p class="subtitle">video channels</p>
+            <div class="header-center">
+                <h1>Classic TV</h1>
+                <p class="subtitle">5 offline channels</p>
             </div>
+            <div class="header-spacer"></div>
         </div>
         
         <main>
@@ -29,7 +30,6 @@
                         </video>
                     </div>
                     <div class="channel-display">
-                        <span class="channel-label">CH</span>
                         <span class="channel-number" id="channel-number">01</span>
                     </div>
                     <div class="scanlines" id="scanlines"></div>
@@ -44,7 +44,7 @@
                 <h3>TV Remote</h3>
                 <div class="remote-control">
                     <div class="remote-display">
-                        <div class="remote-channel">CH: <span id="remote-channel">01</span></div>
+                        <div class="remote-channel">CH <span id="remote-channel">01</span></div>
                         <div class="remote-status" id="remote-status">ON</div>
                         <div class="retro-status" id="retro-status">RETRO ON</div>
                     </div>
@@ -54,7 +54,7 @@
                             <button id="power-btn" class="remote-btn power-btn">
                                 <span class="btn-icon">●</span>
                             </button>
-                            <div class="power-label">POWER</div>
+                            <div class="power-label">PWR</div>
                         </div>
                         
                         <div class="channel-controls">
@@ -76,8 +76,8 @@
                             <div class="num-row">
                                 <button class="num-btn" data-channel="4">4</button>
                                 <button class="num-btn" data-channel="5">5</button>
-                                <button id="retro-btn" class="num-btn retro-btn" title="Toggle Retro Effects">
-                                    <span class="btn-icon">👁️</span>
+                                <button id="retro-btn" class="num-btn retro-btn" title="Retro On/Off">
+                                    <span class="btn-icon">👁</span>
                                 </button>
                             </div>
                         </div>
@@ -87,7 +87,7 @@
         </main>
         
         <footer>
-            <p>5 video channels • Works offline</p>
+            <p>5 channels • Works offline</p>
             <p class="aspect-info">Display: <span id="aspect-info">4:3 TV</span></p>
         </footer>
     </div>
