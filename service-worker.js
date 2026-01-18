@@ -2,92 +2,52 @@
 // Handles offline/404 errors with unified error page
 
 const CACHE_NAME = 'relaytalk-cache-v2.5';
-const OFFLINE_URL = '/offline.html';
+const OFFLINE_URL = '/offline/index.html'; // Changed to offline entertainment page
 const APP_VERSION = '2.5.0';
 
-// Files to cache immediately
+// Files to cache immediately - ONLY OFFLINE ENTERTAINMENT PAGES
 const PRECACHE_FILES = [
-  // Core app files
-  '/',
-  '/index.html',
-  '/style.css',
-  '/opening.css',
-  '/relay.png',
-  '/manifest.json',
+  // ===== OFFLINE ENTERTAINMENT PAGES ONLY =====
+  // Main offline page
+  '/offline/index.html',
   
-  // Error page (MUST be cached)
-  '/offline.html',
+  // Shayari Section
+  '/offline/section1/main.html',
+  '/offline/section1/main.css',
+  '/offline/section1/main.js',
+  '/offline/section1/shayari-data.js',
   
-  // SEO files
-  '/robots.txt',
-  '/sitemap.xml',
-  '/_config.yml',
-  '/.nojekyll',
+  // TV Section
+  '/offline/section2/main.html',
+  '/offline/section2/main.css',
+  '/offline/section2/main.js',
   
-  // Utils
-  '/utils/auth.js',
-  '/utils/supabase.js',
-  
-  // Auth pages
-  '/pages/auth/index.html',
-  '/pages/auth/style.css',
-  '/pages/auth/script.js',
-  
-  // Login pages
-  '/pages/login/index.html',
-  '/pages/login/style.css',
-  '/pages/login/script.js',
-  
-  // Home pages
-  '/pages/home/index.html',
-  '/pages/home/style.css',
-  '/pages/home/script.js',
-  
-  // Friends pages
-  '/pages/home/friends/index.html',
-  '/pages/home/friends/style.css',
-  '/pages/home/friends/script.js',
-  
-  // Chat pages
-  '/pages/chats/index.html',
-  '/pages/chats/style.css',
-  '/pages/chats/script.js',
-  '/pages/chats/chat-responsive.css',
-  '/pages/chats/sent.mp3',
-  '/pages/chats/recieve.mp3'
+  // Video files for TV section (5 videos)
+  '/offline/videos/vid1.mp4',
+  '/offline/videos/vid2.mp4',
+  '/offline/videos/vid3.mp4',
+  '/offline/videos/vid4.mp4',
+  '/offline/videos/vid5.mp4'
 ];
 
 // ====== INSTALL EVENT ======
 self.addEventListener('install', event => {
   console.log('⚡ Service Worker installing v' + APP_VERSION);
-  
+
   // Skip waiting to activate immediately
   self.skipWaiting();
-  
+
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
-        console.log('📦 Pre-caching ' + PRECACHE_FILES.length + ' files');
-        
-        // Cache critical files first
-        const criticalFiles = PRECACHE_FILES.slice(0, 10);
-        cache.addAll(criticalFiles)
-          .then(() => {
-            console.log('✅ Critical files cached');
-            // Cache remaining files in background
-            return cache.addAll(PRECACHE_FILES.slice(10));
-          })
-          .then(() => {
-            console.log('✅ All files pre-cached');
-          })
-          .catch(error => {
-            console.warn('⚠️ Some files failed to cache:', error);
-          });
-        
-        return Promise.resolve();
+        console.log('📦 Pre-caching offline entertainment files');
+        return cache.addAll(PRECACHE_FILES);
+      })
+      .then(() => {
+        console.log('✅ All offline files pre-cached');
       })
       .catch(error => {
-        console.error('❌ Cache installation failed:', error);
+        console.warn('⚠️ Some files failed to cache:', error);
       })
   );
 });
@@ -95,7 +55,7 @@ self.addEventListener('install', event => {
 // ====== ACTIVATE EVENT ======
 self.addEventListener('activate', event => {
   console.log('🔄 Service Worker activating...');
-  
+
   event.waitUntil(
     Promise.all([
       // Clean up old caches
@@ -109,21 +69,11 @@ self.addEventListener('activate', event => {
           })
         );
       }),
-      
+
       // Take control immediately
       self.clients.claim()
     ]).then(() => {
       console.log('✅ Service Worker activated and ready');
-      
-      // Send message to all clients
-      self.clients.matchAll().then(clients => {
-        clients.forEach(client => {
-          client.postMessage({
-            type: 'SW_ACTIVATED',
-            version: APP_VERSION
-          });
-        });
-      });
     })
   );
 });
@@ -132,133 +82,62 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   // Skip non-GET requests
   if (event.request.method !== 'GET') return;
-  
+
   // Skip Supabase requests
   if (event.request.url.includes('supabase.co')) {
     return;
   }
-  
+
   // Skip Chrome extensions
   if (event.request.url.startsWith('chrome-extension://')) {
     return;
   }
-  
+
   const requestUrl = new URL(event.request.url);
+  const path = requestUrl.pathname;
+
+  // ====== CRITICAL CHANGE ======
+  // 1. Check if it's an offline entertainment file
+  // 2. For all other files (app files), don't cache them
   
-  // Handle different types of requests
-  if (requestUrl.pathname.endsWith('.html') || 
-      requestUrl.pathname === '/' ||
-      !requestUrl.pathname.includes('.')) {
-    // HTML pages: Network first, then cache, then offline page
-    handleHtmlRequest(event);
+  if (path.startsWith('/offline/')) {
+    // This is an offline entertainment file - serve from cache
+    handleOfflineFileRequest(event);
   } else {
-    // Static assets: Cache first, then network
-    handleAssetRequest(event);
+    // This is an app file - network only, no caching
+    handleAppFileRequest(event);
   }
 });
 
-// Handle HTML page requests
-function handleHtmlRequest(event) {
-  event.respondWith(
-    fetch(event.request)
-      .then(response => {
-        // Cache the fresh response
-        const responseClone = response.clone();
-        caches.open(CACHE_NAME)
-          .then(cache => cache.put(event.request, responseClone));
-        return response;
-      })
-      .catch(async () => {
-        // Network failed, try cache
-        const cachedResponse = await caches.match(event.request);
-        
-        if (cachedResponse) {
-          console.log('📄 Serving HTML from cache:', event.request.url);
-          return cachedResponse;
-        }
-        
-        // Not in cache either, check if it's a 404
-        console.log('❌ Page not found:', event.request.url);
-        
-        // Serve offline page with 404 context
-        const offlineResponse = await caches.match(OFFLINE_URL);
-        if (offlineResponse) {
-          const modifiedResponse = new Response(offlineResponse.body, {
-            status: 404,
-            statusText: 'Not Found',
-            headers: offlineResponse.headers
-          });
-          return modifiedResponse;
-        }
-        
-        // Last resort: basic offline response
-        return new Response(
-          '<h1>Page Not Found</h1><p>Please check your connection.</p>',
-          {
-            status: 404,
-            headers: { 'Content-Type': 'text/html' }
-          }
-        );
-      })
-  );
-}
-
-// Handle static asset requests
-function handleAssetRequest(event) {
+// Handle offline entertainment file requests (CACHE FIRST)
+function handleOfflineFileRequest(event) {
   event.respondWith(
     caches.match(event.request)
       .then(cachedResponse => {
         if (cachedResponse) {
-          // Update cache in background
-          fetch(event.request)
-            .then(networkResponse => {
-              if (networkResponse.ok) {
-                caches.open(CACHE_NAME)
-                  .then(cache => cache.put(event.request, networkResponse));
-              }
-            })
-            .catch(() => {
-              // Network failed, keep cached version
-            });
-          
+          console.log('📦 Serving offline file from cache:', event.request.url);
           return cachedResponse;
         }
-        
-        // Not in cache, fetch from network
+
+        // Not in cache, try network
         return fetch(event.request)
           .then(networkResponse => {
-            if (!networkResponse.ok) {
-              throw new Error('Network response not ok');
-            }
-            
             // Cache successful responses
-            const responseClone = networkResponse.clone();
-            caches.open(CACHE_NAME)
-              .then(cache => cache.put(event.request, responseClone));
-            
+            if (networkResponse.ok) {
+              const responseClone = networkResponse.clone();
+              caches.open(CACHE_NAME)
+                .then(cache => cache.put(event.request, responseClone));
+            }
             return networkResponse;
           })
-          .catch(error => {
-            console.log('❌ Asset fetch failed:', event.request.url, error);
-            
-            // Return appropriate fallback
+          .catch(() => {
+            // Network failed, return fallback
             if (event.request.destination === 'image') {
-              return caches.match('/relay.png');
-            }
-            
-            if (event.request.url.endsWith('.css')) {
-              return new Response('/* Fallback CSS */', {
-                headers: { 'Content-Type': 'text/css' }
+              return new Response('', {
+                headers: { 'Content-Type': 'image/svg+xml' }
               });
             }
-            
-            if (event.request.url.endsWith('.js')) {
-              return new Response('// Fallback JS', {
-                headers: { 'Content-Type': 'text/javascript' }
-              });
-            }
-            
-            return new Response('Resource not available', {
+            return new Response('Offline resource unavailable', {
               status: 404,
               headers: { 'Content-Type': 'text/plain' }
             });
@@ -267,10 +146,108 @@ function handleAssetRequest(event) {
   );
 }
 
+// Handle app file requests (NETWORK ONLY, NO CACHING)
+function handleAppFileRequest(event) {
+  event.respondWith(
+    fetch(event.request)
+      .then(response => {
+        // DON'T CACHE app files - this is the key change!
+        // When offline, these will fail and trigger the offline page
+        return response;
+      })
+      .catch(async (error) => {
+        console.log('🌐 Network failed for app file:', event.request.url);
+        
+        // Check if it's a page request (HTML)
+        const request = event.request;
+        const acceptHeader = request.headers.get('Accept') || '';
+        const isHtmlRequest = acceptHeader.includes('text/html') || 
+                             request.url.endsWith('.html') ||
+                             !request.url.includes('.') ||
+                             request.url.endsWith('/');
+        
+        if (isHtmlRequest) {
+          // For HTML/page requests, redirect to offline entertainment
+          console.log('📴 Offline detected, redirecting to entertainment page');
+          
+          // Try to get offline page from cache
+          const offlineResponse = await caches.match(OFFLINE_URL);
+          if (offlineResponse) {
+            return offlineResponse;
+          }
+          
+          // Fallback offline page
+          return new Response(
+            `
+            <!DOCTYPE html>
+            <html>
+            <head>
+              <title>You're Offline</title>
+              <meta name="viewport" content="width=device-width, initial-scale=1">
+              <style>
+                body {
+                  font-family: Arial, sans-serif;
+                  text-align: center;
+                  padding: 50px;
+                  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                  color: white;
+                  min-height: 100vh;
+                  display: flex;
+                  flex-direction: column;
+                  justify-content: center;
+                  align-items: center;
+                }
+                h1 {
+                  font-size: 3rem;
+                  margin-bottom: 20px;
+                }
+                p {
+                  font-size: 1.2rem;
+                  margin-bottom: 30px;
+                  max-width: 500px;
+                }
+                a {
+                  display: inline-block;
+                  padding: 12px 30px;
+                  background: white;
+                  color: #667eea;
+                  text-decoration: none;
+                  border-radius: 25px;
+                  font-weight: bold;
+                  margin: 10px;
+                }
+              </style>
+            </head>
+            <body>
+              <h1>📴 You're Offline</h1>
+              <p>RelayTalk requires an internet connection. But don't worry! You can still enjoy:</p>
+              <a href="/offline/index.html">Entertainment Sections</a>
+              <script>
+                // Auto-redirect to offline page
+                setTimeout(() => {
+                  window.location.href = '/offline/index.html';
+                }, 2000);
+              </script>
+            </body>
+            </html>
+            `,
+            {
+              status: 200,
+              headers: { 'Content-Type': 'text/html' }
+            }
+          );
+        }
+        
+        // For non-HTML app files (CSS, JS, images), just fail
+        throw error;
+      })
+  );
+}
+
 // ====== MESSAGE HANDLING ======
 self.addEventListener('message', event => {
   console.log('📩 Message from client:', event.data);
-  
+
   switch (event.data.type) {
     case 'GET_CACHED_PAGE':
       caches.match(event.data.url)
@@ -281,7 +258,7 @@ self.addEventListener('message', event => {
           });
         });
       break;
-      
+
     case 'CLEAR_CACHE':
       caches.delete(CACHE_NAME)
         .then(success => {
@@ -291,7 +268,7 @@ self.addEventListener('message', event => {
           });
         });
       break;
-      
+
     case 'GET_CACHE_INFO':
       caches.has(CACHE_NAME)
         .then(hasCache => {
@@ -302,18 +279,19 @@ self.addEventListener('message', event => {
                 version: APP_VERSION,
                 hasCache: hasCache,
                 cachedItems: keys.length,
-                cacheName: CACHE_NAME
+                cacheName: CACHE_NAME,
+                cachedFiles: keys.map(k => k.url)
               });
             });
         });
       break;
-      
+
     case 'UPDATE_NOW':
       self.skipWaiting();
       self.registration.update();
       event.ports[0].postMessage({ updating: true });
       break;
-      
+
     case 'PING':
       event.ports[0].postMessage({ pong: true, version: APP_VERSION });
       break;
@@ -323,7 +301,7 @@ self.addEventListener('message', event => {
 // ====== BACKGROUND SYNC ======
 self.addEventListener('sync', event => {
   console.log('🔄 Background sync:', event.tag);
-  
+
   if (event.tag === 'sync-messages') {
     event.waitUntil(syncOfflineMessages());
   }
@@ -333,21 +311,21 @@ async function syncOfflineMessages() {
   try {
     const cache = await caches.open('offline-messages');
     const requests = await cache.keys();
-    
+
     console.log(`📨 Syncing ${requests.length} offline messages`);
-    
+
     for (const request of requests) {
       try {
         const response = await cache.match(request);
         const message = await response.json();
-        
+
         // Try to send message
         const sendResponse = await fetch(request.url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(message)
         });
-        
+
         if (sendResponse.ok) {
           await cache.delete(request);
           console.log('✅ Message sent:', message);
@@ -364,14 +342,14 @@ async function syncOfflineMessages() {
 // ====== PUSH NOTIFICATIONS ======
 self.addEventListener('push', event => {
   console.log('📱 Push received');
-  
+
   let data = {};
   try {
     data = event.data ? event.data.json() : {};
   } catch (e) {
     data = { title: 'RelayTalk', body: 'New message' };
   }
-  
+
   const options = {
     body: data.body || 'You have a new message',
     icon: '/relay.png',
@@ -389,7 +367,7 @@ self.addEventListener('push', event => {
       }
     ]
   };
-  
+
   event.waitUntil(
     self.registration.showNotification(data.title || 'RelayTalk', options)
   );
@@ -397,13 +375,13 @@ self.addEventListener('push', event => {
 
 self.addEventListener('notificationclick', event => {
   console.log('👆 Notification clicked:', event.action);
-  
+
   event.notification.close();
-  
+
   if (event.action === 'dismiss') {
     return;
   }
-  
+
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true })
       .then(clientList => {
@@ -413,7 +391,7 @@ self.addEventListener('notificationclick', event => {
             return client.focus();
           }
         }
-        
+
         // Open new window
         if (clients.openWindow) {
           return clients.openWindow(event.notification.data.url || '/');
@@ -433,24 +411,23 @@ self.addEventListener('periodicsync', event => {
 async function updateCache() {
   try {
     const cache = await caches.open(CACHE_NAME);
-    
-    // Update critical files
-    const criticalFiles = [
-      '/',
-      '/index.html',
-      '/offline.html',
-      '/manifest.json'
+
+    // Update only offline entertainment files
+    const offlineFiles = [
+      '/offline/index.html',
+      '/offline/section1/main.html',
+      '/offline/section2/main.html'
     ];
-    
-    for (const url of criticalFiles) {
+
+    for (const url of offlineFiles) {
       try {
         const response = await fetch(url, { cache: 'no-store' });
         if (response.ok) {
           await cache.put(url, response);
-          console.log('✅ Updated:', url);
+          console.log('✅ Updated offline file:', url);
         }
       } catch (error) {
-        console.log('⚠️ Failed to update:', url);
+        console.log('⚠️ Failed to update offline file:', url);
       }
     }
   } catch (error) {
