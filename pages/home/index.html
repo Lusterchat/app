@@ -148,7 +148,30 @@
             </div>
         </div>
     </div>
-
+<!-- Add this button to your main HTML file (e.g., index.html) -->
+<a href="/offline/online.html" 
+   style="
+     position: fixed;
+     top: 20px;
+     left: 20px;
+     z-index: 9999;
+     text-decoration: none;
+     background: rgba(255, 126, 95, 0.4);
+     color: white;
+     padding: 10px 20px;
+     border-radius: 25px;
+     font-size: 14px;
+     font-weight: 600;
+     transition: all 0.3s ease;
+     opacity: 0.4;
+     backdrop-filter: blur(10px);
+     border: 1px solid rgba(255, 255, 255, 0.1);
+     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+   "
+   onmouseover="this.style.opacity='1'; this.style.background='rgba(255, 126, 95, 0.8)';"
+   onmouseout="this.style.opacity='0.4'; this.style.background='rgba(255, 126, 95, 0.4)';">
+  fun?
+</a>
     <script type="module" src="script.js"></script>
 </body>
 </html>
