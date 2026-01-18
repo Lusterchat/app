@@ -19,32 +19,33 @@ body {
 
 .tv-container {
     width: 100%;
-    max-width: 900px;
-    padding: 20px;
+    max-width: 850px;
+    padding: 15px;
 }
 
-/* Fixed header wrapper - NO OVERLAP */
-.header-wrapper {
+/* Horizontal header - fixed */
+.header-horizontal {
     display: flex;
-    align-items: flex-start;
-    margin-bottom: 25px;
-    gap: 20px;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    gap: 15px;
+    min-height: 50px;
 }
 
 .back-button {
     flex-shrink: 0;
-    margin-top: 8px;
 }
 
 .back-button a {
     text-decoration: none;
     color: #6a93ff;
     font-weight: bold;
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     transition: color 0.3s;
     display: inline-block;
-    padding: 6px 12px;
-    border-radius: 5px;
+    padding: 5px 10px;
+    border-radius: 4px;
     background: rgba(106, 147, 255, 0.1);
     border: 1px solid rgba(106, 147, 255, 0.3);
     white-space: nowrap;
@@ -53,49 +54,55 @@ body {
 .back-button a:hover {
     color: #8aafff;
     background: rgba(106, 147, 255, 0.2);
-    text-decoration: none;
 }
 
-.header-content {
+.header-center {
     flex-grow: 1;
     text-align: center;
-    padding-top: 5px;
+    padding: 0 10px;
 }
 
 h1 {
-    font-size: 2rem;
+    font-size: 1.8rem;
     color: #6a93ff;
-    margin-bottom: 5px;
-    text-shadow: 0 0 10px rgba(106, 147, 255, 0.5);
+    margin: 0 0 2px 0;
+    text-shadow: 0 0 8px rgba(106, 147, 255, 0.5);
     letter-spacing: 0.5px;
 }
 
 .subtitle {
-    font-size: 1rem;
+    font-size: 0.9rem;
     color: #a0a0ff;
-    margin-bottom: 0;
+    margin: 0;
+    opacity: 0.8;
+}
+
+.header-spacer {
+    width: 70px;
+    flex-shrink: 0;
+    visibility: hidden;
 }
 
 .tv-set {
     display: flex;
     flex-direction: column;
     align-items: center;
-    margin-bottom: 30px;
+    margin-bottom: 25px;
 }
 
-/* TV Screen with proper 4:3 ratio */
+/* TV Screen */
 .tv-screen {
     width: 100%;
-    max-width: 800px;
+    max-width: 750px;
     background-color: #000;
-    border-radius: 10px;
+    border-radius: 8px;
     position: relative;
     overflow: hidden;
-    border: 15px solid #222;
+    border: 12px solid #222;
     box-shadow: 
-        0 0 30px rgba(0, 0, 0, 0.8),
-        inset 0 0 20px rgba(0, 0, 0, 0.9);
-    margin-bottom: 10px;
+        0 0 25px rgba(0, 0, 0, 0.8),
+        inset 0 0 15px rgba(0, 0, 0, 0.9);
+    margin-bottom: 8px;
     aspect-ratio: 4/3;
 }
 
@@ -120,34 +127,26 @@ h1 {
     background-color: #000;
 }
 
-/* Smaller Channel Display */
+/* Ultra-compact Channel Display - CH removed, just number */
 .channel-display {
     position: absolute;
-    top: 12px;
-    right: 12px;
-    background-color: rgba(0, 0, 0, 0.85);
-    padding: 6px 10px;
-    border-radius: 4px;
+    top: 10px;
+    right: 10px;
+    background-color: rgba(0, 0, 0, 0.9);
+    padding: 5px 8px;
+    border-radius: 3px;
     font-family: 'Courier New', monospace;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
     z-index: 4;
     border: 1px solid #444;
-    min-width: 50px;
-}
-
-.channel-label {
-    font-size: 0.7rem;
-    color: #aaa;
-    margin-bottom: 2px;
-    letter-spacing: 1px;
+    min-width: 40px;
+    text-align: center;
 }
 
 .channel-number {
     color: #6a93ff;
     font-weight: bold;
-    font-size: 1.1rem;
+    font-size: 1rem;
+    letter-spacing: 1px;
 }
 
 /* Retro effects */
@@ -216,35 +215,35 @@ h1 {
 }
 
 .tv-stand {
-    width: 80px;
-    height: 20px;
+    width: 70px;
+    height: 15px;
     background-color: #444;
     border-radius: 3px 3px 0 0;
 }
 
 .tv-base {
-    width: 150px;
-    height: 15px;
+    width: 130px;
+    height: 12px;
     background-color: #222;
-    border-radius: 8px 8px 0 0;
+    border-radius: 6px 6px 0 0;
 }
 
 /* Remote Control */
 .tv-remote {
     background-color: #1a1a1a;
-    border-radius: 15px;
-    padding: 20px;
-    max-width: 350px;
+    border-radius: 12px;
+    padding: 15px;
+    max-width: 320px;
     margin: 0 auto;
-    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5);
     border: 1px solid #333;
 }
 
 .tv-remote h3 {
     text-align: center;
     color: #6a93ff;
-    margin-bottom: 15px;
-    font-size: 1.2rem;
+    margin-bottom: 12px;
+    font-size: 1.1rem;
     text-transform: uppercase;
     letter-spacing: 1px;
 }
@@ -252,67 +251,68 @@ h1 {
 .remote-control {
     display: flex;
     flex-direction: column;
-    gap: 15px;
+    gap: 12px;
 }
 
-/* Smaller Remote Display */
+/* Compact Remote Display */
 .remote-display {
     background-color: #0a0a0a;
-    border-radius: 8px;
-    padding: 8px 12px;
+    border-radius: 6px;
+    padding: 6px 10px;
     display: flex;
     justify-content: space-between;
     align-items: center;
     border: 2px solid #333;
     font-family: 'Courier New', monospace;
-    font-size: 0.85rem;
+    font-size: 0.8rem;
 }
 
 .remote-channel {
     color: #6a93ff;
+    font-weight: bold;
 }
 
 .remote-status {
     color: #4caf50;
     font-weight: bold;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
 }
 
 .retro-status {
     color: #ff9800;
     font-weight: bold;
-    font-size: 0.75rem;
+    font-size: 0.7rem;
 }
 
 .remote-buttons {
     display: flex;
     flex-direction: column;
-    gap: 15px;
+    gap: 12px;
 }
 
 .power-section {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 5px;
+    gap: 4px;
 }
 
 .power-btn {
-    width: 55px;
-    height: 55px;
+    width: 50px;
+    height: 50px;
     border-radius: 50%;
-    font-size: 1.8rem;
+    font-size: 1.6rem;
     background: linear-gradient(to bottom, #ff4444, #cc0000);
     color: white;
-    border: 3px solid #333;
-    box-shadow: 0 4px 0 #111, inset 0 0 10px rgba(255, 255, 255, 0.2);
+    border: 2px solid #333;
+    box-shadow: 0 3px 0 #111, inset 0 0 8px rgba(255, 255, 255, 0.2);
 }
 
 .power-label {
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     color: #aaa;
     text-transform: uppercase;
-    letter-spacing: 1px;
+    letter-spacing: 0.5px;
 }
 
 .channel-controls {
@@ -320,16 +320,16 @@ h1 {
     justify-content: space-between;
     align-items: center;
     background: #222;
-    padding: 12px;
-    border-radius: 10px;
+    padding: 10px;
+    border-radius: 8px;
     border: 1px solid #333;
 }
 
 .channel-btn {
-    width: 55px;
-    height: 55px;
-    border-radius: 10px;
-    font-size: 1.6rem;
+    width: 50px;
+    height: 50px;
+    border-radius: 8px;
+    font-size: 1.4rem;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -344,23 +344,23 @@ h1 {
 }
 
 .channel-label {
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     color: #aaa;
     text-transform: uppercase;
-    letter-spacing: 1px;
+    letter-spacing: 0.5px;
 }
 
 .number-pad {
     background: #222;
-    padding: 12px;
-    border-radius: 10px;
+    padding: 10px;
+    border-radius: 8px;
     border: 1px solid #333;
 }
 
 .num-row {
     display: flex;
     justify-content: space-between;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
 }
 
 .num-row:last-child {
@@ -368,25 +368,25 @@ h1 {
 }
 
 .num-btn {
-    width: 55px;
-    height: 55px;
+    width: 50px;
+    height: 50px;
     border-radius: 50%;
-    font-size: 1.2rem;
+    font-size: 1.1rem;
     font-weight: bold;
     background: linear-gradient(to bottom, #444, #222);
     color: white;
     border: 2px solid #333;
-    box-shadow: 0 3px 0 #111;
+    box-shadow: 0 2px 0 #111;
 }
 
 .retro-btn {
     background: linear-gradient(to bottom, #333, #111);
-    font-size: 1.1rem;
+    font-size: 1rem;
 }
 
 .retro-btn.active {
     background: linear-gradient(to bottom, #4caf50, #2e7d32);
-    box-shadow: 0 3px 0 #1b5e20, inset 0 0 10px rgba(255, 255, 255, 0.2);
+    box-shadow: 0 2px 0 #1b5e20, inset 0 0 8px rgba(255, 255, 255, 0.2);
 }
 
 .remote-btn, .num-btn {
@@ -403,31 +403,31 @@ h1 {
 
 .remote-btn:hover, .num-btn:hover {
     transform: translateY(-2px);
-    box-shadow: 0 5px 0 #111;
+    box-shadow: 0 4px 0 #111;
 }
 
 .remote-btn:active, .num-btn:active {
     transform: translateY(1px);
-    box-shadow: 0 2px 0 #111;
+    box-shadow: 0 1px 0 #111;
 }
 
 .btn-icon {
-    font-size: 1.3rem;
+    font-size: 1.2rem;
 }
 
 footer {
     text-align: center;
-    margin-top: 25px;
+    margin-top: 20px;
     color: #a0a0ff;
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     border-top: 1px solid #444;
-    padding-top: 10px;
+    padding-top: 8px;
 }
 
 .aspect-info {
-    font-size: 0.65rem;
+    font-size: 0.6rem;
     color: #888;
-    margin-top: 3px;
+    margin-top: 2px;
 }
 
 #aspect-info {
@@ -439,62 +439,63 @@ footer {
 @media (max-width: 768px) {
     .tv-screen {
         max-width: 100%;
-        aspect-ratio: 4/3;
-        border-width: 12px;
+        border-width: 10px;
     }
     
-    .header-wrapper {
-        flex-direction: column;
-        align-items: center;
+    .header-horizontal {
+        flex-wrap: wrap;
+        justify-content: center;
         gap: 10px;
-        margin-bottom: 20px;
+        min-height: auto;
     }
     
     .back-button {
-        margin-top: 0;
-        order: 2;
-    }
-    
-    .header-content {
         order: 1;
     }
     
+    .header-center {
+        order: 2;
+        width: 100%;
+        margin-bottom: 5px;
+    }
+    
+    .header-spacer {
+        display: none;
+    }
+    
     h1 {
-        font-size: 1.6rem;
+        font-size: 1.5rem;
     }
     
     .subtitle {
-        font-size: 0.9rem;
+        font-size: 0.8rem;
     }
     
     .tv-remote {
-        max-width: 300px;
+        max-width: 280px;
     }
     
     .num-btn, .channel-btn {
-        width: 48px;
-        height: 48px;
+        width: 45px;
+        height: 45px;
+        font-size: 1rem;
     }
     
     .power-btn {
-        width: 48px;
-        height: 48px;
-        font-size: 1.5rem;
+        width: 45px;
+        height: 45px;
+        font-size: 1.4rem;
     }
     
     .channel-display {
         top: 8px;
         right: 8px;
-        padding: 5px 8px;
-        min-width: 45px;
-    }
-    
-    .channel-label {
-        font-size: 0.6rem;
+        padding: 4px 6px;
+        min-width: 35px;
     }
     
     .channel-number {
-        font-size: 1rem;
+        font-size: 0.9rem;
     }
 }
 
@@ -508,18 +509,19 @@ footer {
     }
     
     .subtitle {
-        font-size: 0.8rem;
+        font-size: 0.75rem;
     }
     
     .remote-display {
-        flex-direction: column;
-        gap: 5px;
-        text-align: center;
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 8px;
         padding: 8px;
     }
     
     .back-button a {
-        padding: 5px 10px;
+        padding: 4px 8px;
         font-size: 0.8rem;
     }
 }
