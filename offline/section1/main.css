@@ -1,0 +1,268 @@
+/* section1/main.css */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Georgia', 'Times New Roman', serif;
+    background: linear-gradient(135deg, #ff7e5f 0%, #feb47b 100%);
+    color: #5a2a1a;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+}
+
+.shayari-container {
+    background-color: rgba(255, 255, 255, 0.95);
+    border-radius: 20px;
+    width: 100%;
+    max-width: 700px;
+    padding: 30px;
+    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.2);
+    position: relative;
+    overflow: hidden;
+}
+
+header {
+    text-align: center;
+    margin-bottom: 30px;
+    position: relative;
+}
+
+.back-button {
+    position: absolute;
+    left: 0;
+    top: 5px;
+}
+
+.back-button a {
+    text-decoration: none;
+    color: #ff7e5f;
+    font-weight: bold;
+    font-size: 1.1rem;
+    transition: color 0.3s;
+}
+
+.back-button a:hover {
+    color: #e56b4a;
+    text-decoration: underline;
+}
+
+h1 {
+    font-size: 2.8rem;
+    color: #d44b1c;
+    margin-bottom: 10px;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+}
+
+.subtitle {
+    font-size: 1.2rem;
+    color: #a64a2e;
+    margin-bottom: 10px;
+}
+
+.shayari-display {
+    background: linear-gradient(to bottom right, #fff5f2, #ffe8e0);
+    border-radius: 15px;
+    padding: 40px 30px;
+    margin-bottom: 30px;
+    text-align: center;
+    min-height: 350px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    border: 2px dashed #ff7e5f;
+    box-shadow: inset 0 0 10px rgba(255, 126, 95, 0.2);
+}
+
+.shayari-number {
+    font-size: 1.1rem;
+    color: #ff7e5f;
+    margin-bottom: 20px;
+    font-weight: bold;
+}
+
+.shayari-text {
+    font-size: 1.8rem;
+    line-height: 1.6;
+    margin-bottom: 25px;
+    font-style: italic;
+    color: #5a2a1a;
+}
+
+.shayari-theme {
+    display: inline-block;
+    background-color: #ff7e5f;
+    color: white;
+    padding: 8px 20px;
+    border-radius: 50px;
+    font-size: 1.1rem;
+    font-weight: bold;
+    margin-top: 10px;
+}
+
+.navigation {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 30px;
+}
+
+.nav-btn {
+    padding: 15px 30px;
+    font-size: 1.2rem;
+    border: none;
+    border-radius: 50px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    font-weight: bold;
+    min-width: 150px;
+}
+
+.nav-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+#prev-btn {
+    background: linear-gradient(to right, #a0a0a0, #c0c0c0);
+    color: #333;
+}
+
+#prev-btn:not(:disabled):hover {
+    background: linear-gradient(to right, #909090, #b0b0b0);
+    transform: translateY(-3px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+}
+
+#next-btn {
+    background: linear-gradient(to right, #ff7e5f, #feb47b);
+    color: white;
+}
+
+#next-btn:not(:disabled):hover {
+    background: linear-gradient(to right, #ff6b47, #fea05c);
+    transform: translateY(-3px);
+    box-shadow: 0 5px 15px rgba(255, 107, 71, 0.4);
+}
+
+.btn-icon {
+    font-size: 1.5rem;
+    margin: 0 10px;
+}
+
+.progress-container {
+    margin-bottom: 30px;
+}
+
+.progress-bar {
+    height: 8px;
+    background-color: #ffe0d6;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 15px;
+}
+
+.progress-bar::after {
+    content: '';
+    display: block;
+    height: 100%;
+    width: 6.66%; /* 1/15 of 100% */
+    background: linear-gradient(to right, #ff7e5f, #feb47b);
+    border-radius: 4px;
+    transition: width 0.5s ease;
+}
+
+.progress-dots {
+    display: flex;
+    justify-content: space-between;
+    margin: 0 10px;
+}
+
+.progress-dots::before,
+.progress-dots::after {
+    content: '';
+    width: 16px;
+    height: 16px;
+    background-color: #ff7e5f;
+    border-radius: 50%;
+}
+
+.restart-screen {
+    display: none;
+    text-align: center;
+    padding: 40px 20px;
+    background: linear-gradient(to bottom right, #fff5f2, #ffe8e0);
+    border-radius: 15px;
+    margin-top: 20px;
+}
+
+.thanks-message h2 {
+    font-size: 2.5rem;
+    color: #d44b1c;
+    margin-bottom: 20px;
+}
+
+.thanks-message p {
+    font-size: 1.3rem;
+    margin-bottom: 30px;
+    color: #5a2a1a;
+}
+
+.restart-btn {
+    padding: 15px 40px;
+    font-size: 1.3rem;
+    background: linear-gradient(to right, #ff7e5f, #feb47b);
+    color: white;
+    border: none;
+    border-radius: 50px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: all 0.3s ease;
+}
+
+.restart-btn:hover {
+    background: linear-gradient(to right, #ff6b47, #fea05c);
+    transform: scale(1.05);
+    box-shadow: 0 5px 20px rgba(255, 107, 71, 0.4);
+}
+
+footer {
+    text-align: center;
+    margin-top: 20px;
+    color: #a64a2e;
+    font-size: 0.9rem;
+    border-top: 1px solid #ffd1c2;
+    padding-top: 15px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .shayari-container {
+        padding: 20px;
+    }
+    
+    h1 {
+        font-size: 2.2rem;
+    }
+    
+    .shayari-text {
+        font-size: 1.5rem;
+    }
+    
+    .navigation {
+        flex-direction: column;
+        gap: 15px;
+    }
+    
+    .nav-btn {
+        width: 100%;
+        min-width: unset;
+    }
+}
