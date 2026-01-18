@@ -1,4 +1,4 @@
-// Service Worker Manager - Automatically checks cache and handles updates
+// Service Worker Manager - Enhanced with path fixing
 // Add this ONE file to your main HTML pages
 
 class ServiceWorkerManager {
@@ -6,6 +6,7 @@ class ServiceWorkerManager {
         this.sw = null;
         this.isOnline = navigator.onLine;
         this.registration = null;
+        this.cacheInfo = null;
         
         this.init();
     }
@@ -16,6 +17,9 @@ class ServiceWorkerManager {
         // Listen for online/offline changes
         window.addEventListener('online', () => this.updateStatus('online'));
         window.addEventListener('offline', () => this.updateStatus('offline'));
+        
+        // Fix any broken paths in current page
+        this.fixBrokenPaths();
         
         // Register service worker if supported
         if ('serviceWorker' in navigator) {
@@ -73,11 +77,17 @@ class ServiceWorkerManager {
         
         // Check cache status
         this.sendMessage({ type: 'CHECK_CACHE' }, (response) => {
+            this.cacheInfo = response;
             console.log('📦 Cache status:', response);
             
             if (!response.offlinePageCached) {
                 console.warn('⚠️ Offline page not cached!');
                 this.precacheOfflineContent();
+            }
+            
+            if (response.videos < response.totalVideos) {
+                console.warn(`⚠️ Videos not fully cached: ${response.videos}/${response.totalVideos}`);
+                this.showNotification(`Caching videos... (${response.videos}/${response.totalVideos})`, 'info');
             }
         });
         
@@ -98,11 +108,36 @@ class ServiceWorkerManager {
         });
     }
     
+    // Fix broken paths in current page
+    fixBrokenPaths() {
+        const currentPath = window.location.pathname;
+        
+        // Check if we're on a broken section path
+        if ((currentPath.includes('/section1/') || currentPath.includes('/section2/')) && 
+            !currentPath.startsWith('/offline/')) {
+            
+            console.log('🔄 Fixing broken section path:', currentPath);
+            
+            // Extract the section filename
+            const sectionMatch = currentPath.match(/\/(section[12]\/[^\/]+)$/);
+            if (sectionMatch) {
+                const fixedPath = '/offline/' + sectionMatch[1];
+                console.log('✅ Redirecting to:', fixedPath);
+                
+                // Redirect to correct path
+                window.location.replace(fixedPath);
+                return true;
+            }
+        }
+        return false;
+    }
+    
     // Send message to service worker
     sendMessage(message, callback) {
         if (!this.sw) {
             console.warn('No service worker connected');
-            return;
+            if (callback) callback({ error: 'No service worker' });
+            return Promise.resolve({ error: 'No service worker' });
         }
         
         return new Promise((resolve) => {
@@ -114,7 +149,13 @@ class ServiceWorkerManager {
                 channel.port1.close();
             };
             
-            this.sw.postMessage(message, [channel.port2]);
+            try {
+                this.sw.postMessage(message, [channel.port2]);
+            } catch (error) {
+                console.error('❌ Failed to send message:', error);
+                if (callback) callback({ error: error.message });
+                resolve({ error: error.message });
+            }
         });
     }
     
@@ -124,15 +165,15 @@ class ServiceWorkerManager {
         console.log('📡 Network status:', status);
         
         // Notify service worker
-        if (this.sw) {
-            this.sendMessage({ type: 'STATUS', status: status });
-        }
+        this.sendMessage({ type: 'STATUS', status: status });
         
         // Show notification if went offline
         if (status === 'offline') {
             this.showOfflineNotification();
         } else {
             this.hideOfflineNotification();
+            // When coming back online, check cache
+            setTimeout(() => this.checkCache(), 1000);
         }
     }
     
@@ -141,10 +182,18 @@ class ServiceWorkerManager {
         if (!this.sw) return;
         
         this.sendMessage({ type: 'GET_STATUS' }, (response) => {
+            this.cacheInfo = response;
             console.log('🔄 Cache check:', response);
             
-            // Check every 30 seconds
-            setTimeout(() => this.checkCache(), 30000);
+            // Show cache status if offline
+            if (!this.isOnline && response.videosCached) {
+                this.showNotification(`🎬 ${response.videosCached} videos available offline`, 'success');
+            }
+            
+            // Check every 30 seconds if online
+            if (this.isOnline) {
+                setTimeout(() => this.checkCache(), 30000);
+            }
         });
     }
     
@@ -170,7 +219,7 @@ class ServiceWorkerManager {
             fetch(url)
                 .then(response => {
                     if (response.ok) {
-                        return caches.open('relaytalk-cache-v3-3')
+                        return caches.open('relaytalk-cache-v3-5')
                             .then(cache => cache.put(url, response));
                     }
                 })
@@ -178,6 +227,8 @@ class ServiceWorkerManager {
                     console.warn('Failed to cache:', url);
                 });
         });
+        
+        this.showNotification('📦 Precaching offline content...', 'info');
     }
     
     // Show update notification
@@ -198,6 +249,9 @@ class ServiceWorkerManager {
                 cursor: pointer;
                 font-family: Arial, sans-serif;
                 font-size: 14px;
+                display: flex;
+                align-items: center;
+                gap: 8px;
             ">
                 🔄 New version available! Click to update.
             </div>
@@ -205,7 +259,9 @@ class ServiceWorkerManager {
         
         notification.onclick = () => {
             this.sendMessage({ type: 'UPDATE_NOW' });
-            window.location.reload();
+            setTimeout(() => {
+                window.location.reload();
+            }, 500);
             notification.remove();
         };
         
@@ -238,9 +294,16 @@ class ServiceWorkerManager {
                 display: flex;
                 align-items: center;
                 gap: 8px;
+                animation: slideDown 0.3s ease;
             ">
                 📡 You are offline. Using cached content.
             </div>
+            <style>
+                @keyframes slideDown {
+                    from { transform: translateX(-50%) translateY(-20px); opacity: 0; }
+                    to { transform: translateX(-50%) translateY(0); opacity: 1; }
+                }
+            </style>
         `;
         
         document.body.appendChild(notification);
@@ -251,7 +314,83 @@ class ServiceWorkerManager {
     
     hideOfflineNotification() {
         const notification = document.querySelector('.offline-notification');
-        if (notification) notification.remove();
+        if (notification) {
+            notification.style.animation = 'slideUp 0.3s ease';
+            setTimeout(() => notification.remove(), 300);
+        }
+    }
+    
+    // Show custom notification
+    showNotification(message, type = 'info') {
+        const colors = {
+            success: '#48bb78',
+            error: '#f56565',
+            info: '#4299e1',
+            warning: '#ed8936'
+        };
+        
+        const icons = {
+            success: '✅',
+            error: '❌',
+            info: 'ℹ️',
+            warning: '⚠️'
+        };
+        
+        const notification = document.createElement('div');
+        notification.innerHTML = `
+            <div style="
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: ${colors[type]};
+                color: white;
+                padding: 12px 20px;
+                border-radius: 8px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                z-index: 10000;
+                font-family: Arial, sans-serif;
+                font-size: 14px;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                animation: slideIn 0.3s ease;
+                max-width: 300px;
+            ">
+                ${icons[type]} ${message}
+            </div>
+            <style>
+                @keyframes slideIn {
+                    from { transform: translateX(100%); opacity: 0; }
+                    to { transform: translateX(0); opacity: 1; }
+                }
+                @keyframes slideOut {
+                    from { transform: translateX(0); opacity: 1; }
+                    to { transform: translateX(100%); opacity: 0; }
+                }
+            </style>
+        `;
+        
+        document.body.appendChild(notification);
+        
+        // Auto-remove after 3 seconds
+        setTimeout(() => {
+            notification.querySelector('div').style.animation = 'slideOut 0.3s ease';
+            setTimeout(() => notification.remove(), 300);
+        }, 3000);
+    }
+    
+    // Cache videos manually
+    cacheVideosNow() {
+        return this.sendMessage({ type: 'CACHE_VIDEOS' }, (response) => {
+            if (response.success) {
+                console.log('✅ Videos cached successfully');
+                this.showNotification('🎬 Videos cached and ready for offline!', 'success');
+                this.checkCache();
+            } else {
+                console.error('❌ Video caching failed:', response.message);
+                this.showNotification('⚠️ Video caching failed', 'error');
+            }
+        });
     }
     
     // Public methods
@@ -274,7 +413,10 @@ class ServiceWorkerManager {
 
 // Auto-initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
-    window.SWManager = new ServiceWorkerManager();
+    // Only initialize if not already initialized
+    if (!window.SWManager) {
+        window.SWManager = new ServiceWorkerManager();
+    }
 });
 
 // Make available globally
