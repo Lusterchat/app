@@ -1,27 +1,27 @@
-// RelayTalk Service Worker v2.5
-// Handles offline/404 errors with unified error page
+// RelayTalk Service Worker v2.7
+// Handles offline/404 errors with offline entertainment
 
-const CACHE_NAME = 'relaytalk-cache-v2.6';
-const OFFLINE_URL = '/offline/index.html'; // Changed to offline entertainment page
-const APP_VERSION = '2.5.0';
+const CACHE_NAME = 'relaytalk-cache-v2.7';
+const OFFLINE_URL = '/offline/index.html';
+const APP_VERSION = '2.7.0';
 
 // Files to cache immediately - ONLY OFFLINE ENTERTAINMENT PAGES
 const PRECACHE_FILES = [
   // ===== OFFLINE ENTERTAINMENT PAGES ONLY =====
   // Main offline page
   '/offline/index.html',
-  
+
   // Shayari Section
   '/offline/section1/main.html',
   '/offline/section1/main.css',
   '/offline/section1/main.js',
   '/offline/section1/shayari-data.js',
-  
+
   // TV Section
   '/offline/section2/main.html',
   '/offline/section2/main.css',
   '/offline/section2/main.js',
-  
+
   // Video files for TV section (5 videos)
   '/offline/videos/vid1.mp4',
   '/offline/videos/vid2.mp4',
@@ -30,26 +30,20 @@ const PRECACHE_FILES = [
   '/offline/videos/vid5.mp4'
 ];
 
+// Track if we've started caching
+let cacheStarted = false;
+
 // ====== INSTALL EVENT ======
 self.addEventListener('install', event => {
   console.log('⚡ Service Worker installing v' + APP_VERSION);
 
+  // Don't pre-cache immediately - wait for first interaction
+  console.log('⏸️ Caching paused until first user interaction');
+  
   // Skip waiting to activate immediately
   self.skipWaiting();
 
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => {
-        console.log('📦 Pre-caching offline entertainment files');
-        return cache.addAll(PRECACHE_FILES);
-      })
-      .then(() => {
-        console.log('✅ All offline files pre-cached');
-      })
-      .catch(error => {
-        console.warn('⚠️ Some files failed to cache:', error);
-      })
-  );
+  event.waitUntil(Promise.resolve());
 });
 
 // ====== ACTIVATE EVENT ======
@@ -74,12 +68,70 @@ self.addEventListener('activate', event => {
       self.clients.claim()
     ]).then(() => {
       console.log('✅ Service Worker activated and ready');
+      
+      // Send message to all clients
+      self.clients.matchAll().then(clients => {
+        clients.forEach(client => {
+          client.postMessage({
+            type: 'SW_READY',
+            version: APP_VERSION,
+            message: 'Service Worker ready. Click anywhere to start caching offline content.'
+          });
+        });
+      });
     })
   );
 });
 
+// ====== START CACHING FUNCTION ======
+function startCaching() {
+  if (cacheStarted) return;
+  
+  cacheStarted = true;
+  console.log('🚀 Starting offline content caching...');
+  
+  caches.open(CACHE_NAME)
+    .then(cache => {
+      console.log('📦 Caching offline entertainment files:', PRECACHE_FILES);
+      
+      // Cache files one by one to avoid blocking
+      const cachePromises = PRECACHE_FILES.map(url => {
+        return cache.add(url)
+          .then(() => {
+            console.log('✅ Cached:', url);
+          })
+          .catch(error => {
+            console.warn('⚠️ Failed to cache:', url, error);
+          });
+      });
+      
+      return Promise.all(cachePromises);
+    })
+    .then(() => {
+      console.log('🎉 All offline content cached successfully!');
+      
+      // Notify all clients
+      self.clients.matchAll().then(clients => {
+        clients.forEach(client => {
+          client.postMessage({
+            type: 'CACHE_COMPLETE',
+            message: 'Offline entertainment content is now cached and ready!'
+          });
+        });
+      });
+    })
+    .catch(error => {
+      console.error('❌ Caching failed:', error);
+    });
+}
+
 // ====== FETCH EVENT ======
 self.addEventListener('fetch', event => {
+  // Start caching on first fetch (first user interaction)
+  if (!cacheStarted) {
+    startCaching();
+  }
+
   // Skip non-GET requests
   if (event.request.method !== 'GET') return;
 
@@ -96,15 +148,10 @@ self.addEventListener('fetch', event => {
   const requestUrl = new URL(event.request.url);
   const path = requestUrl.pathname;
 
-  // ====== CRITICAL CHANGE ======
-  // 1. Check if it's an offline entertainment file
-  // 2. For all other files (app files), don't cache them
-  
+  // Check if it's an offline entertainment file
   if (path.startsWith('/offline/')) {
-    // This is an offline entertainment file - serve from cache
     handleOfflineFileRequest(event);
   } else {
-    // This is an app file - network only, no caching
     handleAppFileRequest(event);
   }
 });
@@ -115,29 +162,37 @@ function handleOfflineFileRequest(event) {
     caches.match(event.request)
       .then(cachedResponse => {
         if (cachedResponse) {
-          console.log('📦 Serving offline file from cache:', event.request.url);
+          console.log('📦 Serving from cache:', event.request.url);
           return cachedResponse;
         }
 
-        // Not in cache, try network
+        // If not in cache, fetch and cache
         return fetch(event.request)
           .then(networkResponse => {
             // Cache successful responses
             if (networkResponse.ok) {
               const responseClone = networkResponse.clone();
               caches.open(CACHE_NAME)
-                .then(cache => cache.put(event.request, responseClone));
+                .then(cache => {
+                  cache.put(event.request, responseClone);
+                  console.log('💾 Cached on-demand:', event.request.url);
+                });
             }
             return networkResponse;
           })
           .catch(() => {
-            // Network failed, return fallback
+            // Network failed
+            console.log('❌ Offline file not available:', event.request.url);
+            
+            // Return appropriate fallback
             if (event.request.destination === 'image') {
-              return new Response('', {
-                headers: { 'Content-Type': 'image/svg+xml' }
-              });
+              return new Response(
+                '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect width="100" height="100" fill="#ccc"/><text x="50" y="55" font-family="Arial" font-size="14" text-anchor="middle" fill="#666">Image</text></svg>',
+                { headers: { 'Content-Type': 'image/svg+xml' } }
+              );
             }
-            return new Response('Offline resource unavailable', {
+            
+            return new Response('Resource unavailable offline', {
               status: 404,
               headers: { 'Content-Type': 'text/plain' }
             });
@@ -151,32 +206,29 @@ function handleAppFileRequest(event) {
   event.respondWith(
     fetch(event.request)
       .then(response => {
-        // DON'T CACHE app files - this is the key change!
-        // When offline, these will fail and trigger the offline page
         return response;
       })
       .catch(async (error) => {
-        console.log('🌐 Network failed for app file:', event.request.url);
-        
-        // Check if it's a page request (HTML)
+        console.log('🌐 Network failed for:', event.request.url);
+
+        // Check if it's a page request
         const request = event.request;
         const acceptHeader = request.headers.get('Accept') || '';
         const isHtmlRequest = acceptHeader.includes('text/html') || 
                              request.url.endsWith('.html') ||
                              !request.url.includes('.') ||
                              request.url.endsWith('/');
-        
+
         if (isHtmlRequest) {
-          // For HTML/page requests, redirect to offline entertainment
-          console.log('📴 Offline detected, redirecting to entertainment page');
+          console.log('📴 Offline detected, redirecting to entertainment');
           
-          // Try to get offline page from cache
+          // Check if offline page is cached
           const offlineResponse = await caches.match(OFFLINE_URL);
           if (offlineResponse) {
             return offlineResponse;
           }
-          
-          // Fallback offline page
+
+          // If offline page not cached yet, show loading message
           return new Response(
             `
             <!DOCTYPE html>
@@ -198,13 +250,27 @@ function handleAppFileRequest(event) {
                   align-items: center;
                 }
                 h1 {
-                  font-size: 3rem;
+                  font-size: 2.5rem;
                   margin-bottom: 20px;
                 }
                 p {
-                  font-size: 1.2rem;
+                  font-size: 1.1rem;
                   margin-bottom: 30px;
                   max-width: 500px;
+                  line-height: 1.6;
+                }
+                .spinner {
+                  border: 4px solid rgba(255, 255, 255, 0.3);
+                  border-radius: 50%;
+                  border-top: 4px solid white;
+                  width: 40px;
+                  height: 40px;
+                  animation: spin 1s linear infinite;
+                  margin: 20px auto;
+                }
+                @keyframes spin {
+                  0% { transform: rotate(0deg); }
+                  100% { transform: rotate(360deg); }
                 }
                 a {
                   display: inline-block;
@@ -220,13 +286,24 @@ function handleAppFileRequest(event) {
             </head>
             <body>
               <h1>📴 You're Offline</h1>
-              <p>RelayTalk requires an internet connection. But don't worry! You can still enjoy:</p>
-              <a href="/offline/index.html">Entertainment Sections</a>
+              <p>RelayTalk requires an internet connection.</p>
+              <p>Loading offline entertainment content...</p>
+              <div class="spinner"></div>
               <script>
-                // Auto-redirect to offline page
+                // Try to load offline page
                 setTimeout(() => {
                   window.location.href = '/offline/index.html';
-                }, 2000);
+                }, 3000);
+                
+                // If still fails after 5 seconds, show manual option
+                setTimeout(() => {
+                  document.body.innerHTML = `
+                    <h1>📴 You're Offline</h1>
+                    <p>Offline content is still loading. You can try:</p>
+                    <a href="/offline/index.html">Open Entertainment</a>
+                    <a href="/" onclick="location.reload()">Retry Main App</a>
+                  `;
+                }, 5000);
               </script>
             </body>
             </html>
@@ -238,7 +315,7 @@ function handleAppFileRequest(event) {
           );
         }
         
-        // For non-HTML app files (CSS, JS, images), just fail
+        // For non-HTML files, return error
         throw error;
       })
   );
@@ -249,6 +326,36 @@ self.addEventListener('message', event => {
   console.log('📩 Message from client:', event.data);
 
   switch (event.data.type) {
+    case 'START_CACHING':
+      console.log('🚀 Starting caching from client request');
+      startCaching();
+      event.ports[0].postMessage({ started: true });
+      break;
+
+    case 'GET_CACHE_STATUS':
+      caches.has(CACHE_NAME)
+        .then(hasCache => {
+          if (hasCache) {
+            caches.open(CACHE_NAME)
+              .then(cache => cache.keys())
+              .then(keys => {
+                event.ports[0].postMessage({
+                  hasCache: true,
+                  cachedItems: keys.length,
+                  cacheStarted: cacheStarted,
+                  offlineReady: keys.some(k => k.url.includes('/offline/index.html'))
+                });
+              });
+          } else {
+            event.ports[0].postMessage({
+              hasCache: false,
+              cacheStarted: cacheStarted,
+              offlineReady: false
+            });
+          }
+        });
+      break;
+
     case 'GET_CACHED_PAGE':
       caches.match(event.data.url)
         .then(response => {
@@ -262,9 +369,10 @@ self.addEventListener('message', event => {
     case 'CLEAR_CACHE':
       caches.delete(CACHE_NAME)
         .then(success => {
+          cacheStarted = false;
           event.ports[0].postMessage({
             success: success,
-            message: 'Cache cleared'
+            message: 'Cache cleared. Caching will restart on next interaction.'
           });
         });
       break;
@@ -272,17 +380,28 @@ self.addEventListener('message', event => {
     case 'GET_CACHE_INFO':
       caches.has(CACHE_NAME)
         .then(hasCache => {
-          caches.open(CACHE_NAME)
-            .then(cache => cache.keys())
-            .then(keys => {
-              event.ports[0].postMessage({
-                version: APP_VERSION,
-                hasCache: hasCache,
-                cachedItems: keys.length,
-                cacheName: CACHE_NAME,
-                cachedFiles: keys.map(k => k.url)
+          if (hasCache) {
+            caches.open(CACHE_NAME)
+              .then(cache => cache.keys())
+              .then(keys => {
+                event.ports[0].postMessage({
+                  version: APP_VERSION,
+                  hasCache: true,
+                  cachedItems: keys.length,
+                  cacheName: CACHE_NAME,
+                  cacheStarted: cacheStarted,
+                  cachedFiles: keys.map(k => k.url)
+                });
               });
+          } else {
+            event.ports[0].postMessage({
+              version: APP_VERSION,
+              hasCache: false,
+              cachedItems: 0,
+              cacheName: CACHE_NAME,
+              cacheStarted: cacheStarted
             });
+          }
         });
       break;
 
@@ -293,7 +412,11 @@ self.addEventListener('message', event => {
       break;
 
     case 'PING':
-      event.ports[0].postMessage({ pong: true, version: APP_VERSION });
+      event.ports[0].postMessage({ 
+        pong: true, 
+        version: APP_VERSION,
+        cacheStarted: cacheStarted
+      });
       break;
   }
 });
@@ -319,7 +442,6 @@ async function syncOfflineMessages() {
         const response = await cache.match(request);
         const message = await response.json();
 
-        // Try to send message
         const sendResponse = await fetch(request.url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -385,14 +507,12 @@ self.addEventListener('notificationclick', event => {
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true })
       .then(clientList => {
-        // Focus existing window
         for (const client of clientList) {
           if (client.url.includes('relaytalk') && 'focus' in client) {
             return client.focus();
           }
         }
 
-        // Open new window
         if (clients.openWindow) {
           return clients.openWindow(event.notification.data.url || '/');
         }
@@ -409,10 +529,11 @@ self.addEventListener('periodicsync', event => {
 });
 
 async function updateCache() {
+  if (!cacheStarted) return;
+  
   try {
     const cache = await caches.open(CACHE_NAME);
 
-    // Update only offline entertainment files
     const offlineFiles = [
       '/offline/index.html',
       '/offline/section1/main.html',
@@ -424,10 +545,10 @@ async function updateCache() {
         const response = await fetch(url, { cache: 'no-store' });
         if (response.ok) {
           await cache.put(url, response);
-          console.log('✅ Updated offline file:', url);
+          console.log('✅ Updated:', url);
         }
       } catch (error) {
-        console.log('⚠️ Failed to update offline file:', url);
+        console.log('⚠️ Failed to update:', url);
       }
     }
   } catch (error) {
