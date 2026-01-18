@@ -31,36 +31,44 @@ header {
     text-align: center;
     margin-bottom: 30px;
     position: relative;
+    padding-top: 10px;
 }
 
 .back-button {
     position: absolute;
     left: 0;
-    top: 5px;
+    top: 0;
+    margin-bottom: 20px;
 }
 
 .back-button a {
     text-decoration: none;
     color: #ff7e5f;
     font-weight: bold;
-    font-size: 1.1rem;
+    font-size: 1rem;
     transition: color 0.3s;
+    display: inline-block;
+    padding: 8px 15px;
+    border-radius: 5px;
+    background: rgba(255, 126, 95, 0.1);
 }
 
 .back-button a:hover {
     color: #e56b4a;
-    text-decoration: underline;
+    background: rgba(255, 126, 95, 0.2);
+    text-decoration: none;
 }
 
 h1 {
-    font-size: 2.8rem;
+    font-size: 2.5rem;
     color: #d44b1c;
     margin-bottom: 10px;
     text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+    margin-top: 10px;
 }
 
 .subtitle {
-    font-size: 1.2rem;
+    font-size: 1.1rem;
     color: #a64a2e;
     margin-bottom: 10px;
 }
@@ -92,17 +100,10 @@ h1 {
     margin-bottom: 25px;
     font-style: italic;
     color: #5a2a1a;
-}
-
-.shayari-theme {
-    display: inline-block;
-    background-color: #ff7e5f;
-    color: white;
-    padding: 8px 20px;
-    border-radius: 50px;
-    font-size: 1.1rem;
-    font-weight: bold;
-    margin-top: 10px;
+    min-height: 120px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .navigation {
@@ -173,7 +174,7 @@ h1 {
     content: '';
     display: block;
     height: 100%;
-    width: 6.66%; /* 1/15 of 100% */
+    width: 10%; /* 1/10 of 100% */
     background: linear-gradient(to right, #ff7e5f, #feb47b);
     border-radius: 4px;
     transition: width 0.5s ease;
@@ -249,7 +250,7 @@ footer {
     }
     
     h1 {
-        font-size: 2.2rem;
+        font-size: 2rem;
     }
     
     .shayari-text {
@@ -264,5 +265,11 @@ footer {
     .nav-btn {
         width: 100%;
         min-width: unset;
+    }
+    
+    .back-button {
+        position: relative;
+        margin-bottom: 15px;
+        text-align: left;
     }
 }
