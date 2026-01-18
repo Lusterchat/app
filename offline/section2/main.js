@@ -37,9 +37,14 @@ document.addEventListener('DOMContentLoaded', function() {
             // Try to play video
             const playPromise = tvVideo.play();
             if (playPromise !== undefined) {
-                playPromise.catch(() => {
-                    // Autoplay prevented, show controls
+                playPromise.then(() => {
+                    // Video started playing
+                    isVideoPlaying = true;
+                }).catch((error) => {
+                    console.log('Autoplay prevented:', error);
+                    // Show play button or controls
                     tvVideo.controls = true;
+                    isVideoPlaying = false;
                 });
             }
         } else {
@@ -52,6 +57,7 @@ document.addEventListener('DOMContentLoaded', function() {
             remoteStatus.textContent = 'OFF';
             remoteStatus.style.color = '#ff5252';
             powerBtn.style.background = 'linear-gradient(to bottom, #ff4444, #cc0000)';
+            isVideoPlaying = false;
         }
     }
     
@@ -64,6 +70,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Pause current video
         tvVideo.pause();
+        isVideoPlaying = false;
         
         setTimeout(() => {
             currentChannel = newChannel;
@@ -147,8 +154,10 @@ document.addEventListener('DOMContentLoaded', function() {
             if (isPoweredOn) {
                 if (tvVideo.paused) {
                     tvVideo.play();
+                    isVideoPlaying = true;
                 } else {
                     tvVideo.pause();
+                    isVideoPlaying = false;
                 }
             }
         }
@@ -171,6 +180,46 @@ document.addEventListener('DOMContentLoaded', function() {
         staticOverlay.style.opacity = '0.5';
     });
     
+    tvVideo.addEventListener('loadeddata', function() {
+        staticOverlay.style.opacity = '0';
+    });
+    
+    tvVideo.addEventListener('error', function() {
+        console.log('Video loading error for channel', currentChannel);
+        staticOverlay.style.opacity = '0.8';
+        // Show error message
+        const errorMsg = document.createElement('div');
+        errorMsg.style.cssText = `
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            background: rgba(0,0,0,0.7);
+            padding: 20px;
+            border-radius: 10px;
+            z-index: 10;
+            text-align: center;
+        `;
+        errorMsg.innerHTML = `
+            <p>Video not available for Channel ${currentChannel}</p>
+            <p>Please check if vid${currentChannel}.mp4 exists</p>
+        `;
+        
+        const existingError = document.querySelector('.video-error');
+        if (!existingError) {
+            errorMsg.className = 'video-error';
+            document.querySelector('.video-container').appendChild(errorMsg);
+            
+            // Remove error after 3 seconds
+            setTimeout(() => {
+                if (errorMsg.parentNode) {
+                    errorMsg.parentNode.removeChild(errorMsg);
+                }
+            }, 3000);
+        }
+    });
+    
     // Add occasional static effect for realism
     setInterval(() => {
         if (isPoweredOn && isVideoPlaying && Math.random() < 0.05) {
@@ -180,4 +229,17 @@ document.addEventListener('DOMContentLoaded', function() {
             }, 100);
         }
     }, 5000);
+    
+    // Click on video to play/pause
+    tvVideo.addEventListener('click', function() {
+        if (isPoweredOn) {
+            if (tvVideo.paused) {
+                tvVideo.play();
+                isVideoPlaying = true;
+            } else {
+                tvVideo.pause();
+                isVideoPlaying = false;
+            }
+        }
+    });
 });
