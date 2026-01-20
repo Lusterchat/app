@@ -1,25 +1,11 @@
-// RelayTalk Service Worker v3.8 - With Progress Tracking
-const CACHE_NAME = 'relaytalk-cache-v3-8';
+// RelayTalk Service Worker v3.9 - Fixed Auto Caching
+const CACHE_NAME = 'relaytalk-cache-v3-9';
 const OFFLINE_URL = '/offline/index.html';
-const APP_VERSION = '3.8.0';
+const APP_VERSION = '3.9.0';
 
-// Videos that MUST be cached
-const OFFLINE_VIDEOS = [
-  '/offline/videos/vid1.mp4',
-  '/offline/videos/vid2.mp4',
-  '/offline/videos/vid3.mp4',
-  '/offline/videos/vid4.mp4',
-  '/offline/videos/vid5.mp4'
-];
-
-// All files to cache
-const ALL_FILES = [
-  '/',
-  '/index.html',
-  '/style.css',
-  '/opening.css',
-  '/relay.png',
-  '/manifest.json',
+// ONLY CACHE THESE FILES (5 videos + essential files)
+const FILES_TO_CACHE = [
+  // Essential offline files
   '/offline/index.html',
   '/offline/section1/main.html',
   '/offline/section1/main.css',
@@ -28,35 +14,27 @@ const ALL_FILES = [
   '/offline/section2/main.html',
   '/offline/section2/main.css',
   '/offline/section2/main.js',
-  '/pages/auth/index.html',
-  '/pages/auth/style.css',
-  '/pages/auth/script.js',
-  '/pages/login/index.html',
-  '/pages/login/style.css',
-  '/pages/login/script.js',
-  '/pages/home/index.html',
-  '/pages/home/style.css',
-  '/pages/home/script.js',
-  '/pages/home/friends/index.html',
-  '/pages/home/friends/style.css',
-  '/pages/home/friends/script.js',
-  '/pages/chats/index.html',
-  '/pages/chats/style.css',
-  '/pages/chats/script.js',
-  '/pages/chats/chat-responsive.css',
-  '/pages/chats/sent.mp3',
-  '/pages/chats/recieve.mp3',
-  ...OFFLINE_VIDEOS
+  
+  // Videos (ONLY 5)
+  '/offline/videos/vid1.mp4',
+  '/offline/videos/vid2.mp4',
+  '/offline/videos/vid3.mp4',
+  '/offline/videos/vid4.mp4',
+  '/offline/videos/vid5.mp4',
+  
+  // App core files
+  '/',
+  '/index.html',
+  '/relay.png',
+  '/style.css'
 ];
 
 // Track caching progress
 let cacheProgress = {
-  total: ALL_FILES.length,
+  total: FILES_TO_CACHE.length, // Should be 5 videos + other files = around 15 total
   completed: 0,
   currentFile: '',
-  isCaching: false,
-  videosCached: 0,
-  totalVideos: OFFLINE_VIDEOS.length
+  isCaching: false
 };
 
 let isOnline = true;
@@ -66,8 +44,23 @@ self.addEventListener('install', event => {
   console.log('⚡ Installing Service Worker v' + APP_VERSION);
   self.skipWaiting();
   
-  // Don't cache on install - let user trigger manually
-  event.waitUntil(Promise.resolve());
+  // Auto-cache only essential files on install
+  event.waitUntil(
+    caches.open(CACHE_NAME)
+      .then(cache => {
+        const essentialFiles = [
+          '/',
+          '/index.html',
+          '/offline/index.html',
+          '/relay.png'
+        ];
+        
+        return cache.addAll(essentialFiles)
+          .then(() => {
+            console.log('✅ Essential files cached on install');
+          });
+      })
+  );
 });
 
 // ====== ACTIVATE EVENT ======
@@ -89,14 +82,15 @@ self.addEventListener('activate', event => {
       self.clients.claim()
     ]).then(() => {
       console.log('✅ Service Worker ready');
-      self.clients.matchAll().then(clients => {
-        clients.forEach(client => {
-          client.postMessage({
-            type: 'SW_READY',
-            version: APP_VERSION
+      
+      // Auto-check and cache videos if missing
+      setTimeout(() => {
+        self.clients.matchAll().then(clients => {
+          clients.forEach(client => {
+            client.postMessage({ type: 'CHECK_VIDEOS' });
           });
         });
-      });
+      }, 2000);
     })
   );
 });
@@ -110,69 +104,63 @@ async function cacheAllFilesWithProgress() {
   
   cacheProgress.isCaching = true;
   cacheProgress.completed = 0;
-  cacheProgress.videosCached = 0;
+  cacheProgress.total = FILES_TO_CACHE.length;
   
-  console.log('🚀 Starting to cache all files...');
+  console.log(`🚀 Starting to cache ${FILES_TO_CACHE.length} files...`);
+  console.log('Files to cache:', FILES_TO_CACHE);
   
   try {
     const cache = await caches.open(CACHE_NAME);
     
-    // Cache in batches for better performance
-    const batchSize = 5;
-    const batches = [];
-    
-    for (let i = 0; i < ALL_FILES.length; i += batchSize) {
-      batches.push(ALL_FILES.slice(i, i + batchSize));
-    }
-    
-    // Process each batch
-    for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
-      const batch = batches[batchIndex];
+    // Cache files one by one for better control
+    for (let i = 0; i < FILES_TO_CACHE.length; i++) {
+      const url = FILES_TO_CACHE[i];
+      cacheProgress.currentFile = url;
+      cacheProgress.completed = i;
       
-      await Promise.allSettled(
-        batch.map(async (url) => {
-          try {
-            cacheProgress.currentFile = url;
-            
-            const response = await fetch(url, {
-              headers: url.endsWith('.mp4') ? {
-                'Accept': 'video/mp4,video/*;q=0.9,*/*;q=0.8'
-              } : {}
-            });
-            
-            if (response.ok) {
-              await cache.put(url, response);
-              cacheProgress.completed++;
-              
-              if (url.endsWith('.mp4')) {
-                cacheProgress.videosCached++;
-              }
-              
-              // Broadcast progress
-              broadcastProgress();
-              
-              console.log(`✅ Cached: ${url} (${cacheProgress.completed}/${cacheProgress.total})`);
-            }
-          } catch (error) {
-            console.warn(`⚠️ Failed to cache ${url}:`, error);
-            cacheProgress.completed++;
-            broadcastProgress();
-          }
-        })
-      );
+      // Broadcast progress
+      broadcastProgress();
       
-      // Small delay between batches
+      try {
+        const response = await fetch(url, {
+          headers: url.endsWith('.mp4') ? {
+            'Accept': 'video/mp4,video/*;q=0.9,*/*;q=0.8'
+          } : {}
+        });
+        
+        if (response.ok) {
+          await cache.put(url, response);
+          console.log(`✅ (${i + 1}/${FILES_TO_CACHE.length}) Cached: ${url}`);
+        } else {
+          console.warn(`⚠️ Bad response for ${url}: ${response.status}`);
+        }
+      } catch (error) {
+        console.warn(`⚠️ Failed to cache ${url}:`, error);
+      }
+      
+      // Small delay between files
       await new Promise(resolve => setTimeout(resolve, 100));
     }
     
+    // Final update
+    cacheProgress.completed = FILES_TO_CACHE.length;
     cacheProgress.isCaching = false;
-    console.log(`🎉 Caching complete! ${cacheProgress.completed}/${cacheProgress.total} files cached`);
+    cacheProgress.currentFile = 'Complete!';
+    
+    console.log(`🎉 Caching complete! ${FILES_TO_CACHE.length} files cached`);
+    
+    // Get actual cached count
+    const keys = await caches.open(CACHE_NAME).then(cache => cache.keys());
+    const videosCached = keys.filter(k => k.url.endsWith('.mp4')).length;
+    
+    broadcastProgress();
     
     return {
       success: true,
-      message: `Cached ${cacheProgress.completed}/${cacheProgress.total} files`,
-      videosCached: cacheProgress.videosCached,
-      totalVideos: cacheProgress.totalVideos
+      message: `Cached ${keys.length} files (${videosCached} videos)`,
+      totalCached: keys.length,
+      videosCached: videosCached,
+      totalVideos: 5
     };
     
   } catch (error) {
@@ -184,6 +172,8 @@ async function cacheAllFilesWithProgress() {
 
 // Broadcast progress to all clients
 function broadcastProgress() {
+  const percentage = Math.round((cacheProgress.completed / cacheProgress.total) * 100);
+  
   self.clients.matchAll().then(clients => {
     clients.forEach(client => {
       client.postMessage({
@@ -191,15 +181,56 @@ function broadcastProgress() {
         progress: {
           total: cacheProgress.total,
           completed: cacheProgress.completed,
-          percentage: Math.round((cacheProgress.completed / cacheProgress.total) * 100),
+          percentage: percentage,
           currentFile: cacheProgress.currentFile,
-          isCaching: cacheProgress.isCaching,
-          videosCached: cacheProgress.videosCached,
-          totalVideos: cacheProgress.totalVideos
+          isCaching: cacheProgress.isCaching
         }
       });
     });
   });
+}
+
+// ====== AUTO-CACHE VIDEOS ======
+async function autoCacheMissingVideos() {
+  if (!isOnline) return;
+  
+  try {
+    const cache = await caches.open(CACHE_NAME);
+    const keys = await cache.keys();
+    const cachedVideos = keys.filter(k => k.url.endsWith('.mp4')).length;
+    
+    if (cachedVideos < 5) {
+      console.log(`🔄 Auto-caching missing videos (${cachedVideos}/5 cached)`);
+      
+      const videosToCache = [
+        '/offline/videos/vid1.mp4',
+        '/offline/videos/vid2.mp4',
+        '/offline/videos/vid3.mp4',
+        '/offline/videos/vid4.mp4',
+        '/offline/videos/vid5.mp4'
+      ];
+      
+      for (const videoUrl of videosToCache) {
+        const cached = await cache.match(videoUrl);
+        if (!cached) {
+          try {
+            const response = await fetch(videoUrl, {
+              headers: { 'Accept': 'video/mp4,video/*;q=0.9,*/*;q=0.8' }
+            });
+            if (response.ok) {
+              await cache.put(videoUrl, response);
+              console.log(`✅ Auto-cached: ${videoUrl}`);
+            }
+          } catch (error) {
+            console.warn(`⚠️ Auto-cache failed for ${videoUrl}:`, error);
+          }
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+      }
+    }
+  } catch (error) {
+    console.warn('Auto-cache error:', error);
+  }
 }
 
 // ====== FETCH EVENT ======
@@ -227,7 +258,7 @@ self.addEventListener('fetch', event => {
   }
   
   // Handle video range requests
-  if (OFFLINE_VIDEOS.includes(path)) {
+  if (path.startsWith('/offline/videos/')) {
     event.respondWith(
       caches.match(event.request)
         .then(cached => {
@@ -258,9 +289,12 @@ self.addEventListener('fetch', event => {
     fetch(event.request)
       .then(response => {
         isOnline = true;
-        const responseClone = response.clone();
-        caches.open(CACHE_NAME)
-          .then(cache => cache.put(event.request, responseClone));
+        // Only cache essential app files
+        if (FILES_TO_CACHE.includes(path)) {
+          const responseClone = response.clone();
+          caches.open(CACHE_NAME)
+            .then(cache => cache.put(event.request, responseClone));
+        }
         return response;
       })
       .catch(async () => {
@@ -268,8 +302,7 @@ self.addEventListener('fetch', event => {
         const accept = event.request.headers.get('Accept') || '';
         const isPageRequest = accept.includes('text/html') || 
                              path.endsWith('.html') ||
-                             path === '/' ||
-                             !path.includes('.');
+                             path === '/';
         
         if (isPageRequest) {
           const offlinePage = await caches.match(OFFLINE_URL);
@@ -310,9 +343,7 @@ self.addEventListener('message', event => {
           completed: cacheProgress.completed,
           percentage: Math.round((cacheProgress.completed / cacheProgress.total) * 100),
           currentFile: cacheProgress.currentFile,
-          isCaching: cacheProgress.isCaching,
-          videosCached: cacheProgress.videosCached,
-          totalVideos: cacheProgress.totalVideos
+          isCaching: cacheProgress.isCaching
         }
       });
       break;
@@ -327,8 +358,8 @@ self.addEventListener('message', event => {
             online: isOnline,
             totalCached: keys.length,
             videosCached: videos,
-            totalVideos: OFFLINE_VIDEOS.length,
-            totalFiles: ALL_FILES.length,
+            totalVideos: 5,
+            totalFiles: FILES_TO_CACHE.length,
             isCaching: cacheProgress.isCaching
           });
         });
@@ -338,10 +369,13 @@ self.addEventListener('message', event => {
       caches.delete(CACHE_NAME)
         .then(success => {
           cacheProgress.completed = 0;
-          cacheProgress.videosCached = 0;
           cacheProgress.isCaching = false;
           event.ports[0].postMessage({ success });
         });
+      break;
+      
+    case 'AUTO_CACHE_VIDEOS':
+      autoCacheMissingVideos();
       break;
       
     case 'PING':
@@ -352,26 +386,38 @@ self.addEventListener('message', event => {
 
 // Helper function for video range requests
 async function handleRangeRequest(cachedResponse, range) {
-  const buffer = await cachedResponse.arrayBuffer();
-  const bytes = /^bytes=(\d+)-(\d+)?$/g.exec(range);
-  
-  if (bytes) {
-    const start = parseInt(bytes[1]);
-    const end = bytes[2] ? parseInt(bytes[2]) : buffer.byteLength - 1;
-    const sliced = buffer.slice(start, end + 1);
+  try {
+    const buffer = await cachedResponse.arrayBuffer();
+    const bytes = /^bytes=(\d+)-(\d+)?$/g.exec(range);
     
-    return new Response(sliced, {
-      status: 206,
-      headers: {
-        'Content-Type': 'video/mp4',
-        'Content-Length': (end - start + 1).toString(),
-        'Content-Range': `bytes ${start}-${end}/${buffer.byteLength}`,
-        'Accept-Ranges': 'bytes'
-      }
-    });
+    if (bytes) {
+      const start = parseInt(bytes[1]);
+      const end = bytes[2] ? parseInt(bytes[2]) : buffer.byteLength - 1;
+      const sliced = buffer.slice(start, end + 1);
+      
+      return new Response(sliced, {
+        status: 206,
+        headers: {
+          'Content-Type': 'video/mp4',
+          'Content-Length': (end - start + 1).toString(),
+          'Content-Range': `bytes ${start}-${end}/${buffer.byteLength}`,
+          'Accept-Ranges': 'bytes'
+        }
+      });
+    }
+  } catch (error) {
+    console.warn('Range request error:', error);
   }
   
   return cachedResponse;
 }
 
+// Auto-cache videos when going online
+self.addEventListener('online', () => {
+  isOnline = true;
+  console.log('🌐 Online - checking cache...');
+  autoCacheMissingVideos();
+});
+
 console.log('🚀 RelayTalk Service Worker v' + APP_VERSION + ' loaded');
+console.log(`📦 Will cache ${FILES_TO_CACHE.length} files (5 videos)`);
