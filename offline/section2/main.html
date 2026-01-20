@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TV Section - Offline Entertainment</title>
     <link rel="stylesheet" href="main.css">
+    <!-- Add sw-manager -->
+    <script src="/utils/sw-manager.js"></script>
 </head>
 <body>
     <div class="tv-container">
@@ -18,14 +20,14 @@
             </div>
             <div class="header-spacer"></div>
         </div>
-        
+
         <main>
             <div class="tv-set">
                 <div class="tv-screen">
                     <div class="pixel-overlay" id="pixel-overlay"></div>
                     <div class="video-container">
                         <video id="tv-video" width="640" height="480">
-                            <source src="../videos/vid1.mp4" type="video/mp4">
+                            <source src="/offline/videos/vid1.mp4" type="video/mp4">
                             Your browser does not support the video tag.
                         </video>
                     </div>
@@ -35,11 +37,11 @@
                     <div class="scanlines" id="scanlines"></div>
                     <div class="static-overlay" id="static-overlay"></div>
                 </div>
-                
+
                 <div class="tv-stand"></div>
                 <div class="tv-base"></div>
             </div>
-            
+
             <div class="tv-remote">
                 <h3>TV Remote</h3>
                 <div class="remote-control">
@@ -48,7 +50,7 @@
                         <div class="remote-status" id="remote-status">ON</div>
                         <div class="retro-status" id="retro-status">RETRO ON</div>
                     </div>
-                    
+
                     <div class="remote-buttons">
                         <div class="power-section">
                             <button id="power-btn" class="remote-btn power-btn">
@@ -56,7 +58,7 @@
                             </button>
                             <div class="power-label">PWR</div>
                         </div>
-                        
+
                         <div class="channel-controls">
                             <button id="prev-channel" class="remote-btn channel-btn prev-btn">
                                 <span class="btn-icon">◀</span>
@@ -66,7 +68,7 @@
                                 <span class="btn-icon">▶</span>
                             </button>
                         </div>
-                        
+
                         <div class="number-pad">
                             <div class="num-row">
                                 <button class="num-btn" data-channel="1">1</button>
@@ -83,15 +85,37 @@
                         </div>
                     </div>
                 </div>
+                
+                <!-- Cache button will be added automatically by sw-manager.js -->
             </div>
         </main>
-        
+
         <footer>
             <p>5 channels • Works offline</p>
             <p class="aspect-info">Display: <span id="aspect-info">4:3 TV</span></p>
+            <p class="cache-info" id="cache-info">Checking cache status...</p>
         </footer>
     </div>
-    
+
     <script src="main.js"></script>
+    
+    <script>
+        // Update cache info
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(() => {
+                if (window.SWManager) {
+                    window.SWManager.getStatus().then(status => {
+                        const cacheInfo = document.getElementById('cache-info');
+                        if (cacheInfo && status) {
+                            cacheInfo.textContent = 
+                                `${status.totalCached}/${status.totalFiles} files cached • ${status.videosCached}/${status.totalVideos} videos`;
+                            cacheInfo.style.color = status.videosCached === status.totalVideos ? 
+                                '#4caf50' : '#ff9800';
+                        }
+                    });
+                }
+            }, 2000);
+        });
+    </script>
 </body>
 </html>
