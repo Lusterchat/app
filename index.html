@@ -4,31 +4,31 @@
     <!-- CHARACTER SET & VIEWPORT MUST BE FIRST -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    
+
     <!-- CACHE CONTROL - Force fresh load -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    
+
     <!-- TITLE - MOST IMPORTANT FOR GOOGLE -->
     <title>RelayTalk | Instant Messaging for Friends</title>
-    
+
     <!-- ====== GOOGLE-SPECIFIC METADATA ====== -->
     <!-- Google Site Verification -->
     <meta name="google-site-verification" content="qRU2hfY_hID6VOk91AxOPVwvoGqrpQskUTWmxpwszxE" />
-    
+
     <!-- Google-specific meta tags -->
     <meta itemprop="name" content="RelayTalk | Instant Messaging for Friends">
     <meta itemprop="description" content="Connect with friends instantly using search, real-time notifications, and secure messaging">
     <meta itemprop="image" content="https://relaytalk.github.io/relay.png">
-    
+
     <!-- ====== BASIC SEO ====== -->
     <!-- DESCRIPTION -->
     <meta name="description" content="RelayTalk - Connect with friends instantly using search, real-time notifications, and secure messaging. The fastest way to stay in touch.">
-    
+
     <!-- KEYWORDS -->
     <meta name="keywords" content="RelayTalk, messaging app, instant chat, PWA messenger, connect with friends, real-time chat, friend finder">
-    
+
     <!-- ====== OPEN GRAPH ====== -->
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="RelayTalk">
@@ -40,7 +40,7 @@
     <meta property="og:image:height" content="512">
     <meta property="og:image:alt" content="RelayTalk Messenger Logo">
     <meta property="og:locale" content="en_US">
-    
+
     <!-- ====== TWITTER CARD ====== -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:site" content="@RelayTalk">
@@ -48,49 +48,49 @@
     <meta name="twitter:description" content="Message friends instantly with RelayTalk. Fast, secure, and works offline.">
     <meta name="twitter:image" content="https://relaytalk.github.io/relay.png">
     <meta name="twitter:creator" content="@RelayTalk">
-    
+
     <!-- ====== CANONICAL & ALTERNATE URLs ====== -->
     <link rel="canonical" href="https://relaytalk.github.io/">
     <link rel="alternate" href="https://relaytalk.github.io/" hreflang="en">
-    
+
     <!-- ====== FAVICON SECTION ====== -->
     <!-- Primary favicon -->
     <link rel="icon" href="/favicon.ico" type="image/x-icon">
-    
+
     <!-- PNG versions for modern browsers -->
     <link rel="icon" href="/relay.png" type="image/png" sizes="192x192">
     <link rel="icon" href="/relay.png" type="image/png" sizes="512x512">
-    
+
     <!-- Apple touch icon -->
     <link rel="apple-touch-icon" href="/relay.png">
     <link rel="apple-touch-icon-precomposed" href="/relay.png">
-    
+
     <!-- SVG FALLBACK - Will show if PNG/ICO fails -->
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22 fill=%22%23637dff%22>✨</text></svg>" type="image/svg+xml">
-    
+
     <!-- MICROSOFT TILE ICON -->
     <meta name="msapplication-TileImage" content="/relay.png">
     <meta name="msapplication-TileColor" content="#0a0a1a">
     <meta name="msapplication-config" content="none">
-    
+
     <!-- ====== PWA CONFIGURATION ====== -->
     <link rel="manifest" href="/manifest.json" crossorigin="use-credentials">
-    
+
     <!-- PWA META TAGS -->
     <meta name="theme-color" content="#0a0a1a">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="RelayTalk">
-    
+
     <!-- APPLICATION NAME -->
     <meta name="application-name" content="RelayTalk">
-    
+
     <!-- FORMAT DETECTION -->
     <meta name="format-detection" content="telephone=no">
     <meta name="format-detection" content="address=no">
     <meta name="format-detection" content="email=no">
-    
+
     <!-- ====== STRUCTURED DATA FOR GOOGLE ====== -->
     <!-- This is CRITICAL to fix "GitHub" showing in search results -->
     <script type="application/ld+json">
@@ -124,7 +124,7 @@
       ]
     }
     </script>
-    
+
     <!-- Breadcrumb Schema -->
     <script type="application/ld+json">
     {
@@ -138,65 +138,103 @@
       }]
     }
     </script>
-    
+
     <!-- ====== STYLESHEETS ====== -->
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="opening.css">
-    
+
     <!-- ====== SERVICE WORKER ====== -->
     <script>
-        // Service Worker with cache control
+        // Service Worker with auto-cache
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', function() {
-                // Force update service worker
-                navigator.serviceWorker.getRegistrations().then(function(registrations) {
-                    for(let registration of registrations) {
-                        registration.unregister();
-                    }
-                }).then(function() {
-                    // Register fresh service worker
-                    return navigator.serviceWorker.register('/service-worker.js', {
-                        updateViaCache: 'none',
-                        scope: '/'
+                console.log('🚀 Registering Service Worker with auto-cache...');
+                
+                // Clear old registrations
+                navigator.serviceWorker.getRegistrations()
+                    .then(registrations => {
+                        return Promise.all(registrations.map(r => r.unregister()));
+                    })
+                    .then(() => {
+                        // Register new service worker
+                        return navigator.serviceWorker.register('/service-worker.js', {
+                            scope: '/',
+                            updateViaCache: 'none'
+                        });
+                    })
+                    .then(registration => {
+                        console.log('✅ Service Worker registered:', registration.scope);
+                        
+                        // Wait for activation
+                        if (registration.active) {
+                            console.log('⚡ Service Worker active, starting game cache...');
+                            
+                            // Trigger game caching after 2 seconds
+                            setTimeout(() => {
+                                if (navigator.onLine && registration.active) {
+                                    console.log('🚗 Triggering auto-cache for game...');
+                                    registration.active.postMessage({ 
+                                        type: 'AUTO_CACHE_GAME' 
+                                    });
+                                }
+                            }, 2000);
+                        } else if (registration.installing) {
+                            registration.installing.addEventListener('statechange', () => {
+                                if (registration.active && navigator.onLine) {
+                                    console.log('🚗 Triggering auto-cache after activation...');
+                                    setTimeout(() => {
+                                        registration.active.postMessage({ 
+                                            type: 'AUTO_CACHE_GAME' 
+                                        });
+                                    }, 1000);
+                                }
+                            });
+                        }
+                        
+                        // Force update
+                        registration.update();
+                        
+                        // Listen for messages from SW
+                        navigator.serviceWorker.addEventListener('message', event => {
+                            if (event.data.type === 'GAME_CACHED') {
+                                console.log('🎮 Game cached successfully:', event.data.cachedCount, 'files');
+                            }
+                        });
+                    })
+                    .catch(error => {
+                        console.log('❌ Service Worker registration failed:', error);
                     });
-                }).then(function(registration) {
-                    console.log('✅ Service Worker registered fresh:', registration.scope);
-                    // Force immediate update
-                    registration.update();
-                }).catch(function(error) {
-                    console.log('❌ Service Worker registration failed:', error);
-                });
             });
         }
-        
+
         // Clear localStorage cache for fresh load
         if (window.location.search.indexOf('fresh') !== -1) {
             localStorage.clear();
             sessionStorage.clear();
             console.log('🧹 Cleared all cache for fresh load');
         }
-        
+
         // Log structured data for debugging
         console.log('🔍 RelayTalk Structured Data Loaded');
         console.log('📱 PWA: Manifest loaded');
     </script>
-    
+
     <!-- ====== INLINE STYLES ====== -->
     <style>
         @keyframes fadeIn { 
             from { opacity: 0; transform: translateY(20px); } 
             to { opacity: 1; transform: translateY(0); } 
         }
-        
+
         .standalone-mode .bottom-nav { 
             padding-bottom: env(safe-area-inset-bottom); 
         }
-        
+
         /* Hide during PWA install */
         @media (display-mode: standalone) {
             .install-prompt { display: none !important; }
         }
-        
+
         /* Print styles */
         @media print {
             .no-print { display: none !important; }
@@ -247,15 +285,15 @@
         function goToLogin() { 
             window.location.href = 'pages/login/index.html?v=' + Date.now();
         }
-        
+
         function goToSignup() { 
             window.location.href = 'pages/auth/index.html?v=' + Date.now();
         }
-        
+
         // Make global
         window.goToLogin = goToLogin;
         window.goToSignup = goToSignup;
-        
+
         // Add cache busting parameter to all internal links
         document.addEventListener('DOMContentLoaded', function() {
             const links = document.querySelectorAll('a[href^="/"]');
@@ -265,7 +303,7 @@
                     link.setAttribute('href', href + '?v=' + Date.now());
                 }
             });
-            
+
             // Log for debugging
             console.log('🚀 RelayTalk v1.0 loaded');
             console.log('📄 Title:', document.title);
@@ -276,7 +314,7 @@
     <!-- AUTH CHECK -->
     <script type="module">
         import { auth } from './utils/auth.js';
-        
+
         async function checkUserAndRedirect() {
             try {
                 const { success, user } = await auth.getCurrentUser();
@@ -287,12 +325,12 @@
             } catch (error) { 
                 console.error("Auth check error:", error);
             }
-            
+
             // Show main content after check
             setTimeout(() => {
                 const openingScreen = document.getElementById('openingScreen');
                 const mainContent = document.getElementById('mainContent');
-                
+
                 if (openingScreen) {
                     openingScreen.style.transition = 'opacity 0.5s ease';
                     openingScreen.style.opacity = '0';
@@ -300,7 +338,7 @@
                         openingScreen.style.display = 'none';
                     }, 500);
                 }
-                
+
                 if (mainContent) {
                     mainContent.style.display = 'block';
                     setTimeout(() => {
@@ -310,11 +348,13 @@
                 }
             }, 1000);
         }
-        
+
         document.addEventListener('DOMContentLoaded', checkUserAndRedirect);
     </script>
-    <!-- Add this to home/index.html, chats/index.html, etc. -->
-<script src="/utils/sw-manager.js"></script>
+    
+    <!-- Service Worker Manager -->
+    <script src="/utils/sw-manager.js"></script>
+    
     <!-- Structured Data for Page Content -->
     <script type="application/ld+json">
     {
