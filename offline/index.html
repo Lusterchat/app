@@ -253,7 +253,7 @@
         // Update network status
         function updateNetworkStatus() {
             isOnline = navigator.onLine;
-            
+
             if (isOnline) {
                 networkIcon.textContent = '🌐';
                 networkText.textContent = 'Online Mode Active';
@@ -272,14 +272,14 @@
             try {
                 statusIcon.textContent = '⏳';
                 statusDetails.innerHTML = 'Checking cache status...';
-                
+
                 if (!navigator.serviceWorker.controller) {
                     throw new Error('Service Worker not ready');
                 }
 
                 // Ask service worker for status
                 const status = await messageSW({ type: 'GET_GAME_STATUS' });
-                
+
                 if (status && status.gameCached) {
                     gameCached = true;
                     statusIcon.textContent = '✅';
@@ -299,12 +299,12 @@
                     `;
                     cacheStatus.style.borderLeftColor = '#f59e0b';
                     playBtn.disabled = !isOnline;
-                    
+
                     if (isOnline && !status.gameCached) {
                         setTimeout(autoCache, 2000);
                     }
                 }
-                
+
             } catch (error) {
                 console.log('Cache check error:', error);
                 statusIcon.textContent = '❌';
@@ -319,15 +319,15 @@
         // Auto-cache game
         async function autoCache() {
             if (!isOnline) return;
-            
+
             try {
                 statusIcon.textContent = '⬇️';
                 statusDetails.innerHTML = 'Auto-caching game files...';
                 progressBar.style.display = 'block';
-                
+
                 // Start caching
                 const result = await messageSW({ type: 'AUTO_CACHE_GAME' });
-                
+
                 if (result && result.success) {
                     statusIcon.textContent = '✅';
                     statusDetails.innerHTML = `
@@ -338,7 +338,7 @@
                     gameCached = true;
                     playBtn.disabled = false;
                 }
-                
+
             } catch (error) {
                 console.log('Auto-cache error:', error);
             }
@@ -350,13 +350,13 @@
                 alert('Please go online to cache the game');
                 return;
             }
-            
+
             cacheBtn.disabled = true;
             cacheBtn.innerHTML = '⏳ Caching...';
-            
+
             try {
                 const result = await messageSW({ type: 'AUTO_CACHE_GAME' });
-                
+
                 if (result.success) {
                     alert(`✅ Successfully cached ${result.cachedCount} game files!`);
                     checkCache();
@@ -378,7 +378,7 @@
                 alert('⚠️ Game not cached yet. Please go online first to download it.');
                 return;
             }
-            
+
             if (!gameCached && isOnline) {
                 // Let it load from network
                 btnText.textContent = 'Loading...';
@@ -389,11 +389,11 @@
         // Listen for cache progress updates
         navigator.serviceWorker.addEventListener('message', event => {
             const { type, progress } = event.data;
-            
+
             if (type === 'CACHE_PROGRESS') {
                 cacheProgress = progress.percentage;
                 progressFill.style.width = `${cacheProgress}%`;
-                
+
                 if (progress.isCaching) {
                     statusIcon.textContent = '⬇️';
                     statusDetails.innerHTML = `
@@ -402,7 +402,7 @@
                     `;
                 }
             }
-            
+
             if (type === 'GAME_CACHED') {
                 statusIcon.textContent = '✅';
                 statusDetails.innerHTML = `
@@ -414,7 +414,7 @@
                 playBtn.disabled = false;
                 checkCache();
             }
-            
+
             if (type === 'SW_READY') {
                 console.log('Service Worker ready:', event.data.version);
                 checkCache();
@@ -428,15 +428,15 @@
                     reject(new Error('No Service Worker'));
                     return;
                 }
-                
+
                 const channel = new MessageChannel();
                 channel.port1.onmessage = (event) => {
                     resolve(event.data);
                     channel.port1.close();
                 };
-                
+
                 navigator.serviceWorker.controller.postMessage(message, [channel.port2]);
-                
+
                 // Timeout after 5 seconds
                 setTimeout(() => {
                     reject(new Error('Service Worker timeout'));
@@ -448,19 +448,19 @@
         document.addEventListener('DOMContentLoaded', () => {
             updateNetworkStatus();
             checkCache();
-            
+
             // Listen for network changes
             window.addEventListener('online', () => {
                 updateNetworkStatus();
                 checkCache();
                 autoCache();
             });
-            
+
             window.addEventListener('offline', () => {
                 updateNetworkStatus();
                 checkCache();
             });
-            
+
             // Auto-check every 30 seconds
             setInterval(checkCache, 30000);
         });
