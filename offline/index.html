@@ -3,58 +3,83 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RelayTalk Offline Entertainment</title>
+    <title>RelayTalk Offline Mode</title>
     <link rel="icon" href="/relay.png" type="image/png">
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            font-family: 'Segoe UI', system-ui, sans-serif;
         }
 
         body {
             background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
             color: #f8fafc;
             min-height: 100vh;
-            padding: 20px;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
+            padding: 20px;
+            text-align: center;
         }
 
         .container {
-            max-width: 1200px;
+            max-width: 500px;
             width: 100%;
-            margin: 0 auto;
-            padding: 20px;
-        }
-
-        .header {
-            text-align: center;
-            margin-bottom: 40px;
             animation: fadeIn 0.8s ease;
         }
 
-        h1 {
-            font-size: 3.5rem;
-            margin-bottom: 10px;
+        .logo {
+            font-size: 5rem;
+            margin-bottom: 20px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
-            text-shadow: 0 4px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        h1 {
+            font-size: 3rem;
+            margin-bottom: 10px;
+            color: #f8fafc;
         }
 
         .subtitle {
-            font-size: 1.3rem;
+            font-size: 1.2rem;
             color: #94a3b8;
-            margin-bottom: 30px;
-            max-width: 600px;
-            margin-left: auto;
-            margin-right: auto;
+            margin-bottom: 40px;
             line-height: 1.6;
+        }
+
+        .game-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            border: none;
+            padding: 20px 40px;
+            font-size: 1.3rem;
+            font-weight: 600;
+            border-radius: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 25px rgba(16, 185, 129, 0.3);
+            margin: 20px 0;
+            text-decoration: none;
+        }
+
+        .game-button:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px rgba(16, 185, 129, 0.4);
+            background: linear-gradient(135deg, #059669, #047857);
+        }
+
+        .game-button:active {
+            transform: translateY(-2px);
         }
 
         .offline-badge {
@@ -63,240 +88,21 @@
             gap: 8px;
             background: linear-gradient(135deg, #f59e0b, #d97706);
             color: white;
-            padding: 10px 24px;
+            padding: 10px 20px;
             border-radius: 50px;
             font-weight: 600;
-            margin-bottom: 30px;
-            box-shadow: 0 6px 20px rgba(245, 158, 11, 0.3);
-        }
-
-        .cache-button {
-            display: inline-flex;
-            align-items: center;
-            gap: 10px;
-            background: linear-gradient(135deg, #10b981, #059669);
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 8px;
-            font-weight: 600;
-            cursor: pointer;
-            margin: 20px 0;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
-        }
-
-        .cache-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
-        }
-
-        .cache-button.caching {
-            background: linear-gradient(135deg, #f59e0b, #d97706);
-            animation: pulse 1.5s infinite;
-        }
-
-        .content-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-            gap: 30px;
-            margin: 40px 0;
-        }
-
-        .section-card {
-            background: rgba(30, 41, 59, 0.8);
-            backdrop-filter: blur(10px);
-            border-radius: 20px;
-            padding: 30px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            transition: all 0.3s ease;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .section-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 4px;
-            background: linear-gradient(90deg, transparent, currentColor, transparent);
-            opacity: 0;
-            transition: opacity 0.3s ease;
-        }
-
-        .section-card:hover {
-            transform: translateY(-8px);
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
-            border-color: rgba(255, 255, 255, 0.2);
-        }
-
-        .section-card:hover::before {
-            opacity: 1;
-        }
-
-        .shayari-card {
-            border-color: rgba(245, 158, 11, 0.3);
-        }
-
-        .shayari-card::before {
-            background: linear-gradient(90deg, transparent, #f59e0b, transparent);
-        }
-
-        .tv-card {
-            border-color: rgba(59, 130, 246, 0.3);
-        }
-
-        .tv-card::before {
-            background: linear-gradient(90deg, transparent, #3b82f6, transparent);
-        }
-
-        .card-icon {
-            font-size: 4rem;
-            margin-bottom: 20px;
-            display: block;
-        }
-
-        .shayari-card .card-icon {
-            color: #f59e0b;
-        }
-
-        .tv-card .card-icon {
-            color: #3b82f6;
-        }
-
-        .card-title {
-            font-size: 2.2rem;
-            margin-bottom: 15px;
-            color: #f8fafc;
-        }
-
-        .card-description {
-            color: #cbd5e1;
-            line-height: 1.7;
-            margin-bottom: 30px;
-            font-size: 1.1rem;
-        }
-
-        .btn {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            padding: 16px 32px;
-            border-radius: 12px;
-            font-size: 1.1rem;
-            font-weight: 600;
-            text-decoration: none;
-            transition: all 0.3s ease;
-            border: none;
-            cursor: pointer;
-            width: 100%;
-            text-align: center;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .btn::before {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 0;
-            height: 0;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.2);
-            transform: translate(-50%, -50%);
-            transition: width 0.6s, height 0.6s;
-        }
-
-        .btn:hover::before {
-            width: 300px;
-            height: 300px;
-        }
-
-        .shayari-btn {
-            background: linear-gradient(135deg, #f59e0b, #d97706);
-            color: white;
-            box-shadow: 0 6px 20px rgba(245, 158, 11, 0.3);
-        }
-
-        .shayari-btn:hover {
-            background: linear-gradient(135deg, #d97706, #b45309);
-            box-shadow: 0 10px 30px rgba(245, 158, 11, 0.4);
-        }
-
-        .tv-btn {
-            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
-            color: white;
-            box-shadow: 0 6px 20px rgba(59, 130, 246, 0.3);
-        }
-
-        .tv-btn:hover {
-            background: linear-gradient(135deg, #1d4ed8, #1e40af);
-            box-shadow: 0 10px 30px rgba(59, 130, 246, 0.4);
-        }
-
-        .status-panel {
-            background: rgba(30, 41, 59, 0.8);
-            border-radius: 16px;
-            padding: 25px;
-            margin-top: 40px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
-        }
-
-        .status-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-        }
-
-        .status-item {
-            padding: 15px;
-            background: rgba(15, 23, 42, 0.5);
-            border-radius: 10px;
-            border-left: 4px solid;
-        }
-
-        .status-item.connection {
-            border-color: #10b981;
-        }
-
-        .status-item.cache {
-            border-color: #f59e0b;
-        }
-
-        .status-item.sw {
-            border-color: #8b5cf6;
-        }
-
-        .status-label {
-            font-size: 0.9rem;
-            color: #94a3b8;
-            margin-bottom: 5px;
-        }
-
-        .status-value {
-            font-size: 1.2rem;
-            font-weight: 600;
-        }
-
-        .status-online {
-            color: #10b981;
-        }
-
-        .status-offline {
-            color: #ef4444;
-        }
-
-        .status-warning {
-            color: #f59e0b;
+            margin-top: 30px;
+            box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3);
         }
 
         .status-info {
-            color: #3b82f6;
+            margin-top: 30px;
+            padding: 15px;
+            background: rgba(30, 41, 59, 0.5);
+            border-radius: 10px;
+            font-size: 0.9rem;
+            color: #cbd5e1;
+            border-left: 4px solid #3b82f6;
         }
 
         @keyframes fadeIn {
@@ -310,178 +116,113 @@
         }
 
         @media (max-width: 768px) {
-            .container {
-                padding: 15px;
-            }
-            
-            h1 {
-                font-size: 2.5rem;
-            }
-            
-            .content-grid {
-                grid-template-columns: 1fr;
-            }
-            
-            .section-card {
-                padding: 20px;
-            }
+            h1 { font-size: 2.2rem; }
+            .logo { font-size: 4rem; }
+            .game-button { padding: 18px 30px; font-size: 1.1rem; }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="header">
-            <h1>Offline Entertainment</h1>
-            <div class="subtitle">Enjoy these sections even without internet connection</div>
-            
-            <div class="offline-badge">
-                <span>📦</span>
-                <span>All content works offline</span>
-            </div>
-            
-            <button class="cache-button" id="cache-all-btn">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
-                    <polyline points="17 21 17 13 7 13 7 21"/>
-                    <polyline points="7 3 7 8 15 8"/>
-                </svg>
-                <span>Cache All Content</span>
-            </button>
+        <div class="logo">🎮</div>
+        <h1>Offline Game Mode</h1>
+        <p class="subtitle">
+            You're currently offline. Don't worry!<br>
+            You can still play our awesome car game.
+        </p>
+
+        <a href="/cargame" class="game-button" id="play-game-btn">
+            <span>🚗</span>
+            <span>Play Car Game</span>
+        </a>
+
+        <div class="offline-badge">
+            <span>📶</span>
+            <span>Offline Mode Active</span>
         </div>
 
-        <div class="content-grid">
-            <div class="section-card shayari-card">
-                <div class="card-icon">💌</div>
-                <h2 class="card-title">Shayari Section</h2>
-                <p class="card-description">
-                    Enjoy beautiful shayaris about love, life, and emotions. 
-                    Read 15 heart-touching shayaris with smooth navigation.
-                </p>
-                <a href="/offline/section1/main.html" class="btn shayari-btn">
-                    <span>Open Shayari Section</span>
-                    <span>→</span>
-                </a>
-            </div>
-
-            <div class="section-card tv-card">
-                <div class="card-icon">📺</div>
-                <h2 class="card-title">TV Section</h2>
-                <p class="card-description">
-                    Experience a retro pixelated TV with 5 different channels. 
-                    Use the remote to navigate between videos with retro effects.
-                </p>
-                <a href="/offline/section2/main.html" class="btn tv-btn">
-                    <span>Open TV Section</span>
-                    <span>→</span>
-                </a>
-            </div>
-        </div>
-
-        <div class="status-panel">
-            <div class="status-grid">
-                <div class="status-item connection">
-                    <div class="status-label">Connection</div>
-                    <div class="status-value status-online" id="connection-status">Online</div>
-                </div>
-                
-                <div class="status-item cache">
-                    <div class="status-label">Cache Status</div>
-                    <div class="status-value status-warning" id="cache-status">Checking...</div>
-                </div>
-                
-                <div class="status-item sw">
-                    <div class="status-label">Service Worker</div>
-                    <div class="status-value status-info" id="sw-status">Checking...</div>
-                </div>
-            </div>
+        <div class="status-info" id="cache-status">
+            Checking game cache status...
         </div>
     </div>
 
-    <script src="/utils/sw-manager.js"></script>
-    
     <script>
-        // Cache button functionality
-        document.getElementById('cache-all-btn').addEventListener('click', function() {
-            if (window.SWManager && window.SWManager.startCaching) {
-                window.SWManager.startCaching();
-                this.classList.add('caching');
-                this.innerHTML = `
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
-                    </svg>
-                    <span>Caching...</span>
-                `;
-            }
-        });
-
-        // Listen for progress updates
-        navigator.serviceWorker.addEventListener('message', event => {
-            if (event.data.type === 'CACHE_PROGRESS') {
-                const btn = document.getElementById('cache-all-btn');
-                const progress = event.data.progress;
-                
-                if (progress.isCaching) {
-                    btn.innerHTML = `
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
-                        </svg>
-                        <span>Caching... ${progress.percentage}%</span>
-                    `;
-                } else if (progress.percentage === 100) {
-                    setTimeout(() => {
-                        btn.classList.remove('caching');
-                        btn.innerHTML = `
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M9 12l2 2 4-4"/>
-                                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
-                            </svg>
-                            <span>Cached ✓</span>
-                        `;
-                    }, 1000);
-                }
-            }
-        });
-
-        // Update status displays
-        function updateConnectionStatus() {
-            const statusEl = document.getElementById('connection-status');
-            if (navigator.onLine) {
-                statusEl.textContent = 'Online';
-                statusEl.className = 'status-value status-online';
-            } else {
-                statusEl.textContent = 'Offline';
-                statusEl.className = 'status-value status-offline';
-            }
-        }
-
-        function updateCacheStatus() {
-            if (window.SWManager) {
-                window.SWManager.getStatus().then(status => {
-                    const cacheEl = document.getElementById('cache-status');
-                    const swEl = document.getElementById('sw-status');
-                    
-                    if (status) {
-                        cacheEl.textContent = `${status.totalCached}/${status.totalFiles} files`;
-                        cacheEl.className = status.totalCached === status.totalFiles ? 
-                            'status-value status-online' : 'status-value status-warning';
-                        
-                        swEl.textContent = `v${status.version}`;
-                        swEl.className = 'status-value status-info';
+        // Game button click handler
+        document.getElementById('play-game-btn').addEventListener('click', function(e) {
+            e.preventDefault();
+            const gameUrl = '/cargame';
+            
+            // Try to open game
+            fetch(gameUrl)
+                .then(response => {
+                    if (response.ok) {
+                        window.location.href = gameUrl;
+                    } else {
+                        throw new Error('Game not available');
                     }
+                })
+                .catch(error => {
+                    // If offline, check cache
+                    caches.match(gameUrl)
+                        .then(cached => {
+                            if (cached) {
+                                window.location.href = gameUrl;
+                            } else {
+                                alert('⚠️ Game not cached yet. Please go online first to download it.');
+                            }
+                        });
                 });
+        });
+
+        // Check cache status
+        async function checkCache() {
+            try {
+                const cache = await caches.open('relaytalk-cache-v3-9');
+                const gameCached = await cache.match('/cargame');
+                const statusEl = document.getElementById('cache-status');
+                
+                if (gameCached) {
+                    statusEl.innerHTML = `
+                        ✅ <strong>Game Status:</strong> Cached & Ready<br>
+                        <small>You can play even without internet!</small>
+                    `;
+                    statusEl.style.borderLeftColor = '#10b981';
+                } else {
+                    statusEl.innerHTML = `
+                        ⚠️ <strong>Game Status:</strong> Not Cached<br>
+                        <small>Go online first to download the game</small>
+                    `;
+                    statusEl.style.borderLeftColor = '#f59e0b';
+                }
+            } catch (error) {
+                console.log('Cache check error:', error);
             }
         }
 
-        // Initial updates
-        updateConnectionStatus();
-        setTimeout(updateCacheStatus, 2000);
+        // Update online/offline status
+        function updateStatus() {
+            const badge = document.querySelector('.offline-badge span:last-child');
+            if (navigator.onLine) {
+                badge.textContent = 'Online Mode Active';
+                badge.parentElement.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+            } else {
+                badge.textContent = 'Offline Mode Active';
+                badge.parentElement.style.background = 'linear-gradient(135deg, #f59e0b, #d97706)';
+            }
+        }
 
-        // Listen for network changes
-        window.addEventListener('online', updateConnectionStatus);
-        window.addEventListener('offline', updateConnectionStatus);
-
-        // Periodic cache status updates
-        setInterval(updateCacheStatus, 30000);
+        // Initial checks
+        document.addEventListener('DOMContentLoaded', () => {
+            checkCache();
+            updateStatus();
+            
+            // Listen for network changes
+            window.addEventListener('online', () => {
+                updateStatus();
+                checkCache();
+            });
+            window.addEventListener('offline', updateStatus);
+        });
     </script>
 </body>
 </html>
