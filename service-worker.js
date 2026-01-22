@@ -1,16 +1,19 @@
-// RelayTalk Service Worker v4.0 - Auto Game Caching
-const CACHE_NAME = 'relaytalk-cache-v4-0';
+// RelayTalk Service Worker v4.1 - Fixed Game Caching
+const CACHE_NAME = 'relaytalk-cache-v4-1';
 const OFFLINE_URL = '/offline/index.html';
-const APP_VERSION = '4.0.0';
+const APP_VERSION = '4.1.0';
 
-// ====== GAME FILES TO AUTO-CACHE ======
+// ====== ACTUAL GAME FILES (FROM YOUR FOLDER) ======
 const CAR_GAME_FILES = [
-  '/cargame',
   '/cargame/index.html',
   '/cargame/style.css',
   '/cargame/script.js',
   '/cargame/manifest.json',
-  '/cargame/favicon.ico'
+  '/cargame/service-worker.js',
+  '/cargame/cargame192.png',
+  '/cargame/cargame512.png',
+  '/cargame/cargamebg.mp3',
+  '/cargame/shieldcargame.mp3'
 ];
 
 // ====== ALL FILES TO CACHE ======
@@ -22,6 +25,7 @@ const FILES_TO_CACHE = [
   '/relay.png',
   
   // Car Game Files (Auto-cached)
+  '/cargame',  // Root path
   ...CAR_GAME_FILES
 ];
 
@@ -127,6 +131,7 @@ async function autoCacheGameFiles() {
   cacheProgress.total = CAR_GAME_FILES.length;
 
   console.log('🚗 Starting auto-cache of car game...');
+  console.log('Game files to cache:', CAR_GAME_FILES);
   
   // Broadcast start
   broadcastProgress();
@@ -156,7 +161,7 @@ async function autoCacheGameFiles() {
         // Fetch and cache
         const response = await fetch(fileUrl, {
           headers: {
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+            'Accept': '*/*'
           }
         });
 
@@ -174,7 +179,7 @@ async function autoCacheGameFiles() {
       }
 
       // Small delay between files
-      await new Promise(resolve => setTimeout(resolve, 50));
+      await new Promise(resolve => setTimeout(resolve, 100));
     }
 
     // Complete
@@ -223,7 +228,7 @@ async function autoCacheGameFiles() {
   }
 }
 
-// ====== FETCH EVENT ======
+// ====== FETCH EVENT - UPDATED FOR DIRECT REDIRECT ======
 self.addEventListener('fetch', event => {
   // Skip non-GET requests
   if (event.request.method !== 'GET') return;
@@ -234,29 +239,65 @@ self.addEventListener('fetch', event => {
   if (url.origin !== self.location.origin) return;
 
   const path = url.pathname;
+  
+  console.log('🔄 Fetch:', path);
 
-  // ====== GAME FILES - CACHE FIRST ======
+  // ====== REDIRECT TO CAR GAME OFFLINE ======
+  // Agar user offline hai aur main site pe hai, directly game pe redirect karo
+  if ((path === '/' || path === '/index.html') && !isOnline) {
+    console.log('📴 Offline - redirecting to car game...');
+    event.respondWith(
+      caches.match('/cargame/index.html')
+        .then(cachedGame => {
+          if (cachedGame) {
+            // Game cached hai, directly serve karo
+            console.log('✅ Serving cached game');
+            return cachedGame;
+          } else {
+            // Game nahi cached, offline page dikhao
+            console.log('⚠️ Game not cached, showing offline page');
+            return caches.match(OFFLINE_URL)
+              .then(offlinePage => offlinePage || new Response('Offline - Game not available'));
+          }
+        })
+    );
+    return;
+  }
+
+  // ====== CAR GAME FILES - CACHE FIRST ======
   if (path.includes('/cargame')) {
+    console.log('🎮 Game file requested:', path);
     event.respondWith(
       caches.match(event.request)
         .then(cached => {
           // If cached, return immediately (fastest)
           if (cached) {
+            console.log('✅ Serving from cache:', path);
             return cached;
           }
 
           // Not cached, try network
+          console.log('🌐 Fetching from network:', path);
           return fetch(event.request)
             .then(response => {
               // Cache for next time
               const responseClone = response.clone();
               caches.open(CACHE_NAME)
-                .then(cache => cache.put(event.request, responseClone));
+                .then(cache => {
+                  cache.put(event.request, responseClone);
+                  console.log('✅ Cached for next time:', path);
+                });
               return response;
             })
             .catch(error => {
               console.warn('Network failed for game:', path);
-              // Return offline page if game not available
+              
+              // Special handling for /cargame root
+              if (path === '/cargame' || path === '/cargame/') {
+                return caches.match('/cargame/index.html')
+                  .then(index => index || caches.match(OFFLINE_URL));
+              }
+              
               return caches.match(OFFLINE_URL)
                 .then(offlinePage => offlinePage || new Response('Game not available offline'));
             });
@@ -288,15 +329,24 @@ self.addEventListener('fetch', event => {
         })
         .catch(() => {
           isOnline = false;
+          console.log('📴 Offline detected for:', path);
+          
           // Offline: serve from cache
           return caches.match(event.request)
             .then(cached => {
               if (cached) return cached;
               
-              // If main page not cached, show offline page
+              // If main page not cached, check if game is available
               if (path === '/' || path === '/index.html') {
-                return caches.match(OFFLINE_URL)
-                  .then(offlinePage => offlinePage || new Response('Offline'));
+                return caches.match('/cargame/index.html')
+                  .then(gameIndex => {
+                    if (gameIndex) {
+                      console.log('🎮 Redirecting to cached game');
+                      return gameIndex;
+                    }
+                    return caches.match(OFFLINE_URL)
+                      .then(offlinePage => offlinePage || new Response('Offline'));
+                  });
               }
               
               return new Response('Not available offline', { status: 404 });
@@ -334,8 +384,7 @@ self.addEventListener('message', event => {
         .then(cache => cache.keys())
         .then(keys => {
           const gameFiles = keys.filter(k => 
-            k.url.includes('/cargame') || 
-            k.url.endsWith('/cargame')
+            k.url.includes('/cargame')
           ).length;
           
           if (event.ports && event.ports[0]) {
@@ -439,7 +488,7 @@ self.addEventListener('online', () => {
 
 self.addEventListener('offline', () => {
   isOnline = false;
-  console.log('📴 Offline');
+  console.log('📴 Offline - game will be served if cached');
 });
 
 console.log('🚀 RelayTalk Service Worker v' + APP_VERSION + ' loaded');
