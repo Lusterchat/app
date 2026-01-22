@@ -1,111 +1,236 @@
-// Service Worker Manager v4.0 - Simplified for Game Caching
+// Service Worker Manager v4.2 - Auto Redirect on Offline
 class ServiceWorkerManager {
     constructor() {
         this.isOnline = navigator.onLine;
+        this.autoRedirectEnabled = true;
+        this.lastRedirectTime = 0;
         this.init();
     }
 
     async init() {
-        console.log('⚡ SW Manager v4.0 initializing...');
-
-        // Register service worker
-        await this.registerSW();
-
-        // Auto-cache game when online
-        if (this.isOnline) {
-            setTimeout(() => this.autoCacheGame(), 5000);
-        }
-
+        console.log('⚡ SW Manager v4.2 - Auto Redirect Enabled');
+        
+        // Check current page
+        this.checkCurrentPage();
+        
         // Listen for network changes
         window.addEventListener('online', () => this.handleOnline());
         window.addEventListener('offline', () => this.handleOffline());
+        
+        // Check every 10 seconds if we should redirect
+        setInterval(() => this.checkAndRedirect(), 10000);
+        
+        // Initial check
+        setTimeout(() => this.checkAndRedirect(), 3000);
     }
 
-    async registerSW() {
-        if (!('serviceWorker' in navigator)) {
-            console.warn('⚠️ Service Workers not supported');
-            return;
-        }
+    checkCurrentPage() {
+        const path = window.location.pathname;
+        this.isAppPage = path === '/' || 
+                         path === '/index.html' || 
+                         path.includes('/pages/');
+        this.isGamePage = path.includes('/cargame');
+        this.isOfflinePage = path.includes('/offline/');
+        
+        console.log('📍 Current page:', {
+            path: path,
+            isAppPage: this.isAppPage,
+            isGamePage: this.isGamePage,
+            isOfflinePage: this.isOfflinePage
+        });
+    }
 
-        try {
-            const registration = await navigator.serviceWorker.register('/service-worker.js', {
-                scope: '/',
-                updateViaCache: 'none'
-            });
-
-            console.log('✅ Service Worker registered');
-
-            // Listen for messages
-            navigator.serviceWorker.addEventListener('message', (event) => {
-                this.handleSWMessage(event.data);
-            });
-
-            // Check if game is cached
-            setTimeout(() => this.checkGameCache(), 3000);
-
-        } catch (error) {
-            console.error('❌ SW registration failed:', error);
+    async checkAndRedirect() {
+        // Don't redirect too frequently
+        const now = Date.now();
+        if (now - this.lastRedirectTime < 5000) return;
+        
+        this.isOnline = navigator.onLine;
+        
+        if (!this.isOnline && this.isAppPage && this.autoRedirectEnabled) {
+            console.log('📴 Offline on app page - checking game cache...');
+            
+            try {
+                // Check if game is cached
+                const gameCached = await this.checkGameCache();
+                
+                if (gameCached) {
+                    console.log('🎮 Game cached - redirecting...');
+                    this.redirectToGame();
+                } else {
+                    console.log('⚠️ Game not cached - redirecting to offline page');
+                    this.redirectToOffline();
+                }
+                
+                this.lastRedirectTime = now;
+            } catch (error) {
+                console.warn('Redirect check failed:', error);
+            }
         }
     }
 
     async checkGameCache() {
         try {
+            if (!navigator.serviceWorker.controller) return false;
+            
             const status = await this.messageSW({ type: 'GET_GAME_STATUS' });
-            if (status && !status.gameCached && this.isOnline) {
-                console.log('🔄 Game not cached, starting auto-cache...');
-                this.autoCacheGame();
-            }
+            return status && status.gameCached;
         } catch (error) {
-            console.warn('Cache check failed:', error);
+            return false;
         }
     }
 
-    async autoCacheGame() {
-        if (!this.isOnline) {
-            console.log('⚠️ Skipping auto-cache - offline');
-            return;
-        }
-
-        console.log('🚗 Starting auto-cache of game...');
+    redirectToGame() {
+        // Prevent multiple redirects
+        if (window.location.pathname.includes('/cargame')) return;
         
-        try {
-            const result = await this.messageSW({ type: 'AUTO_CACHE_GAME' });
-            if (result && result.success) {
-                console.log(`✅ Game cached: ${result.cachedCount} files`);
-            }
-        } catch (error) {
-            console.error('Auto-cache failed:', error);
-        }
+        console.log('🚀 Redirecting to cached game...');
+        
+        // Smooth redirect with notification
+        this.showOfflineNotification('🎮 Switching to Car Game...');
+        
+        setTimeout(() => {
+            window.location.href = '/cargame';
+        }, 1000);
     }
 
-    handleSWMessage(data) {
-        const { type } = data;
+    redirectToOffline() {
+        // Prevent multiple redirects
+        if (window.location.pathname.includes('/offline/')) return;
         
-        switch (type) {
-            case 'SW_READY':
-                console.log('🚀 SW ready:', data.version);
-                break;
-                
-            case 'GAME_CACHED':
-                console.log('🎮 Game cached successfully');
-                this.showNotification('✅ Game ready for offline play!', 'success');
-                break;
-                
-            case 'GAME_CACHE_ERROR':
-                console.error('❌ Game cache error:', data.error);
-                break;
-        }
+        console.log('📴 Redirecting to offline page...');
+        
+        // Smooth redirect with notification
+        this.showOfflineNotification('📱 Going to offline mode...');
+        
+        setTimeout(() => {
+            window.location.href = '/offline/';
+        }, 1000);
     }
 
     handleOnline() {
         this.isOnline = true;
-        console.log('🌐 Online - triggering auto-cache');
-        this.autoCacheGame();
+        console.log('🌐 Back online');
+        this.showNotification('✅ Back online', 'success', 2000);
     }
 
     handleOffline() {
         this.isOnline = false;
-        console.log('📴 Offline');
+        console.log('📴 Went offline');
+        
+        // Immediate redirect check
+        setTimeout(() => this.checkAndRedirect(), 1000);
+        
+        // Show notification
+        this.showOfflineNotification('📶 You are offline');
+    }
+
+    showOfflineNotification(message) {
+        const notification = document.createElement('div');
+        notification.innerHTML = `
+            <div style="
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: linear-gradient(135deg, #f59e0b, #d97706);
+                color: white;
+                padding: 15px 25px;
+                border-radius: 10px;
+                box-shadow: 0 8px 25px rgba(245, 158, 11, 0.4);
+                z-index: 9999;
+                animation: slideInRight 0.3s ease;
+                font-family: 'Segoe UI', sans-serif;
+                font-weight: 600;
+                backdrop-filter: blur(10px);
+                border: 2px solid rgba(255, 255, 255, 0.2);
+                max-width: 300px;
+                text-align: center;
+            ">
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 5px;">
+                    <span style="font-size: 1.5rem;">🚗</span>
+                    <span>${message}</span>
+                </div>
+                <div style="font-size: 0.9rem; opacity: 0.9;">
+                    ${this.isOnline ? 'Enjoy!' : 'Auto-redirecting...'}
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(notification);
+
+        // Auto-remove after 3 seconds
+        setTimeout(() => {
+            notification.style.animation = 'slideOutRight 0.3s ease';
+            setTimeout(() => notification.remove(), 300);
+        }, 3000);
+        
+        // Add CSS animations if not present
+        this.addNotificationStyles();
+    }
+
+    showNotification(message, type = 'info', duration = 3000) {
+        const colors = {
+            success: '#10b981',
+            error: '#ef4444',
+            info: '#3b82f6',
+            warning: '#f59e0b'
+        };
+
+        const notification = document.createElement('div');
+        notification.innerHTML = `
+            <div style="
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: ${colors[type] || colors.info};
+                color: white;
+                padding: 12px 20px;
+                border-radius: 8px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                z-index: 9999;
+                animation: slideIn 0.3s ease;
+                font-family: 'Segoe UI', sans-serif;
+            ">
+                ${message}
+            </div>
+        `;
+
+        document.body.appendChild(notification);
+
+        setTimeout(() => {
+            notification.style.animation = 'slideOut 0.3s ease';
+            setTimeout(() => notification.remove(), 300);
+        }, duration);
+    }
+
+    addNotificationStyles() {
+        if (document.getElementById('sw-manager-styles')) return;
+        
+        const style = document.createElement('style');
+        style.id = 'sw-manager-styles';
+        style.textContent = `
+            @keyframes slideIn {
+                from { transform: translateX(100%); opacity: 0; }
+                to { transform: translateX(0); opacity: 1; }
+            }
+            
+            @keyframes slideOut {
+                from { transform: translateX(0); opacity: 1; }
+                to { transform: translateX(100%); opacity: 0; }
+            }
+            
+            @keyframes slideInRight {
+                from { transform: translateX(100%); opacity: 0; }
+                to { transform: translateX(0); opacity: 1; }
+            }
+            
+            @keyframes slideOutRight {
+                from { transform: translateX(0); opacity: 1; }
+                to { transform: translateX(100%); opacity: 0; }
+            }
+        `;
+        
+        document.head.appendChild(style);
     }
 
     messageSW(message) {
@@ -114,42 +239,79 @@ class ServiceWorkerManager {
                 reject(new Error('No Service Worker'));
                 return;
             }
-
+            
             const channel = new MessageChannel();
             channel.port1.onmessage = (event) => {
                 resolve(event.data);
                 channel.port1.close();
             };
-
+            
             navigator.serviceWorker.controller.postMessage(message, [channel.port2]);
+            
+            // Timeout after 3 seconds
+            setTimeout(() => {
+                reject(new Error('Service Worker timeout'));
+            }, 3000);
         });
     }
 
-    showNotification(message, type = 'info') {
-        // Simple notification
-        if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-            new Notification('RelayTalk', {
-                body: message,
-                icon: '/relay.png'
-            });
-        }
-        
-        // Console fallback
-        console.log(`📢 ${type.toUpperCase()}: ${message}`);
+    // Public methods
+    enableAutoRedirect() {
+        this.autoRedirectEnabled = true;
+        console.log('✅ Auto redirect enabled');
+    }
+    
+    disableAutoRedirect() {
+        this.autoRedirectEnabled = false;
+        console.log('⛔ Auto redirect disabled');
+    }
+    
+    forceRedirectToGame() {
+        this.redirectToGame();
+    }
+    
+    forceRedirectToOffline() {
+        this.redirectToOffline();
     }
 }
 
-// Auto-initialize
+// Auto-initialize with smart detection
 document.addEventListener('DOMContentLoaded', () => {
-    if (!window.SWManager) {
-        window.SWManager = new ServiceWorkerManager();
+    // Don't initialize on game or offline pages
+    const path = window.location.pathname;
+    const isGamePage = path.includes('/cargame');
+    const isOfflinePage = path.includes('/offline/');
+    
+    if (!isGamePage && !isOfflinePage) {
+        if (!window.SWManager) {
+            window.SWManager = new ServiceWorkerManager();
+        }
+    } else {
+        console.log('⚡ SW Manager: Skipping auto-redirect on game/offline page');
     }
 });
 
-// Global helper
+// Global helper with emergency functions
 window.RelaySW = {
-    cacheGame: () => window.SWManager?.autoCacheGame(),
-    getStatus: () => window.SWManager?.messageSW({ type: 'GET_STATUS' })
+    // Redirect functions
+    goToGame: () => window.SWManager?.forceRedirectToGame(),
+    goToOffline: () => window.SWManager?.forceRedirectToOffline(),
+    
+    // Control functions
+    enableRedirect: () => window.SWManager?.enableAutoRedirect(),
+    disableRedirect: () => window.SWManager?.disableAutoRedirect(),
+    
+    // Status functions
+    checkStatus: () => window.SWManager?.checkGameCache(),
+    isOnline: () => window.SWManager?.isOnline,
+    
+    // Emergency offline test (for debugging)
+    testOfflineRedirect: () => {
+        console.log('🧪 Testing offline redirect...');
+        const manager = window.SWManager || new ServiceWorkerManager();
+        manager.isOnline = false;
+        manager.checkAndRedirect();
+    }
 };
 
-console.log('⚡ Service Worker Manager v4.0 loaded');
+console.log('⚡ Service Worker Manager v4.2 loaded - Auto Redirect Ready');
