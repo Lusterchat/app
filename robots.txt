@@ -3,36 +3,50 @@ User-agent: *
 Allow: /
 Allow: /pages/
 Allow: /utils/
+Allow: /favicon.ico
+Allow: /*.png
+Allow: /*.jpg
+Allow: /*.jpeg
 
 # Sitemap location (CRITICAL)
 Sitemap: https://relaytalk.github.io/sitemap.xml
 
 # Crawl delay for rate limiting
-Crawl-delay: 2
-
-# Block specific paths (none needed now)
-# Disallow: /private/
-# Disallow: /admin/
+Crawl-delay: 1
 
 # Special rules for search engines
 User-agent: Googlebot
 Allow: /
+Allow: /favicon.ico
 Allow: /*.css
 Allow: /*.js
 Allow: /*.json
+Allow: /*.png
+Allow: /*.jpg
+Allow: /manifest.json
+
+User-agent: Googlebot-Image
+Allow: /
+Allow: /favicon.ico
+Allow: /*.png
+Allow: /*.jpg
+Allow: /*.jpeg
+Allow: /*.gif
+Allow: /*.svg
 
 User-agent: Bingbot
 Allow: /
-Allow: /*.css
-Allow: /*.js
+Allow: /favicon.ico
 
 User-agent: Yandex
 Allow: /
-Crawl-delay: 3
+Allow: /favicon.ico
+Crawl-delay: 2
 
 User-agent: Baiduspider
 Allow: /
-Crawl-delay: 5
+Allow: /favicon.ico
+Crawl-delay: 3
 
 # Block AI crawlers that steal content
 User-agent: CCBot
@@ -45,4 +59,17 @@ User-agent: ChatGPT-User
 Disallow: /
 
 User-agent: Claude-Web
+Disallow: /
+
+# Block spam bots
+User-agent: AhrefsBot
+Disallow: /
+
+User-agent: SemrushBot
+Disallow: /
+
+User-agent: MJ12bot
+Disallow: /
+
+User-agent: DotBot
 Disallow: /
