@@ -1,4 +1,4 @@
-// Service Worker Manager v4.3 - Auto Redirect on Offline (Updated Path)
+// Service Worker Manager v4.4 - Redirect to Offline Page Always
 class ServiceWorkerManager {
     constructor() {
         this.isOnline = navigator.onLine;
@@ -8,7 +8,7 @@ class ServiceWorkerManager {
     }
 
     async init() {
-        console.log('⚡ SW Manager v4.3 - Auto Redirect Enabled');
+        console.log('⚡ SW Manager v4.4 - Always Redirect to Offline Page');
 
         // Check current page
         this.checkCurrentPage();
@@ -17,11 +17,11 @@ class ServiceWorkerManager {
         window.addEventListener('online', () => this.handleOnline());
         window.addEventListener('offline', () => this.handleOffline());
 
-        // Check every 10 seconds if we should redirect
-        setInterval(() => this.checkAndRedirect(), 10000);
+        // Check every 5 seconds if we should redirect
+        setInterval(() => this.checkAndRedirect(), 5000);
 
         // Initial check
-        setTimeout(() => this.checkAndRedirect(), 3000);
+        setTimeout(() => this.checkAndRedirect(), 2000);
     }
 
     checkCurrentPage() {
@@ -45,56 +45,30 @@ class ServiceWorkerManager {
     async checkAndRedirect() {
         // Don't redirect too frequently
         const now = Date.now();
-        if (now - this.lastRedirectTime < 5000) return;
+        if (now - this.lastRedirectTime < 3000) return;
 
         this.isOnline = navigator.onLine;
 
+        // ====== CRITICAL CHANGE ======
+        // ALWAYS redirect to offline page when offline
         if (!this.isOnline && this.isAppPage && this.autoRedirectEnabled) {
-            console.log('📴 Offline on app page - checking game cache...');
+            console.log('📴 Offline detected - Redirecting to Offline Page');
+            this.redirectToOffline();
+            this.lastRedirectTime = now;
+            return;
+        }
 
-            try {
-                // Check if game is cached
-                const gameCached = await this.checkGameCache();
-
-                if (gameCached) {
-                    console.log('🎮 Game cached - redirecting...');
-                    this.redirectToGame();
-                } else {
-                    console.log('⚠️ Game not cached - redirecting to offline page');
-                    this.redirectToOffline();
-                }
-
-                this.lastRedirectTime = now;
-            } catch (error) {
-                console.warn('Redirect check failed:', error);
-            }
+        // If user is on game page and goes offline, redirect to offline page
+        if (!this.isOnline && this.isGamePage && this.autoRedirectEnabled) {
+            console.log('📴 Offline on game page - Redirecting to Offline Page');
+            this.redirectToOffline();
+            this.lastRedirectTime = now;
+            return;
         }
     }
 
-    async checkGameCache() {
-        try {
-            if (!navigator.serviceWorker.controller) return false;
-
-            const status = await this.messageSW({ type: 'GET_GAME_STATUS' });
-            return status && status.gameCached;
-        } catch (error) {
-            return false;
-        }
-    }
-
-    redirectToGame() {
-        // Prevent multiple redirects
-        if (window.location.pathname.includes('/cargame')) return;
-
-        console.log('🚀 Redirecting to cached game...');
-
-        // Smooth redirect with notification
-        this.showOfflineNotification('🎮 Switching to Car Game...');
-
-        setTimeout(() => {
-            window.location.href = '/cargame';
-        }, 1000);
-    }
+    // REMOVED checkGameCache function
+    // We don't need to check cache anymore
 
     redirectToOffline() {
         // Prevent multiple redirects
@@ -110,14 +84,14 @@ class ServiceWorkerManager {
 
         setTimeout(() => {
             window.location.href = '/offline/index.html';
-        }, 1000);
+        }, 800);
     }
 
     handleOnline() {
         this.isOnline = true;
         console.log('🌐 Back online');
         this.showNotification('✅ Back online', 'success', 2000);
-        
+
         // If on offline page and now online, suggest going back to app
         if (this.isOfflinePage) {
             setTimeout(() => {
@@ -128,13 +102,13 @@ class ServiceWorkerManager {
 
     handleOffline() {
         this.isOnline = false;
-        console.log('📴 Went offline');
+        console.log('📴 Went offline - Will redirect to offline page');
 
-        // Immediate redirect check
-        setTimeout(() => this.checkAndRedirect(), 1000);
+        // Immediate redirect (faster response)
+        setTimeout(() => this.checkAndRedirect(), 500);
 
         // Show notification
-        this.showOfflineNotification('📶 You are offline');
+        this.showOfflineNotification('📶 You are offline - Redirecting...');
     }
 
     showOfflineNotification(message) {
@@ -163,18 +137,18 @@ class ServiceWorkerManager {
                     <span>${message}</span>
                 </div>
                 <div style="font-size: 0.9rem; opacity: 0.9;">
-                    ${this.isOnline ? 'Enjoy!' : 'Auto-redirecting...'}
+                    Redirecting to offline page...
                 </div>
             </div>
         `;
 
         document.body.appendChild(notification);
 
-        // Auto-remove after 3 seconds
+        // Auto-remove after 2 seconds
         setTimeout(() => {
             notification.style.animation = 'slideOutRight 0.3s ease';
             setTimeout(() => notification.remove(), 300);
-        }, 3000);
+        }, 2000);
 
         // Add CSS animations if not present
         this.addNotificationStyles();
@@ -275,10 +249,9 @@ class ServiceWorkerManager {
 
             navigator.serviceWorker.controller.postMessage(message, [channel.port2]);
 
-            // Timeout after 3 seconds
             setTimeout(() => {
                 reject(new Error('Service Worker timeout'));
-            }, 3000);
+            }, 2000);
         });
     }
 
@@ -287,16 +260,12 @@ class ServiceWorkerManager {
         this.autoRedirectEnabled = true;
         console.log('✅ Auto redirect enabled');
     }
-
+    
     disableAutoRedirect() {
         this.autoRedirectEnabled = false;
         console.log('⛔ Auto redirect disabled');
     }
-
-    forceRedirectToGame() {
-        this.redirectToGame();
-    }
-
+    
     forceRedirectToOffline() {
         this.redirectToOffline();
     }
@@ -304,24 +273,23 @@ class ServiceWorkerManager {
 
 // Auto-initialize with smart detection
 document.addEventListener('DOMContentLoaded', () => {
-    // Don't initialize on game or offline pages
+    // Don't initialize on offline page (to prevent loops)
     const path = window.location.pathname;
-    const isGamePage = path.includes('/cargame');
     const isOfflinePage = path.includes('/offline/index.html') || 
                          path === '/offline/' || 
                          path === '/offline';
 
-    if (!isGamePage && !isOfflinePage) {
+    if (!isOfflinePage) {
         if (!window.SWManager) {
             window.SWManager = new ServiceWorkerManager();
         }
     } else {
-        console.log('⚡ SW Manager: Skipping auto-redirect on game/offline page');
+        console.log('⚡ SW Manager: Skipping auto-redirect on offline page');
         
-        // But still initialize for notifications and cache checking
-        if (!window.SWManager && (isGamePage || isOfflinePage)) {
+        // But still initialize for notifications
+        if (!window.SWManager) {
             window.SWManager = new ServiceWorkerManager();
-            window.SWManager.autoRedirectEnabled = false; // Disable redirect on these pages
+            window.SWManager.autoRedirectEnabled = false;
         }
     }
 });
@@ -329,7 +297,6 @@ document.addEventListener('DOMContentLoaded', () => {
 // Global helper with emergency functions
 window.RelaySW = {
     // Redirect functions
-    goToGame: () => window.SWManager?.forceRedirectToGame(),
     goToOffline: () => window.SWManager?.forceRedirectToOffline(),
 
     // Control functions
@@ -337,7 +304,6 @@ window.RelaySW = {
     disableRedirect: () => window.SWManager?.disableAutoRedirect(),
 
     // Status functions
-    checkStatus: () => window.SWManager?.checkGameCache(),
     isOnline: () => window.SWManager?.isOnline,
 
     // Emergency offline test (for debugging)
@@ -347,11 +313,11 @@ window.RelaySW = {
         manager.isOnline = false;
         manager.checkAndRedirect();
     },
-    
+
     // Go back to main app
     goToHome: () => {
         window.location.href = '/';
     }
 };
 
-console.log('⚡ Service Worker Manager v4.3 loaded - Auto Redirect Ready');
+console.log('⚡ Service Worker Manager v4.4 loaded - Always Redirect to Offline Page');
