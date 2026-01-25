@@ -1,4 +1,5 @@
-// ====== CREATE ACCOUNT PAGE SCRIPT - FIXED WITH EMAIL AUTH ======
+// auth/script.js - COMPLETE FIXED VERSION
+
 // Modal functions
 function showTerms() {
     document.getElementById('termsModal').style.display = 'flex';
@@ -13,31 +14,20 @@ function closeModal() {
     document.getElementById('privacyModal').style.display = 'none';
 }
 
-// Close modal when clicking outside
 window.onclick = function(event) {
     const termsModal = document.getElementById('termsModal');
     const privacyModal = document.getElementById('privacyModal');
-
-    if (event.target === termsModal) {
-        termsModal.style.display = 'none';
-    }
-    if (event.target === privacyModal) {
-        privacyModal.style.display = 'none';
-    }
+    if (event.target === termsModal) termsModal.style.display = 'none';
+    if (event.target === privacyModal) privacyModal.style.display = 'none';
 };
 
-// Escape key closes modal
 document.addEventListener('keydown', function(event) {
-    if (event.key === 'Escape') {
-        closeModal();
-    }
+    if (event.key === 'Escape') closeModal();
 });
 
-// Toggle password visibility
 function togglePassword() {
     const passwordInput = document.getElementById('password');
     const toggleBtn = document.querySelector('.password-toggle');
-
     if (passwordInput.type === 'password') {
         passwordInput.type = 'text';
         toggleBtn.textContent = '🙈';
@@ -47,20 +37,17 @@ function togglePassword() {
     }
 }
 
-// Show error message
 function showError(elementId, message) {
     const errorEl = document.getElementById(elementId);
     errorEl.textContent = message;
     errorEl.style.display = 'block';
 }
 
-// Hide error message
 function hideError(elementId) {
     const errorEl = document.getElementById(elementId);
     errorEl.style.display = 'none';
 }
 
-// Validate username
 function validateUsername(username) {
     if (username.length < 3) {
         showError('usernameError', 'Username must be at least 3 characters');
@@ -78,7 +65,6 @@ function validateUsername(username) {
     return true;
 }
 
-// Validate password
 function validatePassword(password) {
     if (password.length < 6) {
         showError('passwordError', 'Password must be at least 6 characters');
@@ -88,7 +74,6 @@ function validatePassword(password) {
     return true;
 }
 
-// Validate password confirmation
 function validateConfirmPassword(password, confirmPassword) {
     if (password !== confirmPassword) {
         showError('confirmError', 'Passwords do not match');
@@ -98,74 +83,83 @@ function validateConfirmPassword(password, confirmPassword) {
     return true;
 }
 
-// Load Supabase
-let supabase = null;
-
-async function initSupabase() {
+// LINE 156 FIXED - Supabase initialization
+async function initAuthSupabase() {
+    console.log('🔄 Initializing Supabase for auth page...');
+    
     try {
-        const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
-        supabase = createClient(
-            'https://blxtldgnssvasuinpyit.supabase.co',
-            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJseHRsZGduc3N2YXN1aW5weWl0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjcwODIxODIsImV4cCI6MjA4MjY1ODE4Mn0.Dv04IOAY76o2ccu5dzwK3fJjzo93BIoK6C2H3uWrlMw'
-        );
-        console.log("✅ Supabase connected");
-        return true;
+        // Load from relative path
+        const modulePath = '../../utils/supabase.js';
+        await import(modulePath);
+        
+        // Wait for window.supabase to be available
+        let attempts = 0;
+        while (!window.supabase && attempts < 20) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+            attempts++;
+        }
+        
+        if (window.supabase) {
+            console.log('✅ Supabase ready for auth page');
+            return true;
+        } else {
+            console.error('❌ Supabase failed to load');
+            return false;
+        }
     } catch (error) {
-        console.error("❌ Supabase error:", error);
+        console.error('❌ Supabase import error:', error);
         return false;
     }
 }
 
-// Handle form submission - FIXED WITH EMAIL AUTH
+// Handle form submission - FIXED
 async function handleSignup(event) {
     event.preventDefault();
 
-    // Get form values
     const username = document.getElementById('username').value.trim();
     const password = document.getElementById('password').value;
     const confirmPassword = document.getElementById('confirmPassword').value;
 
-    // Validate inputs
     const isUsernameValid = validateUsername(username);
     const isPasswordValid = validatePassword(password);
     const isConfirmValid = validateConfirmPassword(password, confirmPassword);
 
-    if (!isUsernameValid || !isPasswordValid || !isConfirmValid) {
-        return;
-    }
-
+    if (!isUsernameValid || !isPasswordValid || !isConfirmValid) return;
     if (!document.getElementById('terms').checked) {
         alert('Please agree to Terms & Conditions');
         return;
     }
 
-    // Show loading
     const submitBtn = document.getElementById('submitBtn');
     const originalText = submitBtn.textContent;
     submitBtn.textContent = 'Creating account...';
     submitBtn.disabled = true;
 
     try {
-        // 1. CREATE EMAIL (EMAIL AUTH - NO PHONE!)
-        const internalEmail = `${username}@luster.test`;
-        console.log("Creating account with email:", internalEmail);
+        // Initialize Supabase first
+        const supabaseReady = await initAuthSupabase();
+        if (!supabaseReady) {
+            throw new Error('Cannot connect to server');
+        }
 
-        // 2. SIGN UP WITH SUPABASE (EMAIL AUTH!)
-        const { data: authData, error: authError } = await supabase.auth.signUp({
-            email: internalEmail,  // EMAIL, not phone!
+        if (!window.supabase?.auth) {
+            throw new Error('Authentication service not available');
+        }
+
+        const internalEmail = `${username}@luster.test`;
+        console.log('Creating account with email:', internalEmail);
+
+        // 1. Sign up
+        const { data: authData, error: authError } = await window.supabase.auth.signUp({
+            email: internalEmail,
             password: password,
-            options: {
-                data: {
-                    username: username,
-                    full_name: username
-                }
-            }
+            options: { data: { username: username, full_name: username } }
         });
 
         if (authError) {
-            console.error("Auth error:", authError);
+            console.error('Auth error:', authError);
             if (authError.message.includes('already registered')) {
-                showError('usernameError', 'Username already taken. Please choose another.');
+                showError('usernameError', 'Username already taken');
             } else {
                 throw authError;
             }
@@ -174,12 +168,11 @@ async function handleSignup(event) {
             return;
         }
 
-        console.log("✅ Auth created, user ID:", authData.user?.id);
-
-        // 3. CREATE PROFILE
+        console.log('✅ Auth created, user ID:', authData.user?.id);
         await new Promise(resolve => setTimeout(resolve, 300));
 
-        const { error: profileError } = await supabase
+        // 2. Create profile
+        const { error: profileError } = await window.supabase
             .from('profiles')
             .insert({
                 id: authData.user.id,
@@ -191,31 +184,30 @@ async function handleSignup(event) {
             });
 
         if (profileError) {
-            console.error("Profile error:", profileError);
+            console.error('Profile error:', profileError);
             throw profileError;
         }
 
-        console.log("✅ Profile created for:", username);
+        console.log('✅ Profile created for:', username);
 
-        // 4. AUTO-LOGIN WITH EMAIL
-        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-            email: internalEmail,  // EMAIL, not phone!
+        // 3. Auto-login
+        const { data: signInData, error: signInError } = await window.supabase.auth.signInWithPassword({
+            email: internalEmail,
             password: password
         });
 
         if (signInError) {
-            console.warn("Auto-login failed:", signInError);
+            console.warn('Auto-login failed:', signInError);
             showSuccessAndRedirect(username, false);
         } else {
-            console.log("✅ Auto-login successful");
+            console.log('✅ Auto-login successful');
             showSuccessAndRedirect(username, true);
         }
 
     } catch (error) {
-        console.error("Signup error:", error);
-
+        console.error('Signup error:', error);
         let errorMessage = 'Something went wrong. Please try again.';
-
+        
         if (error.message.includes('already registered') || error.message.includes('already exists')) {
             errorMessage = 'Username already taken. Please choose another.';
             showError('usernameError', errorMessage);
@@ -225,18 +217,14 @@ async function handleSignup(event) {
         } else {
             alert('Error: ' + error.message);
         }
-
+        
         submitBtn.textContent = originalText;
         submitBtn.disabled = false;
     }
 }
 
-// Show success and redirect
 function showSuccessAndRedirect(username, autoLoggedIn = true) {
-    // Hide form
     document.getElementById('signupForm').style.display = 'none';
-
-    // Show success message
     const successContainer = document.getElementById('successContainer');
     successContainer.style.display = 'block';
 
@@ -247,35 +235,26 @@ function showSuccessAndRedirect(username, autoLoggedIn = true) {
     successContainer.innerHTML = `
         <div class="success-icon">✨</div>
         <h2 style="color: #28a745; margin-bottom: 15px;">${autoLoggedIn ? 'Account Created!' : 'Almost Done!'}</h2>
-        <p style="color: #c0c0e0; margin-bottom: 10px;">
-            ${message}
-        </p>
-        
+        <p style="color: #c0c0e0; margin-bottom: 10px;">${message}</p>
         <div style="background: rgba(255, 255, 255, 0.05); padding: 15px; border-radius: 15px; margin: 20px 0;">
-            <p style="color: #a0a0c0; font-size: 0.9rem; margin-bottom: 8px;">
-                🔐 Remember your password securely
-            </p>
+            <p style="color: #a0a0c0; font-size: 0.9rem; margin-bottom: 8px;">🔐 Remember your password securely</p>
             <p style="color: #667eea; font-size: 0.9rem;">
                 Username: <strong>${username}</strong><br>
                 We cannot recover passwords if forgotten
             </p>
         </div>
-        
         <div class="progress-bar">
             <div class="progress-fill" id="progressFill"></div>
         </div>
     `;
 
-    // Start progress bar
     let progress = 0;
     const progressFill = document.getElementById('progressFill');
     const interval = setInterval(() => {
         progress += 2;
         if (progressFill) progressFill.style.width = progress + '%';
-
         if (progress >= 100) {
             clearInterval(interval);
-            // Redirect
             if (autoLoggedIn) {
                 window.location.href = '../home/index.html';
             } else {
@@ -285,47 +264,42 @@ function showSuccessAndRedirect(username, autoLoggedIn = true) {
     }, 30);
 }
 
-// Initialize auth page
 async function initAuthPage() {
-    console.log("✨ Luster Create Account Page Initialized");
-
-    // Initialize Supabase
-    const connected = await initSupabase();
+    console.log('✨ Luster Create Account Page Initialized');
+    
+    const connected = await initAuthSupabase();
     if (!connected) {
-        alert("Cannot connect to server. Please try again later.");
+        alert('Cannot connect to server. Please try again later.');
         return;
     }
-
-    // Check if user is already logged in
-    const { data } = await supabase.auth.getSession();
-    if (data.session) {
-        // User is already logged in, redirect to home
-        console.log("User already logged in, redirecting...");
-        setTimeout(() => {
-            window.location.href = '../home/index.html';
-        }, 1000);
-        return;
+    
+    if (window.supabase) {
+        const { data } = await window.supabase.auth.getSession();
+        if (data.session) {
+            console.log('User already logged in, redirecting...');
+            setTimeout(() => {
+                window.location.href = '../home/index.html';
+            }, 1000);
+            return;
+        }
     }
-
-    // Real-time validation
+    
     document.getElementById('username').addEventListener('input', function() {
         validateUsername(this.value);
     });
-
+    
     document.getElementById('password').addEventListener('input', function() {
         validatePassword(this.value);
     });
-
+    
     document.getElementById('confirmPassword').addEventListener('input', function() {
         const password = document.getElementById('password').value;
         validateConfirmPassword(password, this.value);
     });
 }
 
-// Run when page loads
 document.addEventListener('DOMContentLoaded', initAuthPage);
 
-// ====== MAKE FUNCTIONS AVAILABLE TO HTML ======
 window.showTerms = showTerms;
 window.showPrivacy = showPrivacy;
 window.closeModal = closeModal;
