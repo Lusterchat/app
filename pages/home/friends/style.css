@@ -473,3 +473,108 @@ button:active, .search-btn:active, .nav-btn:active,
 .login-prompt {
     box-shadow: 0 10px 30px rgba(135, 137, 255, 0.1);
 }
+
+/* ==================== CRITICAL FIXES ADDED ==================== */
+
+/* Fix for loading indicator persistence */
+.loading-indicator {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    transition: none !important;
+}
+
+.loading-indicator.hidden {
+    display: none !important;
+}
+
+/* Fix for skeleton loading animations */
+.friend-skeleton.hidden {
+    display: none !important;
+    animation: none !important;
+}
+
+/* Fix for friend item text overflow */
+.friend-name-clean,
+.friend-status-clean {
+    max-width: 200px;
+}
+
+/* Mobile hover fix */
+@media (hover: none) and (pointer: coarse) {
+    .friend-item-clean:hover {
+        background: #f8f9fa; /* Keep original on mobile */
+        transform: none;
+        border-color: #e0e0e0;
+    }
+    
+    .stat-card:hover {
+        transform: none;
+        box-shadow: none;
+    }
+    
+    .login-btn:hover,
+    .signup-btn:hover {
+        transform: none;
+        box-shadow: none;
+    }
+}
+
+/* Focus accessibility improvements */
+button:focus-visible,
+input:focus-visible {
+    outline: 2px solid #8789ff !important;
+    outline-offset: 2px !important;
+}
+
+/* Smooth transitions for better UX */
+.friend-item-clean,
+.stat-card,
+.login-btn,
+.signup-btn {
+    will-change: transform;
+    backface-visibility: hidden;
+}
+
+/* Fix for iOS input appearance */
+input[type="text"],
+input[type="search"] {
+    -webkit-appearance: none;
+    appearance: none;
+    border-radius: 15px;
+}
+
+/* Loading text styling */
+.loading-text {
+    font-size: 1.2rem;
+    color: #8789ff;
+    font-weight: 500;
+}
+
+/* Empty state fixes */
+.empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: #666666;
+}
+
+.empty-icon {
+    font-size: 3rem;
+    margin-bottom: 15px;
+    opacity: 0.3;
+    color: #8789ff;
+}
+
+.empty-title {
+    font-size: 1.3rem;
+    margin-bottom: 10px;
+    color: #333333;
+}
+
+.empty-desc {
+    font-size: 0.95rem;
+    max-width: 300px;
+    margin: 0 auto;
+    line-height: 1.4;
+}
