@@ -1,300 +1,167 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <!-- CHARACTER SET & VIEWPORT MUST BE FIRST -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <!-- CACHE CONTROL - Force fresh load -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
 
-    <!-- TITLE - MOST IMPORTANT FOR GOOGLE -->
     <title>RelayTalk</title>
 
-    <!-- ====== GOOGLE-SPECIFIC METADATA ====== -->
-    <!-- Google Site Verification -->
-    <meta name="google-site-verification" content="qRU2hfY_hID6VOk91AxOPVwvoGqrpQskUTWmxpwszxE">
+    <!-- Basic SEO -->
+    <meta name="description" content="RelayTalk - Connect with friends instantly">
+    <meta name="keywords" content="RelayTalk, messaging, chat, friends">
 
-    <!-- Google-specific meta tags -->
-    <meta itemprop="name" content="RelayTalk Official Site - Instant Messaging App">
-    <meta itemprop="description" content="Official RelayTalk site - Free instant messaging app. Chat with friends in real-time. Works offline. No installation needed.">
-    <meta itemprop="image" content="https://relaytalk.github.io/relay.png">
-
-    <!-- ====== BASIC SEO ====== -->
-    <!-- DESCRIPTION -->
-    <meta name="description" content="RelayTalk Official Site: Free instant messaging app. Chat with friends in real-time, send notifications, search users. PWA works offline. No installation required.">
-
-    <!-- KEYWORDS -->
-    <meta name="keywords" content="RelayTalk official site, official RelayTalk, messaging app, instant chat, PWA messenger, connect with friends, real-time chat, friend finder, free chat app, offline messaging, web messaging">
-
-    <!-- ====== OPEN GRAPH ====== -->
+    <!-- Open Graph -->
     <meta property="og:type" content="website">
-    <meta property="og:site_name" content="RelayTalk Official Site">
-    <meta property="og:title" content="RelayTalk Official Site - Free Instant Messaging App">
-    <meta property="og:description" content="Official RelayTalk site - Chat with friends instantly. Real-time messaging, offline support, no app installation needed.">
+    <meta property="og:site_name" content="RelayTalk">
+    <meta property="og:title" content="RelayTalk">
+    <meta property="og:description" content="RelayTalk - Connect with friends instantly">
     <meta property="og:url" content="https://relaytalk.github.io/">
     <meta property="og:image" content="https://relaytalk.github.io/relay.png">
     <meta property="og:image:width" content="512">
     <meta property="og:image:height" content="512">
-    <meta property="og:image:alt" content="RelayTalk Official Site - Messenger Logo">
+    <meta property="og:image:alt" content="RelayTalk">
     <meta property="og:locale" content="en_US">
 
-    <!-- ====== TWITTER CARD ====== -->
+    <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:site" content="@RelayTalk">
-    <meta name="twitter:title" content="RelayTalk Official Site - Instant Messaging">
-    <meta name="twitter:description" content="Official RelayTalk site - Message friends instantly. Fast, secure, and works offline.">
+    <meta name="twitter:title" content="RelayTalk">
+    <meta name="twitter:description" content="RelayTalk - Connect with friends instantly">
     <meta name="twitter:image" content="https://relaytalk.github.io/relay.png">
     <meta name="twitter:creator" content="@RelayTalk">
 
-    <!-- ====== CANONICAL & ALTERNATE URLs ====== -->
+    <!-- Canonical -->
     <link rel="canonical" href="https://relaytalk.github.io/">
-    <link rel="alternate" href="https://relaytalk.github.io/" hreflang="en">
 
-    <!-- ====== FAVICON SECTION ====== -->
-    <!-- Primary favicon -->
+    <!-- Favicon -->
     <link rel="icon" href="/favicon.ico" type="image/x-icon">
-
-    <!-- PNG versions for modern browsers -->
     <link rel="icon" href="/relay.png" type="image/png" sizes="192x192">
     <link rel="icon" href="/relay.png" type="image/png" sizes="512x512">
-
-    <!-- Apple touch icon -->
     <link rel="apple-touch-icon" href="/relay.png">
-    <link rel="apple-touch-icon-precomposed" href="/relay.png">
 
-    <!-- SVG FALLBACK - Will show if PNG/ICO fails -->
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22 fill=%22%23637dff%22>✨</text></svg>" type="image/svg+xml">
-
-    <!-- MICROSOFT TILE ICON -->
-    <meta name="msapplication-TileImage" content="/relay.png">
-    <meta name="msapplication-TileColor" content="#0a0a1a">
-    <meta name="msapplication-config" content="none">
-
-    <!-- ====== PWA CONFIGURATION ====== -->
-    <link rel="manifest" href="/manifest.json" crossorigin="use-credentials">
-
-    <!-- PWA META TAGS -->
+    <!-- PWA -->
+    <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#0a0a1a">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="RelayTalk Official">
+    <meta name="apple-mobile-web-app-title" content="RelayTalk">
+    <meta name="application-name" content="RelayTalk">
 
-    <!-- APPLICATION NAME -->
-    <meta name="application-name" content="RelayTalk Official Site">
-
-    <!-- FORMAT DETECTION -->
-    <meta name="format-detection" content="telephone=no">
-    <meta name="format-detection" content="address=no">
-    <meta name="format-detection" content="email=no">
-
-    <!-- ====== STRUCTURED DATA FOR GOOGLE ====== -->
-    <!-- This is CRITICAL to fix "GitHub" showing in search results -->
+    <!-- Single Structured Data (Web) -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
-      "@type": "WebApplication",
-      "name": "RelayTalk Official Site",
-      "alternateName": "RelayTalk Messenger Official",
+      "@type": "WebSite",
+      "name": "RelayTalk",
       "url": "https://relaytalk.github.io/",
-      "logo": "https://relaytalk.github.io/relay.png",
-      "description": "Official RelayTalk site - Instant messaging app for friends with real-time notifications and search functionality. Works offline. No installation needed.",
-      "applicationCategory": "CommunicationApplication",
-      "operatingSystem": "Any",
-      "offers": {
-        "@type": "Offer",
-        "price": "0",
-        "priceCurrency": "USD"
-      },
-      "author": {
-        "@type": "Organization",
-        "name": "RelayTalk Official",
-        "url": "https://relaytalk.github.io/"
-      },
-      "publisher": {
-        "@type": "Organization", 
-        "name": "RelayTalk Official",
-        "url": "https://relaytalk.github.io/"
-      },
-      "sameAs": [
-        "https://relaytalk.github.io/"
-      ]
+      "description": "RelayTalk - Connect with friends instantly",
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": "https://relaytalk.github.io/search?q={search_term_string}",
+        "query-input": "required name=search_term_string"
+      }
     }
     </script>
 
-    <!-- Organization Schema -->
-    <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "Organization",
-      "name": "RelayTalk Official",
-      "url": "https://relaytalk.github.io/",
-      "logo": "https://relaytalk.github.io/relay.png",
-      "description": "Official RelayTalk site - Free instant messaging app for friends with real-time chat and offline support.",
-      "sameAs": []
-    }
-    </script>
-
-    <!-- Breadcrumb Schema -->
-    <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "BreadcrumbList",
-      "itemListElement": [{
-        "@type": "ListItem",
-        "position": 1,
-        "name": "Home",
-        "item": "https://relaytalk.github.io/"
-      }]
-    }
-    </script>
-
-    <!-- ====== STYLESHEETS ====== -->
+    <!-- Stylesheets -->
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="opening.css">
 
-    <!-- ====== SERVICE WORKER ====== -->
+    <!-- Service Worker -->
     <script>
-        // Service Worker with auto-cache
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', function() {
-                console.log('🚀 Registering Service Worker with auto-cache...');
-
-                // Clear old registrations
                 navigator.serviceWorker.getRegistrations()
                     .then(registrations => {
                         return Promise.all(registrations.map(r => r.unregister()));
                     })
                     .then(() => {
-                        // Register new service worker
                         return navigator.serviceWorker.register('/service-worker.js', {
                             scope: '/',
                             updateViaCache: 'none'
                         });
                     })
                     .then(registration => {
-                        console.log('✅ Service Worker registered:', registration.scope);
-
-                        // Wait for activation
                         if (registration.active) {
-                            console.log('⚡ Service Worker active, starting game cache...');
-
-                            // Trigger game caching after 2 seconds
                             setTimeout(() => {
                                 if (navigator.onLine && registration.active) {
-                                    console.log('🚗 Triggering auto-cache for game...');
                                     registration.active.postMessage({ 
                                         type: 'AUTO_CACHE_GAME' 
                                     });
                                 }
                             }, 2000);
-                        } else if (registration.installing) {
-                            registration.installing.addEventListener('statechange', () => {
-                                if (registration.active && navigator.onLine) {
-                                    console.log('🚗 Triggering auto-cache after activation...');
-                                    setTimeout(() => {
-                                        registration.active.postMessage({ 
-                                            type: 'AUTO_CACHE_GAME' 
-                                        });
-                                    }, 1000);
-                                }
-                            });
                         }
-
-                        // Force update
                         registration.update();
-
-                        // Listen for messages from SW
-                        navigator.serviceWorker.addEventListener('message', event => {
-                            if (event.data.type === 'GAME_CACHED') {
-                                console.log('🎮 Game cached successfully:', event.data.cachedCount, 'files');
-                            }
-                        });
                     })
                     .catch(error => {
-                        console.log('❌ Service Worker registration failed:', error);
+                        console.log('Service Worker error:', error);
                     });
             });
         }
 
-        // Clear localStorage cache for fresh load
         if (window.location.search.indexOf('fresh') !== -1) {
             localStorage.clear();
             sessionStorage.clear();
-            console.log('🧹 Cleared all cache for fresh load');
         }
-
-        // Log structured data for debugging
-        console.log('🔍 RelayTalk Official Site Structured Data Loaded');
-        console.log('📱 PWA: Manifest loaded');
     </script>
 
-    <!-- ====== INLINE STYLES ====== -->
     <style>
         @keyframes fadeIn { 
             from { opacity: 0; transform: translateY(20px); } 
             to { opacity: 1; transform: translateY(0); } 
         }
-
         .standalone-mode .bottom-nav { 
             padding-bottom: env(safe-area-inset-bottom); 
         }
-
-        /* Hide during PWA install */
         @media (display-mode: standalone) {
             .install-prompt { display: none !important; }
         }
-
-        /* Print styles */
         @media print {
             .no-print { display: none !important; }
         }
     </style>
 </head>
 <body>
-    <!-- OPENING ANIMATION -->
     <div class="opening-screen" id="openingScreen">
         <div class="luster-text">✨Relay</div>
     </div>
 
-    <!-- MAIN CONTENT -->
     <div class="main-content" id="mainContent">
         <div class="welcome-container">
             <div class="logo">✨</div>
-            <h1 class="title">Welcome to Relay Official</h1>
-            <p class="subtitle">Official RelayTalk site - Connect with friends using search & notifications</p>
+            <h1 class="title">RelayTalk</h1>
+            <p class="subtitle">Connect with friends instantly</p>
 
             <div class="features">
                 <div class="feature-card">
                     <div class="feature-icon">🔍</div>
-                    <h3>Search & Connect</h3>
-                    <p>Find users by username and send requests</p>
+                    <h3>Search Friends</h3>
+                    <p>Find and connect with friends</p>
                 </div>
                 <div class="feature-card">
                     <div class="feature-icon">🔔</div>
-                    <h3>Accept/Decline</h3>
-                    <p>Manage friend requests with notifications</p>
+                    <h3>Notifications</h3>
+                    <p>Stay updated with messages</p>
                 </div>
                 <div class="feature-card">
                     <div class="feature-icon">💬</div>
                     <h3>Instant Chat</h3>
-                    <p>Message friends in real-time</p>
+                    <p>Real-time messaging</p>
                 </div>
             </div>
 
             <div class="action-buttons">
                 <button class="btn-primary" onclick="goToSignup()">Create Account</button>
-                <button class="btn-secondary" onclick="goToLogin()">I Have an Account</button>
+                <button class="btn-secondary" onclick="goToLogin()">Login</button>
             </div>
         </div>
     </div>
 
-    <!-- ====== SCRIPTS ====== -->
     <script>
-        // Navigation functions
         function goToLogin() { 
             window.location.href = 'pages/login/index.html?v=' + Date.now();
         }
@@ -303,11 +170,9 @@
             window.location.href = 'pages/auth/index.html?v=' + Date.now();
         }
 
-        // Make global
         window.goToLogin = goToLogin;
         window.goToSignup = goToSignup;
 
-        // Add cache busting parameter to all internal links
         document.addEventListener('DOMContentLoaded', function() {
             const links = document.querySelectorAll('a[href^="/"]');
             links.forEach(link => {
@@ -316,15 +181,9 @@
                     link.setAttribute('href', href + '?v=' + Date.now());
                 }
             });
-
-            // Log for debugging
-            console.log('🚀 RelayTalk Official Site v1.0 loaded');
-            console.log('📄 Title:', document.title);
-            console.log('🏷️ Description:', document.querySelector('meta[name="description"]').content);
         });
     </script>
 
-    <!-- AUTH CHECK -->
     <script type="module">
         import { auth } from './utils/auth.js';
 
@@ -336,10 +195,9 @@
                     return;
                 }
             } catch (error) { 
-                console.error("Auth check error:", error);
+                console.error("Auth error:", error);
             }
 
-            // Show main content after check
             setTimeout(() => {
                 const openingScreen = document.getElementById('openingScreen');
                 const mainContent = document.getElementById('mainContent');
@@ -364,20 +222,7 @@
 
         document.addEventListener('DOMContentLoaded', checkUserAndRedirect);
     </script>
-    
-    <!-- Service Worker Manager -->
+
     <script src="/utils/sw-manager.js"></script>
-    
-    <!-- Structured Data for Page Content -->
-    <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "WebPage",
-      "name": "RelayTalk Official Site - Home",
-      "description": "Welcome to RelayTalk Official Site - instant messaging app",
-      "url": "https://relaytalk.github.io/",
-      "lastReviewed": "2024-01-12"
-    }
-    </script>
 </body>
 </html>
