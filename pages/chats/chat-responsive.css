@@ -19,29 +19,25 @@
     .chat-header {
         padding: 16px 18px; /* Adjusted */
         height: 76px; /* Adjusted */
-        background: #ffffff; /* White */
-        border-bottom: 1px solid #e0e0e0; /* Light border */
     }
-
+    
     .main-content {
         margin-top: 76px; /* Adjusted */
         margin-bottom: 92px; /* Adjusted */
         height: calc(100vh - 168px); /* Adjusted */
     }
-
+    
     .messages-container {
         padding: 18px 18px 60px 18px; /* Adjusted */
     }
-
+    
     .message {
         max-width: 80%;
     }
-
+    
     .message-input-wrapper {
         padding: 14px 18px 17px 18px; /* Adjusted */
         height: 90px; /* Adjusted */
-        background: #ffffff; /* White */
-        border-top: 1px solid #e0e0e0; /* Light border */
     }
 }
 
@@ -57,8 +53,6 @@
     .chat-header {
         padding: 14px 16px; /* Adjusted */
         height: 72px; /* Adjusted */
-        background: #ffffff; /* White */
-        border-bottom: 1px solid #e0e0e0; /* Light border */
     }
 
     .main-content {
@@ -74,8 +68,6 @@
     .message-input-wrapper {
         padding: 12px 16px 15px 16px; /* Adjusted */
         height: 85px; /* Adjusted */
-        background: #ffffff; /* White */
-        border-top: 1px solid #e0e0e0; /* Light border */
     }
 
     .message-input {
@@ -83,44 +75,27 @@
         min-height: 46px; /* Adjusted */
         border-radius: 22px; /* Adjusted */
         font-size: 16px !important;
-        background: #f5f5f5; /* Light gray */
-        border: 1px solid #d1d3ff; /* Light purple border */
-        color: #333333; /* Dark text */
     }
 
     .send-btn {
         width: 46px; /* Adjusted */
         height: 46px; /* Adjusted */
         font-size: 1.1rem; /* Adjusted */
-        background: linear-gradient(45deg, #8789ff, #9b9cff); /* Your purple gradient */
     }
 
     .message {
         max-width: 85%;
         padding: 12px 16px; /* Adjusted */
     }
-
-    .message.sent {
-        background: linear-gradient(45deg, #8789ff, #9b9cff); /* Purple gradient */
-    }
-
-    .message.received {
-        background: #f0f0f0; /* Light gray */
-        color: #333333; /* Dark text */
-    }
-
+    
     .chat-user-avatar {
         width: 46px; /* Adjusted */
         height: 46px; /* Adjusted */
-        background: linear-gradient(45deg, #8789ff, #9b9cff); /* Purple gradient */
     }
-
+    
     .custom-alert {
         padding: 24px; /* Adjusted */
         max-width: 340px; /* Adjusted */
-        background: white; /* White */
-        border: 1px solid #e0e0e0; /* Light border */
-        color: #333333; /* Dark text */
     }
 }
 
@@ -129,39 +104,31 @@
     .chat-header {
         height: 66px; /* Adjusted */
         padding: 12px 15px; /* Adjusted */
-        background: #ffffff; /* White */
-        border-bottom: 1px solid #e0e0e0; /* Light border */
     }
-
+    
     .main-content {
         margin-top: 66px; /* Adjusted */
         margin-bottom: 75px; /* Adjusted */
         height: calc(100vh - 141px); /* Adjusted */
     }
-
+    
     .messages-container {
         padding: 12px 15px 40px 15px; /* Adjusted */
     }
-
+    
     .message-input-wrapper {
         height: 75px; /* Adjusted */
         padding: 10px 15px 13px 15px; /* Adjusted */
-        background: #ffffff; /* White */
-        border-top: 1px solid #e0e0e0; /* Light border */
     }
-
+    
     .message-input {
         min-height: 44px; /* Adjusted */
         padding: 10px 14px; /* Adjusted */
-        background: #f5f5f5; /* Light gray */
-        border: 1px solid #d1d3ff; /* Light purple border */
-        color: #333333; /* Dark text */
     }
-
+    
     .send-btn {
         width: 44px; /* Adjusted */
         height: 44px; /* Adjusted */
-        background: linear-gradient(45deg, #8789ff, #9b9cff); /* Purple gradient */
     }
 }
 
@@ -170,8 +137,6 @@
     .chat-header {
         padding: 12px 14px; /* Adjusted */
         height: 66px; /* Adjusted */
-        background: #ffffff; /* White */
-        border-bottom: 1px solid #e0e0e0; /* Light border */
     }
 
     .main-content {
@@ -187,8 +152,6 @@
     .message-input-wrapper {
         padding: 10px 14px 13px 14px; /* Adjusted */
         height: 80px; /* Adjusted */
-        background: #ffffff; /* White */
-        border-top: 1px solid #e0e0e0; /* Light border */
     }
 
     .message-input-container {
@@ -200,74 +163,44 @@
         padding: 11px 15px; /* Adjusted */
     }
 
-    .message.sent {
-        background: linear-gradient(45deg, #8789ff, #9b9cff); /* Purple gradient */
-    }
-
-    .message.received {
-        background: #f0f0f0; /* Light gray */
-        color: #333333; /* Dark text */
-    }
-
     .chat-user-avatar {
         width: 44px; /* Adjusted */
         height: 44px; /* Adjusted */
         font-size: 1.2rem; /* Adjusted */
-        background: linear-gradient(45deg, #8789ff, #9b9cff); /* Purple gradient */
     }
 
     .back-btn,
     .chat-action-btn {
         width: 40px; /* Adjusted */
         height: 40px; /* Adjusted */
-        color: #8789ff; /* Purple */
-    }
-
-    .back-btn:hover,
-    .chat-action-btn:hover {
-        background: #edefff; /* Light purple */
     }
 
     .message-input {
         font-size: 1rem; /* Adjusted */
         min-height: 44px; /* Adjusted */
         padding: 10px 14px; /* Adjusted */
-        background: #f5f5f5; /* Light gray */
-        border: 1px solid #d1d3ff; /* Light purple border */
-        color: #333333; /* Dark text */
     }
 
     .send-btn {
         width: 44px; /* Adjusted */
         height: 44px; /* Adjusted */
         font-size: 1.05rem; /* Adjusted */
-        background: linear-gradient(45deg, #8789ff, #9b9cff); /* Purple gradient */
     }
-
+    
     .custom-alert {
         padding: 22px; /* Adjusted */
         max-width: 330px; /* Adjusted */
-        background: white; /* White */
-        border: 1px solid #e0e0e0; /* Light border */
-        color: #333333; /* Dark text */
     }
-
+    
     .custom-alert-buttons {
         flex-direction: column;
         gap: 10px; /* Adjusted */
     }
-
+    
     .alert-btn {
         width: 100%;
         min-width: auto;
         padding: 11px 24px; /* Adjusted */
-        background: #edefff; /* Light purple */
-        color: #8789ff; /* Purple */
-        border: 1px solid #d1d3ff; /* Light purple border */
-    }
-
-    .alert-btn:hover {
-        background: #d1d3ff; /* Medium light purple */
     }
 }
 
@@ -276,8 +209,6 @@
     .chat-header {
         padding: 10px 12px; /* Adjusted */
         height: 62px; /* Adjusted */
-        background: #ffffff; /* White */
-        border-bottom: 1px solid #e0e0e0; /* Light border */
     }
 
     .main-content {
@@ -294,8 +225,6 @@
     .message-input-wrapper {
         padding: 8px 12px 11px 12px; /* Adjusted */
         height: 75px; /* Adjusted */
-        background: #ffffff; /* White */
-        border-top: 1px solid #e0e0e0; /* Light border */
     }
 
     .message {
@@ -304,66 +233,40 @@
         font-size: 0.98rem; /* Adjusted */
     }
 
-    .message.sent {
-        background: linear-gradient(45deg, #8789ff, #9b9cff); /* Purple gradient */
-    }
-
-    .message.received {
-        background: #f0f0f0; /* Light gray */
-        color: #333333; /* Dark text */
-    }
-
     .chat-user-avatar {
         width: 40px; /* Adjusted */
         height: 40px; /* Adjusted */
         font-size: 1.1rem; /* Adjusted */
-        background: linear-gradient(45deg, #8789ff, #9b9cff); /* Purple gradient */
     }
 
     .chat-user-details h3 {
         font-size: 1.15rem; /* Adjusted */
-        color: #333333; /* Dark text */
     }
 
     .chat-user-status {
         font-size: 0.85rem; /* Adjusted */
-        color: #666666; /* Medium gray */
-    }
-
-    .status-dot {
-        background: #4caf50; /* Green */
     }
 
     .message-input {
         min-height: 42px; /* Adjusted */
         font-size: 0.95rem; /* Adjusted */
         padding: 9px 13px; /* Adjusted */
-        background: #f5f5f5; /* Light gray */
-        border: 1px solid #d1d3ff; /* Light purple border */
-        color: #333333; /* Dark text */
     }
 
     .send-btn {
         width: 42px; /* Adjusted */
         height: 42px; /* Adjusted */
         font-size: 1rem; /* Adjusted */
-        background: linear-gradient(45deg, #8789ff, #9b9cff); /* Purple gradient */
     }
-
+    
     .empty-chat-icon {
         font-size: 3.5rem;
-        color: #8789ff; /* Purple */
     }
-
+    
     .empty-chat h3 {
         font-size: 1.2rem;
-        color: #333333; /* Dark text */
     }
-
-    .empty-chat p {
-        color: #666666; /* Medium gray */
-    }
-
+    
     .message-input-container {
         gap: 10px; /* Adjusted */
     }
@@ -374,72 +277,53 @@
     .chat-header {
         padding: 8px 10px; /* Adjusted */
         height: 60px; /* Adjusted */
-        background: #ffffff; /* White */
-        border-bottom: 1px solid #e0e0e0; /* Light border */
     }
-
+    
     .main-content {
         margin-top: 60px; /* Adjusted */
         margin-bottom: 72px; /* Adjusted */
         height: calc(100vh - 132px); /* Adjusted */
     }
-
+    
     .messages-container {
         padding: 10px 10px 40px 10px; /* Adjusted */
     }
-
+    
     .message {
         max-width: 92%;
         padding: 9px 12px; /* Adjusted */
         font-size: 0.95rem; /* Adjusted */
     }
-
-    .message.sent {
-        background: linear-gradient(45deg, #8789ff, #9b9cff); /* Purple gradient */
-    }
-
-    .message.received {
-        background: #f0f0f0; /* Light gray */
-        color: #333333; /* Dark text */
-    }
-
+    
     .message-input-wrapper {
         padding: 7px 10px 10px 10px; /* Adjusted */
         height: 70px; /* Adjusted */
-        background: #ffffff; /* White */
-        border-top: 1px solid #e0e0e0; /* Light border */
     }
-
+    
     .message-input {
         min-height: 40px; /* Adjusted */
         padding: 8px 12px; /* Adjusted */
         font-size: 0.9rem; /* Adjusted */
-        background: #f5f5f5; /* Light gray */
-        border: 1px solid #d1d3ff; /* Light purple border */
-        color: #333333; /* Dark text */
     }
-
+    
     .send-btn {
         width: 40px; /* Adjusted */
         height: 40px; /* Adjusted */
         font-size: 0.95rem; /* Adjusted */
-        background: linear-gradient(45deg, #8789ff, #9b9cff); /* Purple gradient */
     }
-
+    
     .back-btn,
     .chat-action-btn {
         width: 38px; /* Adjusted */
         height: 38px; /* Adjusted */
         font-size: 1.2rem; /* Adjusted */
-        color: #8789ff; /* Purple */
     }
-
+    
     .chat-user-avatar {
         width: 38px; /* Adjusted */
         height: 38px; /* Adjusted */
-        background: linear-gradient(45deg, #8789ff, #9b9cff); /* Purple gradient */
     }
-
+    
     .message-input-container {
         gap: 8px; /* Adjusted */
     }
@@ -450,53 +334,36 @@
     .chat-header {
         height: 60px; /* Adjusted */
         padding: 10px 15px; /* Adjusted */
-        background: #ffffff; /* White */
-        border-bottom: 1px solid #e0e0e0; /* Light border */
     }
-
+    
     .main-content {
         margin-top: 60px; /* Adjusted */
         margin-bottom: 72px; /* Adjusted */
         height: calc(100vh - 132px); /* Adjusted */
     }
-
+    
     .messages-container {
         padding: 12px 15px 40px 15px; /* Adjusted */
     }
-
+    
     .message {
         padding: 9px 13px; /* Adjusted */
         margin-bottom: 7px; /* Adjusted */
     }
-
-    .message.sent {
-        background: linear-gradient(45deg, #8789ff, #9b9cff); /* Purple gradient */
-    }
-
-    .message.received {
-        background: #f0f0f0; /* Light gray */
-        color: #333333; /* Dark text */
-    }
-
+    
     .message-input-wrapper {
         height: 72px; /* Adjusted */
         padding: 10px 15px 13px 15px; /* Adjusted */
-        background: #ffffff; /* White */
-        border-top: 1px solid #e0e0e0; /* Light border */
     }
-
+    
     .message-input {
         min-height: 40px; /* Adjusted */
         max-height: 85px; /* Adjusted */
-        background: #f5f5f5; /* Light gray */
-        border: 1px solid #d1d3ff; /* Light purple border */
-        color: #333333; /* Dark text */
     }
-
+    
     .empty-chat-icon {
         font-size: 3rem;
         margin-bottom: 15px;
-        color: #8789ff; /* Purple */
     }
 }
 
@@ -504,29 +371,5 @@
 @media (max-width: 768px) {
     input, textarea {
         font-size: 16px !important;
-    }
-}
-
-/* Additional responsive tweaks */
-@media (max-width: 768px) {
-    .chat-user-details h3 {
-        font-size: 1.2rem;
-    }
-
-    .chat-user-status {
-        font-size: 0.85rem;
-    }
-}
-
-/* Dark mode support (optional) */
-@media (prefers-color-scheme: dark) {
-    .chat-header {
-        background: #1a1a2e;
-        border-color: rgba(255, 255, 255, 0.1);
-    }
-
-    .message-input-wrapper {
-        background: #1a1a2e;
-        border-color: rgba(255, 255, 255, 0.1);
     }
 }
