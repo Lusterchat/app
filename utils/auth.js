@@ -1,100 +1,117 @@
-// File: utils/auth.js - SIMPLE USERNAME-ONLY AUTH SYSTEM
-import { supabase } from './supabase.js'
-
+// utils/auth.js - COMPLETE WORKING VERSION
 export const auth = {
-  // Sign in existing user
-  async signIn(username, password) {
-    try {
-      console.log("🔐 Login attempt:", username);
-
-      // Use @luster.test domain (SAME AS CREATE ACCOUNT!)
-      const internalEmail = `${username}@luster.test`;
-
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: internalEmail,
-        password: password
-      });
-
-      if (error) throw error;
-
-      console.log("✅ Login successful:", username);
-      return {
-        success: true,
-        user: data.user,
-        message: 'Login successful!'
-      };
-
-    } catch (error) {
-      console.error('❌ Login error:', error.message);
-      return {
-        success: false,
-        error: error.message,
-        message: 'Invalid username or password'
-      };
+    async signIn(username, password) {
+        try {
+            console.log('🔐 Login attempt:', username);
+            
+            if (!window.supabase) {
+                console.log('Waiting for Supabase...');
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+            
+            if (!window.supabase?.auth) {
+                return {
+                    success: false,
+                    message: 'Service unavailable. Try again later.'
+                };
+            }
+            
+            const email = `${username}@luster.test`;
+            console.log('Attempting login with email:', email);
+            
+            const { data, error } = await window.supabase.auth.signInWithPassword({
+                email: email,
+                password: password
+            });
+            
+            if (error) {
+                console.error('Login error:', error.message);
+                
+                if (error.message.includes('Invalid')) {
+                    return {
+                        success: false,
+                        message: 'Invalid username or password'
+                    };
+                }
+                
+                return {
+                    success: false,
+                    message: 'Login failed. Please try again.'
+                };
+            }
+            
+            console.log('✅ Login successful:', data.user?.email);
+            return {
+                success: true,
+                user: data.user,
+                message: 'Login successful!'
+            };
+            
+        } catch (error) {
+            console.error('Login exception:', error);
+            return {
+                success: false,
+                message: 'Something went wrong. Please try again.'
+            };
+        }
+    },
+    
+    async signOut() {
+        try {
+            if (window.supabase?.auth) {
+                await window.supabase.auth.signOut();
+            }
+            return { success: true, message: 'Logged out' };
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
+    },
+    
+    async getCurrentUser() {
+        try {
+            if (!window.supabase?.auth) {
+                return { success: false, error: 'Auth not ready' };
+            }
+            
+            const { data, error } = await window.supabase.auth.getUser();
+            
+            if (error) {
+                console.log('Get user error:', error.message);
+                return { success: false, error: error.message };
+            }
+            
+            if (!data.user) {
+                return { success: false, error: 'No user found' };
+            }
+            
+            console.log('Current user:', data.user.email);
+            return {
+                success: true,
+                user: data.user,
+                profile: null
+            };
+            
+        } catch (error) {
+            console.error('Get user exception:', error);
+            return { success: false, error: error.message };
+        }
+    },
+    
+    async isLoggedIn() {
+        try {
+            if (!window.supabase?.auth) return false;
+            const { data } = await window.supabase.auth.getSession();
+            return !!data?.session;
+        } catch (error) {
+            return false;
+        }
+    },
+    
+    getErrorMessage(error) {
+        const msg = error?.message?.toLowerCase() || '';
+        if (msg.includes('invalid')) return 'Invalid credentials';
+        if (msg.includes('password')) return 'Password is incorrect';
+        if (msg.includes('user')) return 'User not found';
+        return 'Something went wrong';
     }
-  },
-
-  // Sign out
-  async signOut() {
-    try {
-      await supabase.auth.signOut();
-      return { success: true, message: 'Logged out successfully' };
-    } catch (error) {
-      return { success: false, error: error.message };
-    }
-  },
-
-  // Get current user
-  async getCurrentUser() {
-    try {
-      const { data, error } = await supabase.auth.getUser();
-      if (error) throw error;
-
-      // Also get profile data
-      if (data.user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', data.user.id)
-          .maybeSingle();
-
-        return { 
-          success: true, 
-          user: data.user,
-          profile: profile
-        };
-      }
-
-      return { success: false, error: 'No user found' };
-    } catch (error) {
-      return { success: false, error: error.message };
-    }
-  },
-
-  // Check if logged in
-  async isLoggedIn() {
-    try {
-      const { data } = await supabase.auth.getSession();
-      return !!data.session;
-    } catch (error) {
-      return false;
-    }
-  },
-
-  // Simple error messages
-  getErrorMessage(error) {
-    const msg = error.message.toLowerCase();
-
-    if (msg.includes('already') || msg.includes('exists')) {
-      return 'Username already taken';
-    }
-    if (msg.includes('invalid') || msg.includes('incorrect')) {
-      return 'Invalid username or password';
-    }
-    if (msg.includes('password')) {
-      return 'Password must be at least 6 characters';
-    }
-
-    return 'Something went wrong. Please try again.';
-  }
 };
