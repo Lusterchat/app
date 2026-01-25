@@ -5,7 +5,7 @@
     left: 0;
     width: 100%;
     height: 100%;
-    background: #0a0a1a;
+    background: #ffffff; /* White background */
     display: flex;
     justify-content: center;
     align-items: center;
@@ -17,11 +17,11 @@
     font-size: 5rem;
     font-weight: 800;
     background: linear-gradient(45deg, 
-        #667eea 0%, 
-        #764ba2 25%, 
-        #ff6b8b 50%, 
-        #764ba2 75%, 
-        #667eea 100%);
+        #8789ff 0%, 
+        #9b9cff 25%, 
+        #b1b2ff 50%, 
+        #9b9cff 75%, 
+        #8789ff 100%); /* Purple gradient using your color */
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -50,14 +50,14 @@
 @keyframes glow {
     from {
         text-shadow: 
-            0 0 10px rgba(102, 126, 234, 0.5),
-            0 0 20px rgba(118, 75, 162, 0.3);
+            0 0 10px rgba(135, 137, 255, 0.3),
+            0 0 20px rgba(155, 156, 255, 0.2);
     }
     to {
         text-shadow: 
-            0 0 15px rgba(102, 126, 234, 0.7),
-            0 0 30px rgba(118, 75, 162, 0.5),
-            0 0 45px rgba(255, 107, 139, 0.3);
+            0 0 15px rgba(135, 137, 255, 0.5),
+            0 0 30px rgba(155, 156, 255, 0.3),
+            0 0 45px rgba(177, 178, 255, 0.2);
     }
 }
 
