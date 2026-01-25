@@ -3,854 +3,737 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Offline Mode | RelayTalk</title>
+    <title>Offline | RelayTalk</title>
     <link rel="icon" href="/relay.png" type="image/png">
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            font-family: 'Segoe UI', 'Segoe UI', system-ui, -apple-system, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+            -webkit-user-select: none;
         }
 
         body {
-            background: linear-gradient(135deg, #0a0a1a 0%, #1a1a2e 100%);
-            color: #ffffff;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            color: #f8fafc;
             min-height: 100vh;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             padding: 20px;
-            text-align: center;
-            overflow-x: hidden;
-        }
-
-        .stars {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            z-index: -1;
-        }
-
-        .star {
-            position: absolute;
-            background: white;
-            border-radius: 50%;
-            animation: twinkle 3s infinite;
-        }
-
-        @keyframes twinkle {
-            0%, 100% { opacity: 0.3; }
-            50% { opacity: 1; }
+            -webkit-touch-callout: none;
         }
 
         .container {
-            max-width: 800px;
             width: 100%;
-            padding: 40px;
-            background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(20px);
-            border-radius: 30px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
-            animation: floatUp 0.8s ease;
-            position: relative;
-            overflow: hidden;
+            max-width: 500px;
+            text-align: center;
+            animation: fadeIn 0.5s ease;
         }
 
-        .container::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 4px;
-            background: linear-gradient(90deg, #ff6b6b, #4ecdc4, #45b7d1, #96ceb4, #feca57, #ff9ff3, #54a0ff);
-            animation: rainbow 8s linear infinite;
-        }
-
-        @keyframes rainbow {
-            0% { background-position: 0% 50%; }
-            100% { background-position: 400% 50%; }
-        }
-
-        @keyframes floatUp {
-            from { opacity: 0; transform: translateY(40px); }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
         }
 
-        .emoji-header {
-            font-size: 8rem;
-            margin-bottom: 20px;
-            animation: bounce 2s infinite;
-            filter: drop-shadow(0 10px 20px rgba(0, 0, 0, 0.3));
-        }
-
-        @keyframes bounce {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-20px); }
-        }
-
-        h1 {
-            font-size: 3.5rem;
-            margin-bottom: 10px;
-            background: linear-gradient(135deg, #ff6b6b, #4ecdc4, #45b7d1);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            letter-spacing: -0.5px;
-            font-weight: 800;
-        }
-
-        .subtitle {
-            font-size: 1.4rem;
-            color: #a0aec0;
-            margin-bottom: 50px;
-            line-height: 1.6;
-            max-width: 600px;
-            margin-left: auto;
-            margin-right: auto;
-        }
-
-        .game-section {
-            margin: 50px 0;
-            padding: 30px;
-            background: rgba(255, 255, 255, 0.03);
-            border-radius: 20px;
-            border: 2px dashed rgba(255, 255, 255, 0.1);
-            transition: all 0.3s ease;
-        }
-
-        .game-section:hover {
-            border-color: rgba(74, 222, 128, 0.3);
-            background: rgba(74, 222, 128, 0.05);
-            transform: translateY(-5px);
-        }
-
-        .game-icon {
-            font-size: 5rem;
-            margin-bottom: 20px;
-            animation: drive 4s infinite linear;
-            filter: drop-shadow(0 5px 15px rgba(74, 222, 128, 0.4));
-        }
-
-        @keyframes drive {
-            0% { transform: translateX(-100px); }
-            100% { transform: translateX(100px); }
-        }
-
-        .game-title {
-            font-size: 2.5rem;
-            margin-bottom: 10px;
-            color: #4ade80;
-            font-weight: 700;
-        }
-
-        .game-tag {
+        .status-badge {
             display: inline-flex;
             align-items: center;
             gap: 8px;
-            background: rgba(74, 222, 128, 0.2);
-            color: #4ade80;
-            padding: 8px 20px;
-            border-radius: 50px;
-            font-weight: 600;
+            padding: 8px 16px;
+            background: rgba(239, 68, 68, 0.15);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 500;
             margin-bottom: 30px;
-            border: 2px solid rgba(74, 222, 128, 0.3);
         }
 
-        .game-tag::before {
-            content: '✓';
-            font-weight: bold;
-        }
-
-        .play-button {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 15px;
-            background: linear-gradient(135deg, #4ade80, #22c55e);
-            color: white;
-            border: none;
-            padding: 22px 50px;
-            font-size: 1.5rem;
-            font-weight: 700;
-            border-radius: 15px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 10px 30px rgba(74, 222, 128, 0.3);
-            margin: 20px 0;
-            text-decoration: none;
-            min-width: 300px;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .play-button::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-            transition: 0.5s;
-        }
-
-        .play-button:hover::before {
-            left: 100%;
-        }
-
-        .play-button:hover {
-            transform: translateY(-8px) scale(1.05);
-            box-shadow: 0 20px 40px rgba(74, 222, 128, 0.4);
-            background: linear-gradient(135deg, #22c55e, #16a34a);
-        }
-
-        .play-button:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            transform: none !important;
-            background: linear-gradient(135deg, #6b7280, #4b5563);
-        }
-
-        .offline-status {
-            margin: 30px 0;
-            padding: 20px;
-            background: rgba(251, 191, 36, 0.1);
-            border-radius: 15px;
-            border-left: 5px solid #fbbf24;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 15px;
-            animation: pulse 2s infinite;
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background: #ef4444;
+            border-radius: 50%;
+            animation: pulse 1.5s infinite;
         }
 
         @keyframes pulse {
             0%, 100% { opacity: 1; }
-            50% { opacity: 0.7; }
+            50% { opacity: 0.5; }
         }
 
-        .status-emoji {
-            font-size: 2rem;
+        .offline-icon {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 20px;
+            opacity: 0.8;
         }
 
-        .status-text {
-            font-size: 1.2rem;
-            color: #fbbf24;
-            font-weight: 600;
-        }
-
-        .cache-info {
-            margin-top: 30px;
-            padding: 15px;
-            background: rgba(59, 130, 246, 0.1);
-            border-radius: 12px;
-            font-size: 0.95rem;
-            color: #93c5fd;
-            text-align: left;
-            border-left: 4px solid #3b82f6;
-        }
-
-        .fun-message {
-            margin-top: 40px;
-            font-size: 1.1rem;
-            color: #cbd5e1;
-            line-height: 1.6;
-            font-style: italic;
-            padding: 20px;
-            background: rgba(255, 255, 255, 0.03);
-            border-radius: 15px;
-            border: 1px solid rgba(255, 255, 255, 0.05);
-        }
-
-        .floating-elements {
-            position: fixed;
+        .offline-icon svg {
             width: 100%;
             height: 100%;
-            pointer-events: none;
-            z-index: -1;
+            fill: #ffffff;
         }
 
-        .floating-element {
-            position: absolute;
-            font-size: 2rem;
-            opacity: 0.1;
-            animation: floatAround 20s infinite linear;
+        h1 {
+            font-size: 2.2rem;
+            margin-bottom: 12px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #93c5fd, #c4b5fd);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
         }
 
-        @keyframes floatAround {
-            0% { transform: translate(0, 0) rotate(0deg); }
-            25% { transform: translate(100px, 100px) rotate(90deg); }
-            50% { transform: translate(50px, 200px) rotate(180deg); }
-            75% { transform: translate(-100px, 100px) rotate(270deg); }
-            100% { transform: translate(0, 0) rotate(360deg); }
-        }
-
-        .action-buttons {
-            display: flex;
-            gap: 15px;
-            margin-top: 30px;
-            flex-wrap: wrap;
-            justify-content: center;
-        }
-
-        .action-btn {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            padding: 14px 28px;
-            border-radius: 12px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            border: none;
+        .subtitle {
             font-size: 1rem;
-            min-width: 180px;
+            color: #cbd5e1;
+            margin-bottom: 40px;
+            line-height: 1.5;
+            user-select: none;
+            -webkit-user-select: none;
         }
 
-        .cache-btn {
-            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
-            color: white;
-        }
-
-        .cache-btn:hover:not(:disabled) {
-            transform: translateY(-3px);
-            box-shadow: 0 10px 25px rgba(59, 130, 246, 0.3);
-        }
-
-        .refresh-btn {
-            background: rgba(255, 255, 255, 0.1);
-            color: white;
-            border: 2px solid rgba(255, 255, 255, 0.2);
-        }
-
-        .refresh-btn:hover {
-            background: rgba(255, 255, 255, 0.2);
-            transform: translateY(-3px);
-        }
-
-        .progress-container {
-            width: 100%;
-            height: 8px;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 10px;
-            overflow: hidden;
-            margin: 20px 0;
-            display: none;
-        }
-
-        .progress-bar {
-            height: 100%;
-            background: linear-gradient(90deg, #4ade80, #3b82f6, #8b5cf6);
-            border-radius: 10px;
-            transition: width 0.3s ease;
-            width: 0%;
+        .game-card {
+            background: rgba(30, 41, 59, 0.6);
+            border-radius: 20px;
+            padding: 30px;
+            margin: 30px 0;
+            border: 1px solid rgba(255, 255, 255, 0.08);
             position: relative;
             overflow: hidden;
         }
 
-        .progress-bar::after {
+        .game-card::before {
             content: '';
             position: absolute;
             top: 0;
             left: 0;
             right: 0;
             bottom: 0;
-            background: linear-gradient(90deg, 
-                transparent 0%, 
-                rgba(255, 255, 255, 0.3) 50%, 
-                transparent 100%);
-            animation: shimmer 2s infinite;
+            background: radial-gradient(circle at 30% 70%, rgba(59, 130, 246, 0.1), transparent 60%);
+            pointer-events: none;
         }
 
-        @keyframes shimmer {
-            0% { transform: translateX(-100%); }
-            100% { transform: translateX(100%); }
+        .game-icon {
+            width: 100px;
+            height: 100px;
+            margin: 0 auto 20px;
+            animation: float 3s ease-in-out infinite;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
-        .error-message {
+        .game-icon svg {
+            width: 100%;
+            height: 100%;
+            fill: #ffffff;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .game-title {
+            font-size: 1.8rem;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+
+        .game-description {
+            color: #94a3b8;
+            font-size: 0.95rem;
+            margin-bottom: 25px;
+            line-height: 1.5;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        .action-row {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .play-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            color: white;
+            border: none;
+            padding: 16px 28px;
+            font-size: 1rem;
+            font-weight: 600;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            flex: 1;
+            max-width: 220px;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        .play-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(59, 130, 246, 0.3);
+            background: linear-gradient(135deg, #2563eb, #1e40af);
+        }
+
+        .play-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .play-btn:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        .btn-icon {
+            width: 20px;
+            height: 20px;
+        }
+
+        .btn-icon svg {
+            width: 100%;
+            height: 100%;
+            fill: currentColor;
+        }
+
+        .info-btn {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #94a3b8;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        .info-btn:hover {
+            background: rgba(255, 255, 255, 0.12);
+            border-color: rgba(255, 255, 255, 0.15);
+            color: #cbd5e1;
+        }
+
+        .info-btn:active {
+            transform: scale(0.95);
+        }
+
+        .info-btn svg {
+            width: 24px;
+            height: 24px;
+            fill: currentColor;
+        }
+
+        .game-details {
+            background: rgba(15, 23, 42, 0.8);
+            border-radius: 16px;
+            padding: 0;
+            margin: 20px 0;
+            border: 1px solid rgba(59, 130, 246, 0.2);
+            overflow: hidden;
+            max-height: 0;
+            opacity: 0;
+            transition: all 0.3s ease;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        .game-details.active {
+            max-height: 500px;
+            opacity: 1;
+            padding: 20px;
+        }
+
+        .details-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+            color: #3b82f6;
+            font-weight: 600;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        .details-header svg {
+            width: 20px;
+            height: 20px;
+            fill: #3b82f6;
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .feature {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        .feature-icon {
+            width: 24px;
+            height: 24px;
+            min-width: 24px;
+        }
+
+        .feature-icon svg {
+            width: 100%;
+            height: 100%;
+            fill: #60a5fa;
+        }
+
+        .feature-text {
+            font-size: 0.85rem;
+            color: #cbd5e1;
+            text-align: left;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        .highlights {
+            background: rgba(34, 197, 94, 0.1);
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 15px;
+            border-left: 4px solid #22c55e;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        .highlight-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #86efac;
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .highlight-title svg {
+            width: 16px;
+            height: 16px;
+            fill: #86efac;
+        }
+
+        .highlight-text {
+            font-size: 0.85rem;
+            color: #a7f3d0;
+            line-height: 1.4;
+        }
+
+        .status-info {
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 12px;
+            padding: 15px;
+            margin: 20px 0;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            font-size: 0.9rem;
+            color: #94a3b8;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 12px 24px;
+            background: rgba(255, 255, 255, 0.05);
+            color: #cbd5e1;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 0.9rem;
+            text-decoration: none;
+            margin-top: 20px;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        .back-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .back-btn:active {
+            transform: scale(0.98);
+        }
+
+        .back-btn svg {
+            width: 16px;
+            height: 16px;
+            fill: currentColor;
+        }
+
+        .notification {
+            background: rgba(34, 197, 94, 0.1);
+            color: #86efac;
+            padding: 12px 16px;
+            border-radius: 10px;
+            margin: 15px 0;
+            border-left: 4px solid #22c55e;
+            display: none;
+            font-size: 0.9rem;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        .warning {
             background: rgba(239, 68, 68, 0.1);
             color: #fca5a5;
-            padding: 15px;
-            border-radius: 12px;
-            margin: 20px 0;
-            border-left: 4px solid #ef4444;
-            display: none;
+            border-left-color: #ef4444;
         }
 
-        @media (max-width: 768px) {
+        @media (max-width: 640px) {
             .container {
-                padding: 25px;
-                margin: 10px;
+                padding: 0 10px;
             }
-            
+
             h1 {
-                font-size: 2.5rem;
+                font-size: 1.8rem;
             }
-            
-            .emoji-header {
-                font-size: 6rem;
+
+            .game-card {
+                padding: 25px 20px;
             }
-            
-            .play-button {
-                padding: 18px 30px;
-                font-size: 1.3rem;
-                min-width: 250px;
-            }
-            
+
             .game-icon {
-                font-size: 4rem;
+                width: 80px;
+                height: 80px;
             }
-            
+
             .game-title {
-                font-size: 2rem;
+                font-size: 1.6rem;
             }
-            
-            .action-buttons {
+
+            .offline-icon {
+                width: 70px;
+                height: 70px;
+            }
+
+            .feature-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .action-row {
                 flex-direction: column;
-                align-items: center;
             }
-            
-            .action-btn {
+
+            .play-btn {
+                max-width: 100%;
                 width: 100%;
-                max-width: 300px;
+            }
+
+            .info-btn {
+                width: 100%;
+                height: 48px;
             }
         }
 
-        @media (max-width: 480px) {
-            h1 {
-                font-size: 2rem;
-            }
-            
-            .emoji-header {
-                font-size: 5rem;
-            }
-            
-            .play-button {
-                padding: 16px 25px;
-                font-size: 1.2rem;
-                min-width: 200px;
-            }
+        /* Disable text selection */
+        .no-select {
+            user-select: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+        }
+
+        /* Remove blue tap highlight on mobile */
+        button,
+        a {
+            -webkit-tap-highlight-color: transparent;
+            outline: none;
+        }
+
+        button:focus,
+        a:focus {
+            outline: none;
         }
     </style>
 </head>
 <body>
-    <!-- Floating background elements -->
-    <div class="floating-elements" id="floatingElements"></div>
-    
-    <!-- Stars background -->
-    <div class="stars" id="stars"></div>
-
     <div class="container">
-        <div class="emoji-header" id="mainEmoji">🚀</div>
+        <div class="status-badge">
+            <div class="status-dot"></div>
+            <span>Offline</span>
+        </div>
+
+        <div class="offline-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 25 25">
+                <g data-name="Cloud Disable">
+                    <path d="m20.293 4-1.477 1.477A4.473 4.473 0 0 0 11.17 7.33 4.362 4.362 0 0 0 9.5 7a4.486 4.486 0 0 0-4.23 3.01 4.49 4.49 0 0 0 .042 8.971L4 20.293l.707.707L21 4.707zM19.99 8.21a3.936 3.936 0 0 0-.16-.92L8.12 19H18.5a5.497 5.497 0 0 0 1.49-10.79z" style="fill:#ffffff"/>
+                </g>
+            </svg>
+        </div>
+
+        <h1 class="no-select">You're Offline</h1>
         
-        <h1>Oops! You're Offline</h1>
-        
-        <p class="subtitle">
-            No internet? No problem! We've got some fun waiting for you.
-            While you're disconnected, enjoy our exclusive offline game.
+        <p class="subtitle no-select">
+            No internet connection found.<br>
+            Enjoy this game while offline.
         </p>
 
-        <div class="game-section">
-            <div class="game-icon" id="gameIcon">🏎️</div>
+        <div class="game-card">
+            <div class="game-icon">
+                <svg viewBox="0 0 24 24" fill="white">
+                    <path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z"/>
+                </svg>
+            </div>
             
-            <h2 class="game-title">Blitzracer</h2>
+            <h2 class="game-title no-select">Blitzracer</h2>
             
-            <div class="game-tag" id="gameTag">
-                Ready to play offline
+            <p class="game-description no-select">
+                High-speed racing action available offline.
+            </p>
+
+            <div class="notification no-select" id="gameReady">
+                <svg viewBox="0 0 24 24" style="width: 16px; height: 16px; fill: currentColor; display: inline-block; vertical-align: middle; margin-right: 8px;">
+                    <path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z"/>
+                </svg>
+                Game ready to play
             </div>
 
-            <a href="/cargame" class="play-button" id="playButton" onclick="playGame(event)">
-                <span>🎮</span>
-                <span id="buttonText">Play Blitzracer</span>
-            </a>
-
-            <div class="progress-container" id="progressContainer">
-                <div class="progress-bar" id="progressBar"></div>
+            <div class="notification warning no-select" id="gameUnavailable">
+                <svg viewBox="0 0 24 24" style="width: 16px; height: 16px; fill: currentColor; display: inline-block; vertical-align: middle; margin-right: 8px;">
+                    <path d="M11 15h2v2h-2v-2zm0-8h2v6h-2V7zm.99-5C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8z"/>
+                </svg>
+                Game unavailable offline
             </div>
 
-            <div class="error-message" id="errorMessage">
-                <strong>Oopsie!</strong> Game needs a quick download first. 
-                Go online for a moment to cache it, then play anytime!
+            <div class="action-row">
+                <a href="/cargame" class="play-btn no-select" id="playBtn">
+                    <span class="btn-icon">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M8 5v14l11-7z"/>
+                        </svg>
+                    </span>
+                    <span id="btnText">Play Game</span>
+                </a>
+                
+                <button class="info-btn no-select" id="infoBtn">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+                    </svg>
+                </button>
             </div>
         </div>
 
-        <div class="offline-status" id="offlineStatus">
-            <div class="status-emoji">📡</div>
-            <div class="status-text" id="statusText">You're currently offline</div>
-        </div>
-
-        <div class="cache-info" id="cacheInfo">
-            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-                <span id="cacheIcon">⏳</span>
-                <strong>Game Status:</strong> Checking...
+        <div class="game-details no-select" id="gameDetails">
+            <div class="details-header">
+                <svg viewBox="0 0 24 24">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                </svg>
+                <span>Game Features</span>
             </div>
-            <div id="cacheDetails" style="font-size: 0.9rem;">
-                Will auto-cache when you're back online
+
+            <div class="feature-grid">
+                <div class="feature">
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M13.49 5.48c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm-3.6 13.9l1-4.4 2.1 2v6h2v-7.5l-2.1-2 .6-3c1.3 1.5 3.3 2.5 5.5 2.5v-2c-1.9 0-3.5-1-4.3-2.4l-1-1.6c-.4-.6-1-1-1.7-1-.3 0-.5.1-.8.1l-5.2 2.2v4.7h2v-3.4l1.8-.7-1.6 8.1-4.9-1-.4 2 7 1.4z"/>
+                        </svg>
+                    </div>
+                    <span class="feature-text">High-speed racing action</span>
+                </div>
+
+                <div class="feature">
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                        </svg>
+                    </div>
+                    <span class="feature-text">Simple intuitive controls</span>
+                </div>
+
+                <div class="feature">
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14z"/>
+                            <path d="M7 12h2v5H7zm8-5h2v10h-2zm-4 7h2v3h-2zm0-4h2v2h-2z"/>
+                        </svg>
+                    </div>
+                    <span class="feature-text">Progressive difficulty levels</span>
+                </div>
+
+                <div class="feature">
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/>
+                        </svg>
+                    </div>
+                    <span class="feature-text">Score tracking & leaderboards</span>
+                </div>
+            </div>
+
+            <div class="highlights">
+                <div class="highlight-title">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>
+                    </svg>
+                    <span>Why You'll Love It</span>
+                </div>
+                <p class="highlight-text">
+                    Perfect for quick sessions, infinite replay value, smooth performance on all devices, 
+                    and designed specifically for offline enjoyment.
+                </p>
             </div>
         </div>
 
-        <div class="action-buttons">
-            <button class="action-btn cache-btn" onclick="cacheGame()" id="cacheButton">
-                <span>⬇️</span>
-                <span>Cache Game Now</span>
-            </button>
-            
-            <button class="action-btn refresh-btn" onclick="refreshStatus()">
-                <span>🔄</span>
-                <span>Refresh Status</span>
-            </button>
+        <div class="status-info no-select">
+            <svg viewBox="0 0 24 24" style="width: 16px; height: 16px; fill: currentColor; display: inline-block; vertical-align: middle; margin-right: 8px;">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+            </svg>
+            <span id="statusMessage">Checking game availability...</span>
         </div>
 
-        <div class="fun-message" id="funMessage">
-            💡 <strong>Pro Tip:</strong> Cache the game once when online, 
-            and you'll have endless racing fun even on flights, road trips, or 
-            when your WiFi takes a coffee break! ☕
-        </div>
+        <a href="/" class="back-btn no-select" onclick="goToHome(event)">
+            <svg viewBox="0 0 24 24">
+                <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
+            </svg>
+            <span>Back to App</span>
+        </a>
     </div>
-<!-- Action buttons section mein yeh add karo -->
-<button class="action-btn home-btn" onclick="goToHome()" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed);">
-    <span>🏠</span>
-    <span>Back to App</span>
-</button>
 
-<script>
-function goToHome() {
-    if (window.RelaySW && window.RelaySW.goToHome) {
-        window.RelaySW.goToHome();
-    } else {
-        window.location.href = '/';
-    }
-}
-</script>
     <script>
-        // Elements
-        const mainEmoji = document.getElementById('mainEmoji');
-        const gameIcon = document.getElementById('gameIcon');
-        const gameTag = document.getElementById('gameTag');
-        const playButton = document.getElementById('playButton');
-        const buttonText = document.getElementById('buttonText');
-        const progressContainer = document.getElementById('progressContainer');
-        const progressBar = document.getElementById('progressBar');
-        const errorMessage = document.getElementById('errorMessage');
-        const offlineStatus = document.getElementById('offlineStatus');
-        const statusText = document.getElementById('statusText');
-        const cacheInfo = document.getElementById('cacheInfo');
-        const cacheIcon = document.getElementById('cacheIcon');
-        const cacheDetails = document.getElementById('cacheDetails');
-        const cacheButton = document.getElementById('cacheButton');
-        const funMessage = document.getElementById('funMessage');
-        const floatingElements = document.getElementById('floatingElements');
-        const stars = document.getElementById('stars');
+                // Elements
+        const btnText = document.getElementById('btnText');
+        const gameReady = document.getElementById('gameReady');
+        const gameUnavailable = document.getElementById('gameUnavailable');
+        const statusMessage = document.getElementById('statusMessage');
+        const infoBtn = document.getElementById('infoBtn');
+        const gameDetails = document.getElementById('gameDetails');
 
         // State
         let gameCached = false;
         let isOnline = navigator.onLine;
-        let cacheProgress = 0;
-        let emojiMood = 'happy';
+        let detailsVisible = false;
 
-        // Create stars background
-        function createStars() {
-            for (let i = 0; i < 100; i++) {
-                const star = document.createElement('div');
-                star.className = 'star';
-                star.style.width = `${Math.random() * 3 + 1}px`;
-                star.style.height = star.style.width;
-                star.style.left = `${Math.random() * 100}%`;
-                star.style.top = `${Math.random() * 100}%`;
-                star.style.animationDelay = `${Math.random() * 3}s`;
-                star.style.opacity = Math.random() * 0.5 + 0.1;
-                stars.appendChild(star);
-            }
-        }
+        // Disable text selection on the whole page
+        document.addEventListener('selectstart', function(e) {
+            e.preventDefault();
+            return false;
+        });
 
-        // Create floating emojis
-        function createFloatingElements() {
-            const emojis = ['🚗', '🏁', '🏎️', '🚦', '🏆', '🎮', '✨', '🌟', '💫', '⚡'];
-            
-            for (let i = 0; i < 15; i++) {
-                const element = document.createElement('div');
-                element.className = 'floating-element';
-                element.textContent = emojis[Math.floor(Math.random() * emojis.length)];
-                element.style.left = `${Math.random() * 100}%`;
-                element.style.top = `${Math.random() * 100}%`;
-                element.style.animationDelay = `${Math.random() * 5}s`;
-                element.style.fontSize = `${Math.random() * 2 + 1.5}rem`;
-                floatingElements.appendChild(element);
-            }
-        }
+        // Disable context menu
+        document.addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+            return false;
+        });
 
-        // Update UI based on mood
-        function updateMood(mood) {
-            const moods = {
-                happy: { emoji: '🚀', color: '#4ade80', message: 'Ready to race!' },
-                sad: { emoji: '😔', color: '#fbbf24', message: 'Need internet for setup' },
-                excited: { emoji: '🎉', color: '#8b5cf6', message: 'Game cached!' },
-                loading: { emoji: '⏳', color: '#3b82f6', message: 'Caching...' }
-            };
+        // Toggle game details
+        infoBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
             
-            const current = moods[mood] || moods.happy;
-            emojiMood = mood;
+            detailsVisible = !detailsVisible;
+            gameDetails.classList.toggle('active', detailsVisible);
             
-            mainEmoji.textContent = current.emoji;
-            mainEmoji.style.color = current.color;
-            
-            if (mood === 'excited') {
-                gameIcon.style.animation = 'none';
-                setTimeout(() => {
-                    gameIcon.style.animation = 'drive 4s infinite linear';
-                }, 10);
-            }
-        }
-
-        // Update network status
-        function updateNetworkStatus() {
-            isOnline = navigator.onLine;
-            
-            if (isOnline) {
-                statusText.textContent = 'You\'re back online!';
-                offlineStatus.style.background = 'rgba(74, 222, 128, 0.1)';
-                offlineStatus.style.borderLeftColor = '#4ade80';
-                offlineStatus.querySelector('.status-emoji').textContent = '✅';
-                updateMood('happy');
+            // Update info button icon
+            const infoIcon = infoBtn.querySelector('svg');
+            if (detailsVisible) {
+                infoIcon.innerHTML = '<path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>';
             } else {
-                statusText.textContent = 'You\'re currently offline';
-                offlineStatus.style.background = 'rgba(251, 191, 36, 0.1)';
-                offlineStatus.style.borderLeftColor = '#fbbf24';
-                offlineStatus.querySelector('.status-emoji').textContent = '📡';
-                
-                if (!gameCached) {
-                    updateMood('sad');
-                }
-            }
-        }
-
-        // Check game cache status
-        async function checkCache() {
-            try {
-                cacheIcon.textContent = '⏳';
-                cacheDetails.innerHTML = 'Checking game cache...';
-                
-                if (!navigator.serviceWorker.controller) {
-                    throw new Error('Service Worker sleeping');
-                }
-
-                const status = await messageSW({ type: 'GET_GAME_STATUS' });
-                
-                if (status && status.gameCached) {
-                    gameCached = true;
-                    cacheIcon.textContent = '✅';
-                    cacheDetails.innerHTML = `
-                        <strong>Game is cached!</strong><br>
-                        <small>${status.gameFilesCount || 'All'} files ready</small>
-                    `;
-                    cacheInfo.style.borderLeftColor = '#4ade80';
-                    cacheInfo.style.background = 'rgba(74, 222, 128, 0.1)';
-                    playButton.disabled = false;
-                    gameTag.innerHTML = '✓ Ready to play offline';
-                    gameTag.style.background = 'rgba(74, 222, 128, 0.2)';
-                    gameTag.style.color = '#4ade80';
-                    updateMood('excited');
-                    
-                    errorMessage.style.display = 'none';
-                } else {
-                    gameCached = false;
-                    cacheIcon.textContent = '⚠️';
-                    cacheDetails.innerHTML = `
-                        <strong>Game not cached</strong><br>
-                        <small>${isOnline ? 'Will auto-cache' : 'Go online to cache'}</small>
-                    `;
-                    cacheInfo.style.borderLeftColor = '#fbbf24';
-                    cacheInfo.style.background = 'rgba(251, 191, 36, 0.1)';
-                    playButton.disabled = !isOnline;
-                    gameTag.innerHTML = 'Needs internet to setup';
-                    gameTag.style.background = 'rgba(251, 191, 36, 0.2)';
-                    gameTag.style.color = '#fbbf24';
-                    
-                    if (!isOnline) {
-                        updateMood('sad');
-                        errorMessage.style.display = 'block';
-                    }
-                    
-                    if (isOnline && !status.gameCached) {
-                        setTimeout(autoCache, 3000);
-                    }
-                }
-                
-            } catch (error) {
-                console.log('Cache check error:', error);
-                cacheIcon.textContent = '❌';
-                cacheDetails.innerHTML = `
-                    <strong>Can't check cache</strong><br>
-                    <small>${error.message}</small>
-                `;
-                cacheInfo.style.borderLeftColor = '#ef4444';
-                cacheInfo.style.background = 'rgba(239, 68, 68, 0.1)';
-                updateMood('sad');
-            }
-        }
-
-        // Auto-cache game
-        async function autoCache() {
-            if (!isOnline) return;
-            
-            try {
-                updateMood('loading');
-                cacheIcon.textContent = '⬇️';
-                cacheDetails.innerHTML = 'Auto-caching game files...';
-                progressContainer.style.display = 'block';
-                
-                const result = await messageSW({ type: 'AUTO_CACHE_GAME' });
-                
-                if (result && result.success) {
-                    updateMood('excited');
-                    cacheDetails.innerHTML = `
-                        <strong>Cached ${result.cachedCount} files!</strong><br>
-                        <small>Game ready for offline play</small>
-                    `;
-                    progressBar.style.width = '100%';
-                    gameCached = true;
-                    playButton.disabled = false;
-                    
-                    // Show celebration
-                    setTimeout(() => {
-                        mainEmoji.textContent = '🎉';
-                        mainEmoji.style.animation = 'bounce 0.5s 3';
-                    }, 500);
-                }
-                
-            } catch (error) {
-                console.log('Auto-cache error:', error);
-                updateMood('sad');
-            }
-        }
-
-        // Manual cache
-        async function cacheGame() {
-            if (!isOnline) {
-                alert('📡 Please go online first to cache the game!');
-                return;
-            }
-            
-            cacheButton.disabled = true;
-            cacheButton.innerHTML = '<span>⏳</span><span>Caching...</span>';
-            
-            try {
-                updateMood('loading');
-                progressContainer.style.display = 'block';
-                cacheDetails.innerHTML = 'Downloading game files...';
-                
-                const result = await messageSW({ type: 'AUTO_CACHE_GAME' });
-                
-                if (result.success) {
-                    // Success animation
-                    for (let i = 0; i <= 100; i += 5) {
-                        setTimeout(() => {
-                            progressBar.style.width = `${i}%`;
-                        }, i * 20);
-                    }
-                    
-                    setTimeout(() => {
-                        alert(`🎉 Success! Cached ${result.cachedCount} game files!\nYou can now play offline anytime!`);
-                        checkCache();
-                    }, 1200);
-                } else {
-                    alert('⚠️ Oops! Caching failed: ' + result.message);
-                }
-            } catch (error) {
-                alert('❌ Error: ' + error.message);
-            } finally {
-                cacheButton.disabled = false;
-                cacheButton.innerHTML = '<span>⬇️</span><span>Cache Game Now</span>';
-            }
-        }
-
-        // Play game handler
-        function playGame(event) {
-            if (!gameCached && !isOnline) {
-                event.preventDefault();
-                updateMood('sad');
-                
-                // Fun error animation
-                gameIcon.style.animation = 'none';
-                gameIcon.textContent = '😢';
-                setTimeout(() => {
-                    gameIcon.textContent = '🏎️';
-                    gameIcon.style.animation = 'drive 4s infinite linear';
-                }, 1000);
-                
-                return;
-            }
-            
-            if (!gameCached && isOnline) {
-                buttonText.textContent = 'Loading...';
-                playButton.disabled = true;
-            }
-        }
-
-        // Refresh status
-        function refreshStatus() {
-            updateNetworkStatus();
-            checkCache();
-            
-            // Fun refresh animation
-            mainEmoji.style.animation = 'none';
-            setTimeout(() => {
-                mainEmoji.style.animation = 'bounce 2s infinite';
-            }, 10);
-        }
-
-        // Listen for cache progress
-        navigator.serviceWorker.addEventListener('message', event => {
-            const { type, progress } = event.data;
-            
-            if (type === 'CACHE_PROGRESS') {
-                cacheProgress = progress.percentage;
-                progressBar.style.width = `${cacheProgress}%`;
-                
-                if (progress.isCaching) {
-                    updateMood('loading');
-                    cacheIcon.textContent = '⬇️';
-                    cacheDetails.innerHTML = `
-                        <strong>Caching: ${progress.percentage}%</strong><br>
-                        <small>${progress.currentFile || 'Game files'}</small>
-                    `;
-                    progressContainer.style.display = 'block';
-                }
-            }
-            
-            if (type === 'GAME_CACHED') {
-                updateMood('excited');
-                cacheIcon.textContent = '✅';
-                cacheDetails.innerHTML = `
-                    <strong>Game Cached Successfully!</strong><br>
-                    <small>${event.data.cachedCount} files ready</small>
-                `;
-                progressBar.style.width = '100%';
-                gameCached = true;
-                playButton.disabled = false;
-                
-                // Hide progress after 2 seconds
-                setTimeout(() => {
-                    progressContainer.style.display = 'none';
-                }, 2000);
-                
-                checkCache();
+                infoIcon.innerHTML = '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>';
             }
         });
 
-        // Message service worker helper
+        // Check game cache status
+        async function checkGameCache() {
+            try {
+                if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+                    const status = await messageSW({ type: 'GET_GAME_STATUS' });
+                    gameCached = status && status.gameCached;
+                }
+            } catch (error) {
+                console.log('Cache check:', error);
+                // Fallback: try to access game
+                try {
+                    const response = await fetch('/cargame', { method: 'HEAD' });
+                    gameCached = response.ok;
+                } catch {
+                    gameCached = false;
+                }
+            }
+            
+            updateUI();
+        }
+
+        // Update UI
+        function updateUI() {
+            if (gameCached) {
+                playBtn.disabled = false;
+                btnText.textContent = 'Play Game';
+                gameReady.style.display = 'block';
+                gameUnavailable.style.display = 'none';
+                statusMessage.textContent = 'Game available offline';
+                
+                // Update status dot color
+                document.querySelector('.status-dot').style.background = '#22c55e';
+                document.querySelector('.status-badge span').textContent = 'Game Ready';
+                document.querySelector('.status-badge').style.background = 'rgba(34, 197, 94, 0.15)';
+                document.querySelector('.status-badge').style.borderColor = 'rgba(34, 197, 94, 0.3)';
+            } else {
+                playBtn.disabled = true;
+                btnText.textContent = 'Unavailable';
+                gameReady.style.display = 'none';
+                gameUnavailable.style.display = 'block';
+                statusMessage.textContent = 'Game not available offline';
+                
+                // Update status dot color
+                document.querySelector('.status-dot').style.background = '#ef4444';
+                document.querySelector('.status-badge span').textContent = 'Offline';
+                document.querySelector('.status-badge').style.background = 'rgba(239, 68, 68, 0.15)';
+                document.querySelector('.status-badge').style.borderColor = 'rgba(239, 68, 68, 0.3)';
+            }
+        }
+
+        // Handle play button
+        playBtn.addEventListener('click', function(e) {
+            if (!gameCached) {
+                e.preventDefault();
+                // Attempt to access anyway
+                window.location.href = '/cargame';
+            }
+        });
+
+        // Service Worker communication
         function messageSW(message) {
             return new Promise((resolve, reject) => {
                 if (!navigator.serviceWorker.controller) {
-                    reject(new Error('No Service Worker'));
+                    reject(new Error('No service worker'));
                     return;
                 }
 
@@ -862,44 +745,35 @@ function goToHome() {
 
                 navigator.serviceWorker.controller.postMessage(message, [channel.port2]);
 
-                setTimeout(() => {
-                    reject(new Error('Service Worker timeout'));
-                }, 5000);
+                setTimeout(() => reject(new Error('Timeout')), 2000);
             });
+        }
+
+        // Network status
+        function handleNetworkChange() {
+            isOnline = navigator.onLine;
+            updateUI();
+        }
+
+        // Go home
+        function goToHome(e) {
+            if (window.RelaySW && window.RelaySW.goToHome) {
+                e.preventDefault();
+                window.RelaySW.goToHome();
+            }
         }
 
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
-            createStars();
-            createFloatingElements();
-            updateNetworkStatus();
-            checkCache();
+            checkGameCache();
+            handleNetworkChange();
             
             // Listen for network changes
-            window.addEventListener('online', () => {
-                updateNetworkStatus();
-                checkCache();
-                autoCache();
-            });
-            
-            window.addEventListener('offline', () => {
-                updateNetworkStatus();
-                checkCache();
-            });
-            
-            // Auto-check every 30 seconds
-            setInterval(checkCache, 30000);
-            
-            // Random fun emoji changes
-            setInterval(() => {
-                if (emojiMood === 'happy' && Math.random() > 0.7) {
-                    const funEmojis = ['🚀', '✨', '🌟', '⚡', '🎯', '🔥'];
-                    mainEmoji.textContent = funEmojis[Math.floor(Math.random() * funEmojis.length)];
-                    setTimeout(() => {
-                        if (emojiMood === 'happy') mainEmoji.textContent = '🚀';
-                    }, 2000);
-                }
-            }, 5000);
+            window.addEventListener('online', handleNetworkChange);
+            window.addEventListener('offline', handleNetworkChange);
+
+            // Auto-check every 10 seconds
+            setInterval(checkGameCache, 10000);
         });
     </script>
 </body>
