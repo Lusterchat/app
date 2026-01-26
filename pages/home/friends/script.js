@@ -1,4 +1,4 @@
-// friends/script.js - COMPLETE FIXED VERSION
+// friends/script.js - COMPLETE FIXED VERSION WITH CORRECT PATHS
 console.log('✨ Friends Page Loaded');
 
 // Toast Notification System
@@ -85,6 +85,7 @@ async function waitForSupabase() {
     }
     
     try {
+        // FIXED PATH: ../../utils/supabase.js
         await import('../../utils/supabase.js');
         
         let attempts = 0;
@@ -166,7 +167,8 @@ async function initFriendsPage() {
             toast.info("Login Required", "Please login to view friends");
             
             setTimeout(() => {
-                window.location.href = '../auth/index.html';
+                // FIXED PATH: ../../auth/index.html
+                window.location.href = '../../auth/index.html';
             }, 1500);
             
             if (loadingIndicator) loadingIndicator.style.display = 'none';
@@ -475,9 +477,9 @@ async function openChat(friendId, friendUsername = 'Friend') {
         username: friendUsername
     }));
     
-    // Redirect to chat page
+    // FIXED PATH: ../../chats/index.html
     setTimeout(() => {
-        window.location.href = `../chats/index.html?friendId=${friendId}`;
+        window.location.href = `../../chats/index.html?friendId=${friendId}`;
     }, 800);
 }
 
@@ -616,7 +618,7 @@ async function sendFriendRequest(toUserId, toUsername, button) {
         }
         
         // Update search results
-loadSearchResults();
+        loadSearchResults();
         
     } catch (error) {
         console.error('❌ Request error:', error);
@@ -819,9 +821,10 @@ function closeModal() {
     if (notificationsModal) notificationsModal.style.display = 'none';
 }
 
-// Navigation
+// Navigation - FIXED PATHS
 function goToHome() {
-    window.location.href = '../home/index.html';
+    // FIXED PATH: ../../home/index.html
+    window.location.href = '../../home/index.html';
 }
 
 function goToFriends() {
