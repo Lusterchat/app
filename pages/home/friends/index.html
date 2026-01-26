@@ -19,13 +19,16 @@
         // Load Supabase globally
         async function loadSupabase() {
             try {
-                const modulePath = '../../utils/supabase.js';
+                // FIXED PATH: Use relative path from root
+                const modulePath = '/utils/supabase.js';
+                console.log('Loading Supabase from:', modulePath);
+                
                 await import(modulePath);
 
                 // Wait for initialization
                 let attempts = 0;
-                while (!window.supabase && attempts < 20) {
-                    await new Promise(resolve => setTimeout(resolve, 100));
+                while (!window.supabase && attempts < 30) {
+                    await new Promise(resolve => setTimeout(resolve, 150));
                     attempts++;
                 }
 
@@ -37,19 +40,61 @@
                     if (!data.session) {
                         console.log('No session, redirecting to LOGIN page...');
                         setTimeout(() => {
-                            // FIXED: Redirect to LOGIN page, not auth page
+                            // Redirect to LOGIN page, not auth page
                             window.location.href = '../login/index.html';
-                        }, 500);
+                        }, 800);
                     }
+                } else {
+                    console.error('❌ Supabase not loaded after waiting');
                 }
             } catch (error) {
                 console.error('❌ Failed to load Supabase:', error);
+                // Show error to user
+                const loadingIndicator = document.getElementById('loadingIndicator');
+                if (loadingIndicator) {
+                    loadingIndicator.innerHTML = `
+                        <div style="text-align: center; color: #ff6b8b;">
+                            <div style="font-size: 2rem;">⚠️</div>
+                            <div class="loading-text">Connection Error</div>
+                            <p style="font-size: 0.9rem; margin-top: 10px;">Cannot connect to server</p>
+                            <button onclick="window.location.reload()" style="
+                                background: rgba(102, 126, 234, 0.2);
+                                color: #667eea;
+                                border: 1px solid rgba(102, 126, 234, 0.3);
+                                padding: 8px 16px;
+                                border-radius: 8px;
+                                margin-top: 15px;
+                                cursor: pointer;
+                            ">Retry</button>
+                        </div>
+                    `;
+                }
             }
         }
 
         // Auto-load on page load
         document.addEventListener('DOMContentLoaded', loadSupabase);
     </script>
+    
+    <style>
+        /* Fix Add Friends button position */
+        .add-friends-section {
+            margin: 30px 20px 0;
+            text-align: center;
+        }
+        
+        .add-friends-btn {
+            width: 100%;
+            max-width: 300px;
+            margin: 0 auto;
+            display: block;
+        }
+        
+        /* Make sure toast appears on top */
+        .toast-container {
+            z-index: 10000;
+        }
+    </style>
 </head>
 <body>
     <!-- Toast Container -->
@@ -108,9 +153,9 @@
             </div>
         </div>
 
-        <!-- Add Friends Button -->
-        <div style="text-align: center; margin-top: 30px; padding: 0 20px;">
-            <button class="search-btn" onclick="openSearchModal()" style="width: 100%; max-width: 300px;">
+        <!-- Add Friends Button - FIXED POSITION -->
+        <div class="add-friends-section">
+            <button class="search-btn add-friends-btn" onclick="openSearchModal()">
                 <i class="fas fa-user-plus"></i> Add New Friends
             </button>
         </div>
@@ -146,7 +191,8 @@
             <div class="search-container">
                 <i class="fas fa-search search-icon"></i>
                 <input type="text" id="searchInput" class="search-input" 
-                       placeholder="Search by username..." autocomplete="off">
+                       placeholder="Search by username..." autocomplete="off"
+                       oninput="filterSearchResults()">
             </div>
 
             <div id="searchResults">
@@ -183,8 +229,14 @@
     <script>
         // Simple network detection
         window.isOnline = navigator.onLine;
-        window.addEventListener('online', () => window.isOnline = true);
-        window.addEventListener('offline', () => window.isOnline = false);
+        window.addEventListener('online', () => {
+            window.isOnline = true;
+            console.log('🌐 Online');
+        });
+        window.addEventListener('offline', () => {
+            window.isOnline = false;
+            console.log('📴 Offline');
+        });
 
         // Prevent text selection
         document.addEventListener('selectstart', (e) => e.preventDefault());
@@ -192,7 +244,40 @@
         
         // Make goToHome available immediately
         window.goToHome = function() {
+            console.log('Going to home...');
             window.location.href = '../../home/index.html';
+        };
+        
+        // Temporary functions until script loads
+        window.openSearchModal = function() {
+            console.log('Opening search modal...');
+            const modal = document.getElementById('searchModal');
+            if (modal) modal.style.display = 'flex';
+        };
+        
+        window.openNotifications = function() {
+            console.log('Opening notifications...');
+            const modal = document.getElementById('notificationsModal');
+            if (modal) modal.style.display = 'flex';
+        };
+        
+        window.closeModal = function() {
+            const searchModal = document.getElementById('searchModal');
+            const notificationsModal = document.getElementById('notificationsModal');
+            if (searchModal) searchModal.style.display = 'none';
+            if (notificationsModal) notificationsModal.style.display = 'none';
+        };
+        
+        window.searchFriends = function() {
+            console.log('Search friends function called');
+        };
+        
+        window.goToFriends = function() {
+            console.log('Already on friends page');
+        };
+        
+        window.filterSearchResults = function() {
+            console.log('Filtering search results...');
         };
     </script>
 </body>
