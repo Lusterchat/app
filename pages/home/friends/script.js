@@ -1,79 +1,37 @@
-// friends/script.js - COMPLETE FIXED VERSION WITH CORRECT PATHS
-console.log('✨ Friends Page Loaded');
+// friends/script.js - SIMPLIFIED VERSION
+console.log('✨ Friends Page Script Loaded');
 
-// Toast Notification System
-class ToastNotification {
-    constructor() {
-        this.container = document.getElementById('toastContainer');
-        if (!this.container) this.createToastContainer();
+// Simple toast function
+function showToast(message, type = 'info') {
+    const container = document.getElementById('toastContainer');
+    if (!container) return;
+    
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    
+    let icon = '💬';
+    switch(type) {
+        case 'success': icon = '✨'; break;
+        case 'error': icon = '❌'; break;
+        case 'warning': icon = '⚠️'; break;
     }
     
-    createToastContainer() {
-        this.container = document.createElement('div');
-        this.container.className = 'toast-container';
-        this.container.id = 'toastContainer';
-        document.body.prepend(this.container);
-    }
+    toast.innerHTML = `
+        <div class="toast-icon">${icon}</div>
+        <div class="toast-content">
+            <div class="toast-message">${message}</div>
+        </div>
+        <button class="toast-close" onclick="this.parentElement.remove()">×</button>
+    `;
     
-    show(options) {
-        const { title = '', message = '', type = 'info', duration = 5000 } = options;
-        const toast = document.createElement('div');
-        toast.className = `toast toast-${type}`;
-        
-        let icon = '💬';
-        switch(type) {
-            case 'success': icon = '✨'; break;
-            case 'error': icon = '❌'; break;
-            case 'warning': icon = '⚠️'; break;
-            case 'info': icon = '💬'; break;
-        }
-        
-        const time = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-        
-        toast.innerHTML = `
-            <div class="toast-icon">${icon}</div>
-            <div class="toast-content">
-                <div class="toast-title">
-                    ${title}
-                    <span class="toast-time">${time}</span>
-                </div>
-                ${message ? `<div class="toast-message">${message}</div>` : ''}
-            </div>
-            <button class="toast-close" onclick="this.parentElement.remove()">×</button>
-        `;
-        
-        this.container.appendChild(toast);
-        setTimeout(() => toast.classList.add('show'), 10);
-        
-        if (duration > 0) {
-            setTimeout(() => {
-                toast.classList.remove('show');
-                toast.classList.add('hide');
-                setTimeout(() => toast.remove(), 300);
-            }, duration);
-        }
-        
-        return toast;
-    }
+    container.appendChild(toast);
+    setTimeout(() => toast.classList.add('show'), 10);
     
-    success(title, message = '', duration = 5000) {
-        return this.show({ title, message, type: 'success', duration });
-    }
-    
-    error(title, message = '', duration = 7000) {
-        return this.show({ title, message, type: 'error', duration });
-    }
-    
-    warning(title, message = '', duration = 6000) {
-        return this.show({ title, message, type: 'warning', duration });
-    }
-    
-    info(title, message = '', duration = 4000) {
-        return this.show({ title, message, type: 'info', duration });
-    }
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 300);
+    }, 4000);
 }
-
-const toast = new ToastNotification();
 
 // Wait for Supabase
 async function waitForSupabase() {
@@ -84,31 +42,24 @@ async function waitForSupabase() {
         return true;
     }
     
-    try {
-        // FIXED PATH: ../../utils/supabase.js
-        await import('../../utils/supabase.js');
-        
-        let attempts = 0;
-        while (!window.supabase && attempts < 25) {
-            await new Promise(resolve => setTimeout(resolve, 200));
-            attempts++;
-        }
-        
-        if (window.supabase) {
-            console.log('✅ Supabase loaded successfully');
-            return true;
-        } else {
-            console.error('❌ Supabase failed to load');
-            return false;
-        }
-        
-    } catch (error) {
-        console.error('❌ Error loading Supabase:', error);
-        return false;
+    // Wait for it to load from the HTML script
+    let attempts = 0;
+    while (!window.supabase && attempts < 40) {
+        await new Promise(resolve => setTimeout(resolve, 250));
+        attempts++;
     }
+    
+    if (window.supabase) {
+        console.log('✅ Supabase loaded after', attempts, 'attempts');
+        return true;
+    }
+    
+    console.error('❌ Supabase never loaded');
+    showToast('Cannot connect to server', 'error');
+    return false;
 }
 
-// Simple auth check
+// Check auth
 async function checkAuth() {
     try {
         if (!window.supabase?.auth) {
@@ -126,10 +77,10 @@ async function checkAuth() {
         if (data.user) {
             console.log('✅ User authenticated:', data.user.email);
             return { success: true, user: data.user };
-        } else {
-            console.log('❌ No user found');
-            return { success: false, message: 'Not logged in' };
         }
+        
+        console.log('❌ No user found');
+        return { success: false, message: 'Not logged in' };
         
     } catch (error) {
         console.error('Auth check error:', error);
@@ -138,23 +89,17 @@ async function checkAuth() {
 }
 
 let currentUser = null;
-let allFriends = [];
 
 // Initialize friends page
 async function initFriendsPage() {
     console.log('👥 Initializing friends page...');
     
-    // Show loading
     const loadingIndicator = document.getElementById('loadingIndicator');
-    if (loadingIndicator) {
-        loadingIndicator.style.display = 'flex';
-    }
     
     try {
         // Step 1: Wait for Supabase
         const supabaseReady = await waitForSupabase();
         if (!supabaseReady) {
-            toast.error("Connection Error", "Cannot connect to server");
             if (loadingIndicator) loadingIndicator.style.display = 'none';
             return;
         }
@@ -164,11 +109,10 @@ async function initFriendsPage() {
         if (!authResult.success) {
             console.log('User not authenticated:', authResult.message);
             
-            toast.info("Login Required", "Please login to view friends");
+            showToast('Please login to view friends', 'info');
             
             setTimeout(() => {
-                // FIXED PATH: ../../auth/index.html
-                window.location.href = '../../auth/index.html';
+                window.location.href = '../../login/index.html';
             }, 1500);
             
             if (loadingIndicator) loadingIndicator.style.display = 'none';
@@ -177,7 +121,7 @@ async function initFriendsPage() {
         
         // Step 3: Set current user
         currentUser = authResult.user;
-        console.log('✅ User:', currentUser.email);
+        console.log('✅ Current user:', currentUser.email);
         
         // Hide loading
         if (loadingIndicator) {
@@ -187,14 +131,10 @@ async function initFriendsPage() {
         // Step 4: Load friends
         await loadFriendsList();
         
-        // Step 5: Setup search
-        setupSearch();
+        console.log('✅ Friends page ready');
         
-        console.log('✅ Friends page initialized');
-        
-        // Welcome toast
         setTimeout(() => {
-            toast.success("Friends Loaded", "Your friends circle is ready!");
+            showToast('Friends loaded successfully!', 'success');
         }, 500);
         
     } catch (error) {
@@ -204,7 +144,7 @@ async function initFriendsPage() {
             loadingIndicator.style.display = 'none';
         }
         
-        toast.error("Loading Error", "Failed to load friends");
+        showToast('Failed to load friends', 'error');
         
         // Show error state
         const container = document.getElementById('friendsContainer');
@@ -236,26 +176,10 @@ async function loadFriendsList(searchTerm = '') {
     try {
         // Show loading
         container.innerHTML = `
-            <div class="friend-skeleton">
-                <div class="skeleton-avatar"></div>
-                <div class="skeleton-info">
-                    <div class="skeleton-name"></div>
-                    <div class="skeleton-status"></div>
-                </div>
-            </div>
-            <div class="friend-skeleton">
-                <div class="skeleton-avatar"></div>
-                <div class="skeleton-info">
-                    <div class="skeleton-name"></div>
-                    <div class="skeleton-status"></div>
-                </div>
-            </div>
-            <div class="friend-skeleton">
-                <div class="skeleton-avatar"></div>
-                <div class="skeleton-info">
-                    <div class="skeleton-name"></div>
-                    <div class="skeleton-status"></div>
-                </div>
+            <div class="empty-state">
+                <div class="empty-icon">⏳</div>
+                <h3 class="empty-title">Loading Friends...</h3>
+                <p class="empty-desc">Please wait</p>
             </div>
         `;
         
@@ -273,7 +197,6 @@ async function loadFriendsList(searchTerm = '') {
         
         if (!friends || friends.length === 0) {
             showEmptyFriends();
-            allFriends = [];
             updateStats([]);
             return;
         }
@@ -282,7 +205,7 @@ async function loadFriendsList(searchTerm = '') {
         const friendIds = friends.map(f => f.friend_id);
         const { data: profiles, error: profilesError } = await window.supabase
             .from('profiles')
-            .select('id, username, status, last_seen, avatar_url')
+            .select('id, username, status, last_seen')
             .in('id', friendIds);
         
         if (profilesError) {
@@ -291,17 +214,11 @@ async function loadFriendsList(searchTerm = '') {
             return;
         }
         
-        // Store all friends
-        allFriends = profiles.map(profile => ({
-            ...profile,
-            unreadCount: 0
-        }));
-        
         // Filter by search term
-        let filteredFriends = allFriends;
+        let filteredFriends = profiles || [];
         if (searchTerm) {
             const term = searchTerm.toLowerCase();
-            filteredFriends = allFriends.filter(friend => 
+            filteredFriends = filteredFriends.filter(friend => 
                 friend.username.toLowerCase().includes(term)
             );
         }
@@ -361,11 +278,6 @@ function displayFriends(friends) {
                             ${isOnline ? 'Online' : 'Last seen ' + timeAgo}
                         </div>
                     </div>
-                    ${friend.unreadCount > 0 ? `
-                        <div class="unread-badge-clean">
-                            ${friend.unreadCount > 9 ? '9+' : friend.unreadCount}
-                        </div>
-                    ` : ''}
                 </div>
             </div>
         `;
@@ -384,9 +296,6 @@ function showEmptyFriends() {
             <div class="empty-icon">👥</div>
             <h3 class="empty-title">No Friends Yet</h3>
             <p class="empty-desc">Add friends to start chatting</p>
-            <button class="search-btn" onclick="openSearchModal()" style="margin-top: 20px;">
-                <i class="fas fa-search"></i> Find Friends
-            </button>
         </div>
     `;
 }
@@ -401,9 +310,6 @@ function showErrorState(message) {
             <div class="empty-icon">⚠️</div>
             <h3 class="empty-title">Connection Error</h3>
             <p class="empty-desc">${message || 'Could not load friends'}</p>
-            <button class="search-btn" onclick="loadFriendsList()" style="margin-top: 20px;">
-                <i class="fas fa-sync"></i> Try Again
-            </button>
         </div>
     `;
 }
@@ -440,23 +346,6 @@ function getTimeAgo(date) {
     return past.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-// Setup search
-function setupSearch() {
-    const searchInput = document.getElementById('searchFriendsInput');
-    if (!searchInput) return;
-    
-    let searchTimeout;
-    
-    searchInput.addEventListener('input', function() {
-        clearTimeout(searchTimeout);
-        const searchTerm = this.value.trim();
-        
-        searchTimeout = setTimeout(() => {
-            loadFriendsList(searchTerm);
-        }, 300);
-    });
-}
-
 // Search friends
 function searchFriends() {
     const searchInput = document.getElementById('searchFriendsInput');
@@ -469,7 +358,7 @@ function searchFriends() {
 async function openChat(friendId, friendUsername = 'Friend') {
     console.log('Opening chat with:', friendId);
     
-    toast.info("Opening Chat", `Connecting with ${friendUsername}...`);
+    showToast(`Opening chat with ${friendUsername}...`, 'info');
     
     // Store friend info
     sessionStorage.setItem('currentChatFriend', JSON.stringify({
@@ -477,21 +366,13 @@ async function openChat(friendId, friendUsername = 'Friend') {
         username: friendUsername
     }));
     
-    // FIXED PATH: ../../chats/index.html
+    // Redirect to chat page
     setTimeout(() => {
         window.location.href = `../../chats/index.html?friendId=${friendId}`;
     }, 800);
 }
 
 // Search modal functions
-function openSearchModal() {
-    const modal = document.getElementById('searchModal');
-    if (modal) {
-        modal.style.display = 'flex';
-        loadSearchResults();
-    }
-}
-
 async function loadSearchResults() {
     const container = document.getElementById('searchResults');
     if (!container || !currentUser || !window.supabase) return;
@@ -532,18 +413,9 @@ async function loadSearchResults() {
             return;
         }
         
-        // Get current friends
-        const { data: friends } = await window.supabase
-            .from('friends')
-            .select('friend_id')
-            .eq('user_id', currentUser.id);
-        
-        const friendIds = friends?.map(f => f.friend_id) || [];
-        
         // Display users
         let html = '';
         users.forEach(user => {
-            const isFriend = friendIds.includes(user.id);
             const firstLetter = user.username.charAt(0).toUpperCase();
             
             html += `
@@ -552,15 +424,9 @@ async function loadSearchResults() {
                     <div class="search-info">
                         <div class="search-name">${user.username}</div>
                     </div>
-                    ${isFriend ? `
-                        <button class="send-request-btn sent" disabled>
-                            ✓ Friend
-                        </button>
-                    ` : `
-                        <button class="send-request-btn" onclick="sendFriendRequest('${user.id}', '${user.username}', this)">
-                            Add Friend
-                        </button>
-                    `}
+                    <button class="send-request-btn" onclick="sendFriendRequest('${user.id}', '${user.username}', this)">
+                        Add Friend
+                    </button>
                 </div>
             `;
         });
@@ -581,7 +447,7 @@ async function loadSearchResults() {
 // Send friend request
 async function sendFriendRequest(toUserId, toUsername, button) {
     if (!currentUser || !window.supabase) {
-        toast.error("Error", "Cannot send request");
+        showToast("Cannot send request", 'error');
         return;
     }
     
@@ -602,7 +468,7 @@ async function sendFriendRequest(toUserId, toUsername, button) {
         
         if (error) {
             console.error('Request error:', error);
-            toast.error("Request Failed", "Could not send request");
+            showToast("Could not send request", 'error');
             if (button) {
                 button.textContent = 'Add Friend';
                 button.disabled = false;
@@ -610,19 +476,16 @@ async function sendFriendRequest(toUserId, toUsername, button) {
             return;
         }
         
-        toast.success("Request Sent", `Friend request sent to ${toUsername}`);
+        showToast(`Friend request sent to ${toUsername}`, 'success');
         
         if (button) {
             button.textContent = '✓ Sent';
             button.classList.add('sent');
         }
         
-        // Update search results
-        loadSearchResults();
-        
     } catch (error) {
         console.error('❌ Request error:', error);
-        toast.error("Error", "Could not send request");
+        showToast("Could not send request", 'error');
         if (button) {
             button.textContent = 'Add Friend';
             button.disabled = false;
@@ -630,219 +493,61 @@ async function sendFriendRequest(toUserId, toUsername, button) {
     }
 }
 
-// Notifications
-function openNotifications() {
+// Filter search results
+function filterSearchResults() {
+    const searchInput = document.getElementById('searchInput');
+    const searchResults = document.getElementById('searchResults');
+    
+    if (!searchInput || !searchResults) return;
+    
+    const searchTerm = searchInput.value.toLowerCase();
+    const results = searchResults.querySelectorAll('.search-result');
+    
+    results.forEach(result => {
+        const name = result.querySelector('.search-name').textContent.toLowerCase();
+        if (name.includes(searchTerm) || searchTerm === '') {
+            result.style.display = 'flex';
+        } else {
+            result.style.display = 'none';
+        }
+    });
+}
+
+// Global functions
+window.openSearchModal = function() {
+    const modal = document.getElementById('searchModal');
+    if (modal) {
+        modal.style.display = 'flex';
+        loadSearchResults();
+    }
+};
+
+window.openNotifications = function() {
     const modal = document.getElementById('notificationsModal');
     if (modal) {
         modal.style.display = 'flex';
-        loadNotifications();
+        // You can implement notifications loading here
     }
-}
+};
 
-async function loadNotifications() {
-    const container = document.getElementById('notificationsList');
-    if (!container || !currentUser || !window.supabase) return;
-    
-    try {
-        const { data: requests, error } = await window.supabase
-            .from('friend_requests')
-            .select('id, sender_id, created_at')
-            .eq('receiver_id', currentUser.id)
-            .eq('status', 'pending');
-        
-        if (error) {
-            console.error('Notifications error:', error);
-            container.innerHTML = `
-                <div class="empty-state" style="padding: 40px 20px;">
-                    <div class="empty-icon">⚠️</div>
-                    <p>Error loading notifications</p>
-                </div>
-            `;
-            return;
-        }
-        
-        if (!requests || requests.length === 0) {
-            container.innerHTML = `
-                <div class="empty-state" style="padding: 40px 20px;">
-                    <div class="empty-icon">🔔</div>
-                    <p>No notifications</p>
-                </div>
-            `;
-            return;
-        }
-        
-        // Get sender usernames
-        const senderIds = requests.map(r => r.sender_id);
-        const { data: profiles } = await window.supabase
-            .from('profiles')
-            .select('id, username')
-            .in('id', senderIds);
-        
-        const profileMap = {};
-        if (profiles) {
-            profiles.forEach(p => profileMap[p.id] = p.username);
-        }
-        
-        let html = '';
-        requests.forEach(request => {
-            const timeAgo = getTimeAgo(request.created_at);
-            const senderName = profileMap[request.sender_id] || 'Unknown User';
-            const firstLetter = senderName.charAt(0).toUpperCase();
-            
-            html += `
-                <div class="notification-item">
-                    <div class="notification-avatar" style="background: #667eea;">${firstLetter}</div>
-                    <div class="notification-content">
-                        <div class="notification-text">
-                            <div class="notification-title">${senderName} wants to be friends</div>
-                            <div class="notification-time">${timeAgo}</div>
-                        </div>
-                        <div class="notification-actions">
-                            <button class="accept-btn" onclick="acceptRequest('${request.id}', '${request.sender_id}', this)">
-                                Accept
-                            </button>
-                            <button class="decline-btn" onclick="declineRequest('${request.id}', this)">
-                                Decline
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            `;
-        });
-        
-        container.innerHTML = html;
-        
-    } catch (error) {
-        console.error('❌ Notifications error:', error);
-        container.innerHTML = `
-            <div class="empty-state" style="padding: 40px 20px;">
-                <div class="empty-icon">⚠️</div>
-                <p>Failed to load notifications</p>
-            </div>
-        `;
-    }
-}
-
-// Accept request
-async function acceptRequest(requestId, senderId, button) {
-    if (!currentUser || !window.supabase) {
-        toast.error("Error", "Cannot accept request");
-        return;
-    }
-    
-    if (button) {
-        button.textContent = 'Accepting...';
-        button.disabled = true;
-    }
-    
-    try {
-        // Update request status
-        await window.supabase
-            .from('friend_requests')
-            .update({ status: 'accepted' })
-            .eq('id', requestId);
-        
-        // Add to friends table
-        await window.supabase
-            .from('friends')
-            .insert([
-                { user_id: currentUser.id, friend_id: senderId },
-                { user_id: senderId, friend_id: currentUser.id }
-            ]);
-        
-        toast.success("Friend Added", "You are now friends!");
-        
-        if (button) {
-            button.textContent = '✓ Accepted';
-            button.style.background = 'rgba(40, 167, 69, 0.3)';
-        }
-        
-        // Reload friends list and notifications
-        setTimeout(() => {
-            loadFriendsList();
-            loadNotifications();
-        }, 1000);
-        
-    } catch (error) {
-        console.error('❌ Accept error:', error);
-        toast.error("Error", "Could not accept request");
-        
-        if (button) {
-            button.textContent = 'Accept';
-            button.disabled = false;
-        }
-    }
-}
-
-// Decline request
-async function declineRequest(requestId, button) {
-    if (!currentUser || !window.supabase) {
-        toast.error("Error", "Cannot decline request");
-        return;
-    }
-    
-    if (button) {
-        button.textContent = 'Declining...';
-        button.disabled = true;
-    }
-    
-    try {
-        await window.supabase
-            .from('friend_requests')
-            .update({ status: 'rejected' })
-            .eq('id', requestId);
-        
-        toast.info("Request Declined", "Friend request declined");
-        
-        if (button) {
-            button.textContent = '✗ Declined';
-            button.style.background = 'rgba(220, 53, 69, 0.3)';
-        }
-        
-        setTimeout(() => loadNotifications(), 500);
-        
-    } catch (error) {
-        console.error('❌ Decline error:', error);
-        toast.error("Error", "Could not decline request");
-        
-        if (button) {
-            button.textContent = 'Decline';
-            button.disabled = false;
-        }
-    }
-}
-
-// Close modal
-function closeModal() {
+window.closeModal = function() {
     const searchModal = document.getElementById('searchModal');
     const notificationsModal = document.getElementById('notificationsModal');
     
     if (searchModal) searchModal.style.display = 'none';
     if (notificationsModal) notificationsModal.style.display = 'none';
-}
+};
 
-// Navigation - FIXED PATHS
-function goToHome() {
-    // FIXED PATH: ../../home/index.html
-    window.location.href = '../../home/index.html';
-}
-
-function goToFriends() {
-    // Already on friends page
-    console.log('Already on friends page');
-}
-
-// Global functions
-window.openSearchModal = openSearchModal;
-window.openNotifications = openNotifications;
-window.closeModal = closeModal;
 window.openChat = openChat;
 window.sendFriendRequest = sendFriendRequest;
-window.acceptRequest = acceptRequest;
-window.declineRequest = declineRequest;
-window.goToHome = goToHome;
-window.goToFriends = goToFriends;
+window.goToHome = function() {
+    window.location.href = '../../home/index.html';
+};
+window.goToFriends = function() {
+    console.log('Already on friends page');
+};
 window.searchFriends = searchFriends;
+window.filterSearchResults = filterSearchResults;
 
 // Initialize on load
 document.addEventListener('DOMContentLoaded', initFriendsPage);
