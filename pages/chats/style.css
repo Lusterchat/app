@@ -143,10 +143,33 @@ body {
 .messages-container {
     flex: 1;
     overflow-y: auto;
-    padding: 20px 20px 80px 20px; /* More bottom padding */
+    padding: 20px 20px 80px 20px;
     display: flex;
     flex-direction: column;
     gap: 14px;
+}
+
+/* ==================== */
+/* DATE SEPARATOR STYLES */
+/* ==================== */
+.date-separator {
+    text-align: center;
+    margin: 15px 0;
+    position: relative;
+    width: 100%;
+}
+
+.date-separator span {
+    display: inline-block;
+    padding: 6px 16px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 20px;
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(10px);
+    font-weight: 400;
+    letter-spacing: 0.5px;
 }
 
 /* ==================== */
@@ -287,6 +310,13 @@ body {
     width: 100%;
 }
 
+/* Hide scrollbar for message input */
+.message-input::-webkit-scrollbar {
+    opacity: 0;
+    width: 0;
+    display: none;
+}
+
 .send-btn {
     background: linear-gradient(135deg, #667eea, #764ba2);
     border: none;
@@ -342,6 +372,42 @@ body {
 }
 
 /* ==================== */
+/* HIDE SCROLLBARS      */
+/* ==================== */
+/* Hide scrollbar for messages container */
+.messages-container::-webkit-scrollbar {
+    opacity: 0;
+    width: 0;
+    display: none;
+}
+
+.messages-container::-webkit-scrollbar-track {
+    opacity: 0;
+    display: none;
+}
+
+.messages-container::-webkit-scrollbar-thumb {
+    opacity: 0;
+    display: none;
+}
+
+.messages-container::-webkit-scrollbar-thumb:hover {
+    opacity: 0;
+    display: none;
+}
+
+/* Hide scrollbar for Firefox */
+.messages-container {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.message-input {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+/* ==================== */
 /* RESPONSIVE STYLES    */
 /* ==================== */
 @media (max-width: 768px) {
@@ -349,35 +415,40 @@ body {
         padding: 14px 16px;
         height: 72px;
     }
-    
+
     .main-content {
         top: 72px;
         bottom: 85px;
     }
-    
+
     .message-input-wrapper {
         padding: 12px 16px 15px 16px;
         height: 85px;
     }
-    
+
     .messages-container {
         padding: 16px 16px 80px 16px;
     }
-    
+
     .message {
         max-width: 85%;
         padding: 12px 16px;
     }
-    
+
     .message-input {
         padding: 12px 16px;
         min-height: 46px;
         font-size: 16px !important;
     }
-    
+
     .send-btn {
         width: 46px;
         height: 46px;
+    }
+
+    .date-separator span {
+        padding: 5px 14px;
+        font-size: 0.7rem;
     }
 }
 
@@ -386,34 +457,39 @@ body {
         padding: 12px 14px;
         height: 66px;
     }
-    
+
     .main-content {
         top: 66px;
         bottom: 80px;
     }
-    
+
     .message-input-wrapper {
         padding: 10px 14px 13px 14px;
         height: 80px;
     }
-    
+
     .messages-container {
         padding: 14px 14px 80px 14px;
     }
-    
+
     .message {
         max-width: 88%;
         padding: 11px 15px;
     }
-    
+
     .message-input {
         min-height: 44px;
         padding: 10px 14px;
     }
-    
+
     .send-btn {
         width: 44px;
         height: 44px;
+    }
+
+    .date-separator span {
+        padding: 4px 12px;
+        font-size: 0.68rem;
     }
 }
 
@@ -422,34 +498,39 @@ body {
         padding: 10px 12px;
         height: 62px;
     }
-    
+
     .main-content {
         top: 62px;
         bottom: 75px;
     }
-    
+
     .message-input-wrapper {
         padding: 8px 12px 11px 12px;
         height: 75px;
     }
-    
+
     .messages-container {
         padding: 12px 12px 80px 12px;
     }
-    
+
     .message {
         max-width: 90%;
         padding: 10px 13px;
     }
-    
+
     .message-input {
         min-height: 42px;
         padding: 9px 13px;
     }
-    
+
     .send-btn {
         width: 42px;
         height: 42px;
+    }
+
+    .date-separator span {
+        padding: 4px 10px;
+        font-size: 0.65rem;
     }
 }
 
@@ -466,25 +547,4 @@ body {
 #customToast,
 #userInfoModal {
     display: none !important;
-}
-
-/* ==================== */
-/* SCROLLBAR STYLING    */
-/* ==================== */
-.messages-container::-webkit-scrollbar {
-    width: 8px;
-}
-
-.messages-container::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 4px;
-}
-
-.messages-container::-webkit-scrollbar-thumb {
-    background: rgba(102, 126, 234, 0.5);
-    border-radius: 4px;
-}
-
-.messages-container::-webkit-scrollbar-thumb:hover {
-    background: rgba(102, 126, 234, 0.7);
 }
