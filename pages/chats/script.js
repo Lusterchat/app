@@ -1,487 +1,14 @@
-import { auth } from '../../utils/auth.js';
-import { supabase } from '../../utils/supabase.js';
-
-console.log('✨ Chat Loaded with Image Sharing');
-
-// ====================
-// GLOBAL VARIABLES
-// ====================
-let currentUser = null;
-let chatFriend = null;
-let chatChannel = null;
-let statusChannel = null;
-let isLoadingMessages = false;
-let currentMessages = [];
-let isSending = false;
-let isTyping = false;
-let typingTimeout = null;
-let friendTypingTimeout = null;
-let selectedColor = null;
-let colorPickerVisible = false;
-
-// ImgBB API Key
-const IMGBB_API_KEY = '82e49b432e2ee14921f7d0cd81ba5551';
-
-// ====================
-// GLOBAL FUNCTION EXPORTS
-// ====================
-window.sendMessage = sendMessage;
-window.handleKeyPress = handleKeyPress;
-window.autoResize = autoResize;
-window.goBack = goBack;
-window.showUserInfo = showUserInfo;
-window.closeModal = closeModal;
-window.startVoiceCall = startVoiceCall;
-window.viewSharedMedia = viewSharedMedia;
-window.blockUserPrompt = blockUserPrompt;
-window.clearChatPrompt = clearChatPrompt;
-window.selectColor = selectColor;
-window.hideColorPicker = hideColorPicker;
-window.attachImage = attachImage;
-window.viewImageFullscreen = viewImageFullscreen;
-window.closeImageViewer = closeImageViewer;
-window.downloadImage = downloadImage;
-window.shareImage = shareImage;
-
-// ====================
-// INITIALIZATION
-// ====================
-document.addEventListener('DOMContentLoaded', async () => {
-    try {
-        // Hide all alerts on load
-        document.getElementById('customAlert').style.display = 'none';
-        document.getElementById('customToast').style.display = 'none';
-        document.getElementById('userInfoModal').style.display = 'none';
-
-        const { success, user } = await auth.getCurrentUser();
-        if (!success || !user) {
-            showLoginAlert();
-            return;
-        }
-
-        currentUser = user;
-        console.log('Current User:', user.id);
-
-        const urlParams = new URLSearchParams(window.location.search);
-        const friendId = urlParams.get('friendId');
-
-        if (!friendId) {
-            showCustomAlert('No friend selected!', '😕', 'Error', () => {
-                window.location.href = '../home/index.html';
-            });
-            return;
-        }
-
-        const { data: friend, error: friendError } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', friendId)
-            .single();
-
-        if (friendError) throw friendError;
-
-        chatFriend = friend;
-        document.getElementById('chatUserName').textContent = friend.username;
-        document.getElementById('chatUserAvatar').textContent = friend.username.charAt(0).toUpperCase();
-
-        updateFriendStatus(friend.status);
-        await loadOldMessages(friendId);
-        setupRealtime(friendId);
-        setupTypingListener();
-        updateInputListener();
+    // Animate new message
+    const newMessage = container.lastElementChild;
+    if (newMessage && isFromRealtime) {
+        newMessage.style.opacity = '0';
+        newMessage.style.transform = 'translateY(10px)';
         
-        // Initialize UI components
-        initializeColorPicker();
-        addColorPickerInputListener();
-
-        // Initial setup
         setTimeout(() => {
-            const input = document.getElementById('messageInput');
-            if (input) autoResize(input);
-            forceScrollToBottom();
-        }, 150);
-
-        console.log('✅ Chat ready with image sharing!');
-    } catch (error) {
-        console.error('Init error:', error);
-        showCustomAlert('Error loading chat: ' + error.message, '❌', 'Error', () => {
-            window.location.href = '../home/index.html';
-        });
-    }
-});
-
-// ====================
-// IMAGE UPLOAD FUNCTIONS
-// ====================
-function attachImage() {
-    const fileInput = document.getElementById('imageFileInput');
-    if (fileInput) {
-        fileInput.click();
-    }
-}
-
-// Add event listener for file input
-document.getElementById('imageFileInput').addEventListener('change', handleImageSelect);
-
-function handleImageSelect(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-    
-    // Check file type
-    if (!file.type.startsWith('image/')) {
-        showToast('Please select an image file', '⚠️');
-        return;
-    }
-    
-    // Check file size (max 10MB)
-    if (file.size > 10 * 1024 * 1024) {
-        showToast('Image too large. Max 10MB', '⚠️');
-        return;
-    }
-    
-    // Upload image
-    uploadImageToImgBB(file);
-    
-    // Reset file input
-    event.target.value = '';
-}
-
-async function uploadImageToImgBB(file) {
-    showLoading(true, 'Uploading image...');
-    
-    try {
-        // Compress image if needed
-        const processedFile = await compressImage(file);
-        
-        // Create FormData
-        const formData = new FormData();
-        formData.append('image', processedFile);
-        formData.append('key', IMGBB_API_KEY);
-        
-        // Upload to ImgBB
-        const response = await fetch('https://api.imgbb.com/1/upload', {
-            method: 'POST',
-            body: formData
-        });
-        
-        if (!response.ok) {
-            throw new Error(`Upload failed: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        
-        if (!data.success) {
-            throw new Error(data.error?.message || 'Upload failed');
-        }
-        
-        // Get image URL
-        const imageUrl = data.data.url;
-        const thumbnailUrl = data.data.thumb?.url || imageUrl;
-        
-        console.log('✅ Image uploaded:', imageUrl);
-        
-        // Send message with image
-        await sendImageMessage(imageUrl, thumbnailUrl);
-        
-    } catch (error) {
-        console.error('Image upload error:', error);
-        showCustomAlert('Failed to upload image: ' + error.message, '❌', 'Upload Error');
-    } finally {
-        showLoading(false);
-    }
-}
-
-async function compressImage(file) {
-    return new Promise((resolve) => {
-        // If file is already small, return as-is
-        if (file.size <= 500 * 1024) { // 500KB
-            resolve(file);
-            return;
-        }
-        
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        
-        reader.onload = function(e) {
-            const img = new Image();
-            img.src = e.target.result;
-            
-            img.onload = function() {
-                const canvas = document.createElement('canvas');
-                const ctx = canvas.getContext('2d');
-                
-                // Calculate new dimensions (max 1200px)
-                let width = img.width;
-                let height = img.height;
-                const maxSize = 1200;
-                
-                if (width > height && width > maxSize) {
-                    height = Math.round((height * maxSize) / width);
-                    width = maxSize;
-                } else if (height > maxSize) {
-                    width = Math.round((width * maxSize) / height);
-                    height = maxSize;
-                }
-                
-                canvas.width = width;
-                canvas.height = height;
-                
-                // Draw and compress
-                ctx.drawImage(img, 0, 0, width, height);
-                
-                canvas.toBlob((blob) => {
-                    const compressedFile = new File([blob], file.name, {
-                        type: 'image/jpeg',
-                        lastModified: Date.now()
-                    });
-                    resolve(compressedFile);
-                }, 'image/jpeg', 0.7); // 70% quality
-            };
-        };
-    });
-}
-
-async function sendImageMessage(imageUrl, thumbnailUrl) {
-    if (isSending) return;
-    
-    isSending = true;
-    const sendBtn = document.getElementById('sendBtn');
-    const originalText = sendBtn.innerHTML;
-
-    try {
-        sendBtn.innerHTML = '<div class="typing-dots"><div></div><div></div><div></div></div>';
-        sendBtn.disabled = true;
-
-        const messageData = {
-            sender_id: currentUser.id,
-            receiver_id: chatFriend.id,
-            content: '📸 Image',
-            image_url: imageUrl,
-            thumbnail_url: thumbnailUrl,
-            created_at: new Date().toISOString()
-        };
-
-        // Add color if selected
-        if (selectedColor) {
-            messageData.color = selectedColor;
-            selectedColor = null;
-            
-            // Clear selected color UI
-            const colorOptions = document.querySelectorAll('.color-option');
-            colorOptions.forEach(option => {
-                option.classList.remove('selected');
-            });
-        }
-
-        const { data, error } = await supabase
-            .from('direct_messages')
-            .insert(messageData)
-            .select()
-            .single();
-
-        if (error) throw error;
-
-        console.log('✅ Image message sent:', data.id);
-        playSentSound();
-
-        // Clear input
-        const input = document.getElementById('messageInput');
-        if (input) {
-            input.value = '';
-            autoResize(input);
-        }
-
-        isTyping = false;
-        if (typingTimeout) {
-            clearTimeout(typingTimeout);
-            typingTimeout = null;
-        }
-        sendTypingStatus(false);
-
-        setTimeout(() => {
-            if (input) input.focus();
-            isSending = false;
-            sendBtn.innerHTML = originalText;
-            sendBtn.disabled = false;
-        }, 300);
-    } catch (error) {
-        console.error('Send image failed:', error);
-        showCustomAlert('Failed to send image: ' + error.message, '❌', 'Error');
-        isSending = false;
-        sendBtn.innerHTML = originalText;
-        sendBtn.disabled = false;
-    }
-}
-
-function viewImageFullscreen(imageUrl) {
-    // Create fullscreen viewer
-    const viewerHTML = `
-        <div class="image-viewer-overlay" id="imageViewerOverlay">
-            <div class="image-viewer-container">
-                <button class="viewer-close" onclick="closeImageViewer()">×</button>
-                <div class="viewer-image-container">
-                    <img src="${imageUrl}" alt="Shared image" class="viewer-image" 
-                         onload="this.style.opacity='1'" 
-                         onclick="closeImageViewer()">
-                </div>
-                <div class="viewer-actions">
-                    <button class="viewer-action-btn" onclick="downloadImage('${imageUrl}')">📥 Download</button>
-                    <button class="viewer-action-btn" onclick="shareImage('${imageUrl}')">↗️ Share</button>
-                </div>
-            </div>
-        </div>
-    `;
-    
-    document.body.insertAdjacentHTML('beforeend', viewerHTML);
-}
-
-function closeImageViewer() {
-    const viewer = document.getElementById('imageViewerOverlay');
-    if (viewer) {
-        viewer.remove();
-    }
-}
-
-function downloadImage(imageUrl) {
-    const link = document.createElement('a');
-    link.href = imageUrl;
-    link.download = 'relaytalk-image-' + Date.now() + '.jpg';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-}
-
-async function shareImage(imageUrl) {
-    if (navigator.share) {
-        try {
-            await navigator.share({
-                title: 'Image from RelayTalk',
-                url: imageUrl
-            });
-        } catch (error) {
-            console.log('Share cancelled:', error);
-        }
-    } else {
-        // Fallback: copy to clipboard
-        navigator.clipboard.writeText(imageUrl)
-            .then(() => showToast('Image URL copied!', '📋'))
-            .catch(() => showToast('Cannot share image', '⚠️'));
-    }
-}
-
-// ====================
-// MESSAGE DISPLAY FUNCTIONS
-// ====================
-function createImageMessageHTML(msg, isSent, colorAttr, time) {
-    const thumbnailUrl = msg.thumbnail_url || msg.image_url;
-    
-    return `
-        <div class="message ${isSent ? 'sent' : 'received'} image-message" data-message-id="${msg.id}" ${colorAttr}>
-            <div class="message-image-container" onclick="viewImageFullscreen('${msg.image_url}')">
-                <img src="${thumbnailUrl}" alt="Shared image" class="message-image" 
-                     loading="lazy" 
-                     onerror="this.src='https://img.icons8.com/color/96/000000/no-image.png'">
-                <div class="image-overlay">
-                    <span class="image-icon">📸</span>
-                </div>
-            </div>
-            ${msg.content && msg.content !== '📸 Image' ? 
-                `<div class="image-caption">${msg.content}</div>` : ''}
-            <div class="message-time">${time}</div>
-        </div>
-    `;
-}
-
-function createTextMessageHTML(msg, isSent, colorAttr, time) {
-    return `
-        <div class="message ${isSent ? 'sent' : 'received'}" data-message-id="${msg.id}" ${colorAttr}>
-            <div class="message-content">${msg.content || ''}</div>
-            <div class="message-time">${time}</div>
-        </div>
-    `;
-}
-
-function showMessages(messages) {
-    const container = document.getElementById('messagesContainer');
-    if (!container) return;
-
-    if (!messages || messages.length === 0) {
-        container.innerHTML = `
-            <div class="empty-chat">
-                <div class="empty-chat-icon">💬</div>
-                <h3>No messages yet</h3>
-                <p style="margin-top: 10px;">Say hello to start the conversation!</p>
-            </div>
-        `;
-        return;
-    }
-
-    let html = '';
-    let lastDate = '';
-
-    messages.forEach(msg => {
-        const isSent = msg.sender_id === currentUser.id;
-        const time = new Date(msg.created_at).toLocaleTimeString([], {
-            hour: '2-digit',
-            minute: '2-digit'
-        });
-        const date = new Date(msg.created_at).toLocaleDateString();
-
-        if (date !== lastDate) {
-            html += `<div class="date-separator"><span>${date}</span></div>`;
-            lastDate = date;
-        }
-
-        // Get color from database
-        const color = msg.color || null;
-        const colorAttr = color ? `data-color="${color}"` : '';
-        
-        // Check if message has image
-        if (msg.image_url) {
-            html += createImageMessageHTML(msg, isSent, colorAttr, time);
-        } else {
-            html += createTextMessageHTML(msg, isSent, colorAttr, time);
-        }
-    });
-
-    html += `<div style="height: 30px; opacity: 0;"></div>`;
-    container.innerHTML = html;
-
-    setTimeout(() => {
-        forceScrollToBottom();
-    }, 100);
-}
-
-function addMessageToUI(message, isFromRealtime = false) {
-    const container = document.getElementById('messagesContainer');
-    if (!container || !message) return;
-
-    if (container.querySelector('.empty-chat')) {
-        container.innerHTML = '';
-    }
-
-    const isSent = message.sender_id === currentUser.id;
-    const time = new Date(message.created_at).toLocaleTimeString([], {
-        hour: '2-digit',
-        minute: '2-digit'
-    });
-
-    const color = message.color || null;
-    const colorAttr = color ? `data-color="${color}"` : '';
-    
-    let messageHTML;
-    
-    if (message.image_url) {
-        messageHTML = createImageMessageHTML(message, isSent, colorAttr, time);
-    } else {
-        messageHTML = createTextMessageHTML(message, isSent, colorAttr, time);
-    }
-
-    container.insertAdjacentHTML('beforeend', messageHTML);
-
-    const isDuplicate = currentMessages.some(msg => msg.id === message.id);
-    if (!isDuplicate) {
-        currentMessages.push(message);
+            newMessage.style.transition = 'all 0.3s ease';
+            newMessage.style.opacity = '1';
+            newMessage.style.transform = 'translateY(0)';
+        }, 10);
     }
 
     setTimeout(() => {
@@ -572,6 +99,9 @@ function showColorPicker() {
     if (colorPicker) {
         colorPickerVisible = true;
         colorPicker.style.display = 'flex';
+        setTimeout(() => {
+            colorPicker.style.opacity = '1';
+        }, 10);
         
         const colorOptions = document.querySelectorAll('.color-option');
         colorOptions.forEach(option => {
@@ -584,7 +114,10 @@ function hideColorPicker() {
     const colorPicker = document.getElementById('colorPickerOverlay');
     if (colorPicker) {
         colorPickerVisible = false;
-        colorPicker.style.display = 'none';
+        colorPicker.style.opacity = '0';
+        setTimeout(() => {
+            colorPicker.style.display = 'none';
+        }, 300);
         
         const input = document.getElementById('messageInput');
         if (input && input.value === '/') {
@@ -622,7 +155,6 @@ function selectColor(color) {
 // ====================
 // TEXT MESSAGE FUNCTIONS
 // ====================
-
 async function sendMessage() {
     if (isSending) {
         console.log('🔄 Message already being sent, skipping...');
@@ -639,11 +171,15 @@ async function sendMessage() {
 
     isSending = true;
     const sendBtn = document.getElementById('sendBtn');
-    const originalText = sendBtn.innerHTML;
+    const originalHTML = sendBtn.innerHTML;
 
     try {
         console.log('📤 Sending message to:', chatFriend.id);
-        sendBtn.innerHTML = '<div class="typing-dots"><div></div><div></div><div></div></div>';
+        sendBtn.innerHTML = `
+            <svg class="send-icon" viewBox="0 0 24 24" style="opacity: 0.5">
+                <path d="M2,21L23,12L2,3V10L17,12L2,14V21Z"/>
+            </svg>
+        `;
         sendBtn.disabled = true;
 
         const messageData = {
@@ -688,14 +224,14 @@ async function sendMessage() {
         setTimeout(() => {
             input.focus();
             isSending = false;
-            sendBtn.innerHTML = originalText;
+            sendBtn.innerHTML = originalHTML;
             sendBtn.disabled = false;
         }, 300);
     } catch (error) {
         console.error('Send failed:', error);
         showCustomAlert('Failed to send message: ' + error.message, '❌', 'Error');
         isSending = false;
-        sendBtn.innerHTML = originalText;
+        sendBtn.innerHTML = originalHTML;
         sendBtn.disabled = false;
     }
 }
@@ -913,7 +449,7 @@ function showLoginAlert() {
     const alertConfirm = document.getElementById('alertConfirm');
     const alertCancel = document.getElementById('alertCancel');
 
-    alertIcon.textContent = '🔐';
+    alertIcon.innerHTML = '<svg viewBox="0 0 24 24"><path d="M12,17A2,2 0 0,0 14,15C14,13.89 13.1,13 12,13A2,2 0 0,0 10,15A2,2 0 0,0 12,17M18,8A2,2 0 0,1 20,10V20A2,2 0 0,1 18,22H6A2,2 0 0,1 4,20V10C4,8.89 4.9,8 6,8H7V6A5,5 0 0,1 12,1A5,5 0 0,1 17,6V8H18M12,3A3,3 0 0,0 9,6V8H15V6A3,3 0 0,0 12,3Z"/></svg>';
     alertTitle.textContent = 'Login Required';
     alertMessage.textContent = 'Please login or signup to continue chatting!';
     alertCancel.style.display = 'inline-block';
@@ -941,7 +477,7 @@ function showCustomAlert(message, icon = '⚠️', title = 'Alert', onConfirm = 
     const alertConfirm = document.getElementById('alertConfirm');
     const alertCancel = document.getElementById('alertCancel');
 
-    alertIcon.textContent = icon;
+    alertIcon.innerHTML = icon;
     alertTitle.textContent = title;
     alertMessage.textContent = message;
     alertCancel.style.display = 'none';
@@ -963,7 +499,7 @@ function showConfirmAlert(message, icon = '❓', title = 'Confirm', onConfirm, o
     const alertConfirm = document.getElementById('alertConfirm');
     const alertCancel = document.getElementById('alertCancel');
 
-    alertIcon.textContent = icon;
+    alertIcon.innerHTML = icon;
     alertTitle.textContent = title;
     alertMessage.textContent = message;
     alertCancel.style.display = 'inline-block';
@@ -988,12 +524,18 @@ function showToast(message, icon = 'ℹ️', duration = 3000) {
     const toastIcon = document.getElementById('toastIcon');
     const toastMessage = document.getElementById('toastMessage');
 
-    toastIcon.textContent = icon;
+    toastIcon.innerHTML = icon;
     toastMessage.textContent = message;
     toast.style.display = 'flex';
+    setTimeout(() => {
+        toast.style.opacity = '1';
+    }, 10);
 
     setTimeout(() => {
-        toast.style.display = 'none';
+        toast.style.opacity = '0';
+        setTimeout(() => {
+            toast.style.display = 'none';
+        }, 300);
     }, duration);
 }
 
@@ -1056,7 +598,6 @@ function autoResize(textarea) {
 // ====================
 // NAVIGATION
 // ====================
-
 function goBack() {
     if (chatChannel) {
         supabase.removeChannel(chatChannel);
@@ -1070,6 +611,7 @@ function goBack() {
 // ====================
 // USER INFO MODAL
 // ====================
+
 function showUserInfo() {
     if (!chatFriend) {
         showToast('User information not available', '⚠️');
@@ -1186,17 +728,31 @@ function forceScrollToBottom() {
 // LOADING FUNCTION
 // ====================
 function showLoading(show, text = 'Sending...') {
-    const loadingOverlay = document.getElementById('loadingOverlay');
-    if (!loadingOverlay) return;
+    // Create loading overlay if it doesn't exist
+    let loadingOverlay = document.getElementById('loadingOverlay');
+    
+    if (!loadingOverlay) {
+        const loadingHTML = `
+            <div class="loading-overlay" id="loadingOverlay" style="display: none;">
+                <div class="loading-spinner"></div>
+                <p class="loading-text">${text}</p>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', loadingHTML);
+        loadingOverlay = document.getElementById('loadingOverlay');
+    }
     
     if (show) {
-        loadingOverlay.innerHTML = `
-            <div class="login-loader"></div>
-            <p class="loading-text">${text}</p>
-        `;
+        loadingOverlay.querySelector('.loading-text').textContent = text;
         loadingOverlay.style.display = 'flex';
+        setTimeout(() => {
+            loadingOverlay.style.opacity = '1';
+        }, 10);
     } else {
-        loadingOverlay.style.display = 'none';
+        loadingOverlay.style.opacity = '0';
+        setTimeout(() => {
+            loadingOverlay.style.display = 'none';
+        }, 300);
     }
 }
 
