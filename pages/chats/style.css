@@ -22,21 +22,23 @@ body {
 }
 
 /* ==================== */
-/* COLOR PICKER STYLES */
+/* COLOR PICKER STYLES - POSITIONED ABOVE INPUT */
 /* ==================== */
 .color-picker-overlay {
     position: fixed;
-    top: 80px;
+    bottom: 95px; /* Position above input field */
     left: 0;
     right: 0;
     z-index: 150;
     background: rgba(26, 26, 46, 0.95);
     backdrop-filter: blur(20px);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     padding: 15px 20px;
     display: none;
     flex-direction: column;
-    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 -5px 20px rgba(0, 0, 0, 0.3);
+    transition: bottom 0.3s ease;
 }
 
 .color-picker-title {
@@ -255,10 +257,11 @@ body {
     top: 80px;
     left: 0;
     right: 0;
-    bottom: 95px;
+    bottom: 95px; /* Fixed bottom, doesn't change with color picker */
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    transition: bottom 0.3s ease;
 }
 
 /* ==================== */
@@ -546,7 +549,7 @@ body {
     }
 
     .color-picker-overlay {
-        top: 72px;
+        bottom: 85px;
         padding: 12px 16px;
     }
 
@@ -598,7 +601,7 @@ body {
     }
 
     .color-picker-overlay {
-        top: 66px;
+        bottom: 80px;
         padding: 10px 14px;
     }
 
@@ -649,7 +652,7 @@ body {
     }
 
     .color-picker-overlay {
-        top: 62px;
+        bottom: 75px;
         padding: 8px 12px;
     }
 
