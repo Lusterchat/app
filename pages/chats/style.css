@@ -22,6 +22,130 @@ body {
 }
 
 /* ==================== */
+/* COLOR PICKER STYLES */
+/* ==================== */
+.color-picker-overlay {
+    position: fixed;
+    top: 80px;
+    left: 0;
+    right: 0;
+    z-index: 150;
+    background: rgba(26, 26, 46, 0.95);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 15px 20px;
+    display: none;
+    flex-direction: column;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+}
+
+.color-picker-title {
+    font-size: 0.85rem;
+    color: #a0a0c0;
+    margin-bottom: 12px;
+    text-align: center;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+}
+
+.color-picker-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 12px;
+    justify-content: center;
+}
+
+.color-option {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    transition: all 0.2s ease;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.2);
+}
+
+.color-option:hover {
+    transform: scale(1.1);
+    border-color: rgba(255, 255, 255, 0.5);
+}
+
+.color-option.selected {
+    border-color: white;
+    transform: scale(1.1);
+    box-shadow: 0 0 0 2px white, 0 0 15px rgba(255, 255, 255, 0.3);
+}
+
+.color-option[data-color="red"] {
+    background-color: #ff4444;
+}
+.color-option[data-color="green"] {
+    background-color: #44ff44;
+}
+.color-option[data-color="blue"] {
+    background-color: #4444ff;
+}
+.color-option[data-color="white"] {
+    background-color: #ffffff;
+}
+.color-option[data-color="black"] {
+    background-color: #000000;
+    border: 2px solid #444;
+}
+.color-option[data-color="yellow"] {
+    background-color: #ffff44;
+}
+.color-option[data-color="cyan"] {
+    background-color: #44ffff;
+}
+
+.color-label {
+    position: absolute;
+    bottom: -20px;
+    font-size: 0.65rem;
+    color: rgba(255, 255, 255, 0.7);
+    white-space: nowrap;
+    opacity: 0;
+    transition: opacity 0.2s;
+    pointer-events: none;
+}
+
+.color-option:hover .color-label {
+    opacity: 1;
+}
+
+/* Active message color styles */
+.message.sent[data-color="red"] {
+    background: linear-gradient(135deg, #ff4444, #cc0000);
+}
+.message.sent[data-color="green"] {
+    background: linear-gradient(135deg, #44ff44, #00cc00);
+}
+.message.sent[data-color="blue"] {
+    background: linear-gradient(135deg, #4444ff, #0000cc);
+}
+.message.sent[data-color="white"] {
+    background: linear-gradient(135deg, #ffffff, #cccccc);
+    color: #000000;
+}
+.message.sent[data-color="black"] {
+    background: linear-gradient(135deg, #000000, #333333);
+    color: #ffffff;
+}
+.message.sent[data-color="yellow"] {
+    background: linear-gradient(135deg, #ffff44, #cccc00);
+    color: #000000;
+}
+.message.sent[data-color="cyan"] {
+    background: linear-gradient(135deg, #44ffff, #00cccc);
+    color: #000000;
+}
+
+/* ==================== */
 /* CHAT HEADER STYLES   */
 /* ==================== */
 .chat-header {
@@ -421,6 +545,16 @@ body {
         bottom: 85px;
     }
 
+    .color-picker-overlay {
+        top: 72px;
+        padding: 12px 16px;
+    }
+
+    .color-option {
+        width: 36px;
+        height: 36px;
+    }
+
     .message-input-wrapper {
         padding: 12px 16px 15px 16px;
         height: 85px;
@@ -463,6 +597,16 @@ body {
         bottom: 80px;
     }
 
+    .color-picker-overlay {
+        top: 66px;
+        padding: 10px 14px;
+    }
+
+    .color-option {
+        width: 34px;
+        height: 34px;
+    }
+
     .message-input-wrapper {
         padding: 10px 14px 13px 14px;
         height: 80px;
@@ -502,6 +646,16 @@ body {
     .main-content {
         top: 62px;
         bottom: 75px;
+    }
+
+    .color-picker-overlay {
+        top: 62px;
+        padding: 8px 12px;
+    }
+
+    .color-option {
+        width: 32px;
+        height: 32px;
     }
 
     .message-input-wrapper {
