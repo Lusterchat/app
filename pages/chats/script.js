@@ -1,333 +1,943 @@
-// login/script.js - COMPLETE VERSION
-console.log('✨ Login Page Loaded');
+import { auth } from '../../utils/auth.js';
+import { supabase } from '../../utils/supabase.js';
 
-// Wait for Supabase
-async function ensureSupabase() {
-    console.log('⏳ Ensuring Supabase is loaded...');
-    
-    if (window.supabase) {
-        console.log('✅ Supabase already loaded');
-        return true;
-    }
-    
+console.log('✨ Chat Loaded - Chrome Optimized');
+
+// ====================
+// GLOBAL VARIABLES
+// ====================
+let currentUser = null;
+let chatFriend = null;
+let chatChannel = null;
+let statusChannel = null;
+let isLoadingMessages = false;
+let currentMessages = [];
+let isSending = false;
+let isTyping = false;
+let typingTimeout = null;
+let friendTypingTimeout = null;
+let selectedColor = null;
+let colorPickerVisible = false;
+
+// ====================
+// GLOBAL FUNCTION EXPORTS
+// ====================
+window.sendMessage = sendMessage;
+window.handleKeyPress = handleKeyPress;
+window.autoResize = autoResize;
+window.goBack = goBack;
+window.showUserInfo = showUserInfo;
+window.closeModal = closeModal;
+window.startVoiceCall = startVoiceCall;
+window.viewSharedMedia = viewSharedMedia;
+window.blockUserPrompt = blockUserPrompt;
+window.clearChatPrompt = clearChatPrompt;
+window.selectColor = selectColor;
+window.hideColorPicker = hideColorPicker;
+
+// ====================
+// INITIALIZATION
+// ====================
+document.addEventListener('DOMContentLoaded', async () => {
     try {
-        // Load Supabase module
-        const modulePath = '../../utils/supabase.js';
-        await import(modulePath);
-        
-        // Wait for initialization
-        let attempts = 0;
-        while (!window.supabase && attempts < 20) {
-            await new Promise(resolve => setTimeout(resolve, 150));
-            attempts++;
+        // Hide all alerts on load
+        document.getElementById('customAlert').style.display = 'none';
+        document.getElementById('customToast').style.display = 'none';
+        document.getElementById('userInfoModal').style.display = 'none';
+
+        const { success, user } = await auth.getCurrentUser();
+        if (!success || !user) {
+            showLoginAlert();
+            return;
         }
-        
-        if (window.supabase) {
-            console.log('✅ Supabase loaded successfully');
-            return true;
-        } else {
-            console.error('❌ Supabase failed to load');
-            return false;
+
+        currentUser = user;
+        console.log('Current User:', user.id);
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const friendId = urlParams.get('friendId');
+
+        if (!friendId) {
+            showCustomAlert('No friend selected!', '😕', 'Error', () => {
+                window.location.href = '../home/index.html';
+            });
+            return;
         }
+
+        const { data: friend, error: friendError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', friendId)
+            .single();
+
+        if (friendError) throw friendError;
+
+        chatFriend = friend;
+        document.getElementById('chatUserName').textContent = friend.username;
+        document.getElementById('chatUserAvatar').textContent = friend.username.charAt(0).toUpperCase();
+
+        updateFriendStatus(friend.status);
+        await loadOldMessages(friendId);
+        setupRealtime(friendId);
+        setupTypingListener();
+        updateInputListener();
         
+        // Initialize color picker (ABOVE input field)
+        initializeColorPicker();
+        addColorPickerInputListener();
+
+        // Initial setup
+        setTimeout(() => {
+            const input = document.getElementById('messageInput');
+            if (input) autoResize(input);
+            forceScrollToBottom();
+        }, 150);
+
+        console.log('✅ Chat ready!');
     } catch (error) {
-        console.error('❌ Error loading Supabase:', error);
-        return false;
-    }
-}
-
-// Simple login function
-async function loginUser(username, password) {
-    try {
-        if (!window.supabase?.auth) {
-            throw new Error('Authentication service not ready');
-        }
-        
-        const email = `${username}@luster.test`;
-        console.log('Logging in with:', email);
-        
-        const { data, error } = await window.supabase.auth.signInWithPassword({
-            email: email,
-            password: password
+        console.error('Init error:', error);
+        showCustomAlert('Error loading chat: ' + error.message, '❌', 'Error', () => {
+            window.location.href = '../home/index.html';
         });
+    }
+});
+
+// ====================
+// COLOR PICKER FUNCTIONS - FIXED POSITION
+// ====================
+function initializeColorPicker() {
+    // Create color picker HTML - positioned ABOVE input field
+    const colorPickerHTML = `
+        <div class="color-picker-overlay" id="colorPickerOverlay" style="display: none;">
+            <div class="color-picker-title">Choose text color</div>
+            <div class="color-picker-grid">
+                <div class="color-option" data-color="red" onclick="selectColor('red')" title="Red"></div>
+                <div class="color-option" data-color="green" onclick="selectColor('green')" title="Green"></div>
+                <div class="color-option" data-color="blue" onclick="selectColor('blue')" title="Blue"></div>
+                <div class="color-option" data-color="white" onclick="selectColor('white')" title="White"></div>
+                <div class="color-option" data-color="black" onclick="selectColor('black')" title="Black"></div>
+                <div class="color-option" data-color="yellow" onclick="selectColor('yellow')" title="Yellow"></div>
+                <div class="color-option" data-color="cyan" onclick="selectColor('cyan')" title="Cyan"></div>
+            </div>
+        </div>
+    `;
+    
+    // Add color picker RIGHT BEFORE the message input wrapper
+    const inputWrapper = document.getElementById('messageInputWrapper');
+    if (inputWrapper) {
+        inputWrapper.insertAdjacentHTML('beforebegin', colorPickerHTML);
+    } else {
+        document.body.insertAdjacentHTML('afterbegin', colorPickerHTML);
+    }
+}
+
+function addColorPickerInputListener() {
+    const input = document.getElementById('messageInput');
+    if (!input) return;
+    
+    input.addEventListener('input', function(e) {
+        const text = this.value;
+        const colorPicker = document.getElementById('colorPickerOverlay');
         
-        if (error) {
-            console.error('Login error:', error.message);
-            
-            if (error.message.includes('Invalid login credentials')) {
-                throw new Error('Invalid username or password');
-            }
-            
-            throw new Error('Login failed. Please try again.');
+        // Check if first character is /
+        if (text.startsWith('/') && text.length === 1) {
+            showColorPicker();
+        } else if (colorPickerVisible && text.length > 1) {
+            // Hide color picker if user continues typing
+            hideColorPicker();
+        } else if (!text.startsWith('/')) {
+            // Hide if / is removed
+            hideColorPicker();
         }
+    });
+    
+    // Also check on focus
+    input.addEventListener('focus', function() {
+        if (this.value.startsWith('/') && this.value.length === 1) {
+            showColorPicker();
+        }
+    });
+    
+    // Hide on blur with delay
+    input.addEventListener('blur', function() {
+        setTimeout(() => {
+            if (!document.querySelector('.color-option:hover')) {
+                hideColorPicker();
+            }
+        }, 300);
+    });
+    
+    // Hide color picker when clicking outside
+    document.addEventListener('click', function(e) {
+        const colorPicker = document.getElementById('colorPickerOverlay');
+        const input = document.getElementById('messageInput');
         
-        console.log('✅ Login successful!');
-        console.log('User:', data.user.email);
-        
-        // Verify session is saved
-        await window.supabase.auth.getSession();
-        
-        return {
-            success: true,
-            user: data.user
-        };
-        
-    } catch (error) {
-        console.error('Login failed:', error);
-        return {
-            success: false,
-            message: error.message
-        };
-    }
-}
-
-// Check if already logged in
-async function checkExistingLogin() {
-    try {
-        if (!window.supabase?.auth) return false;
-        
-        const { data } = await window.supabase.auth.getSession();
-        const isLoggedIn = !!data?.session;
-        
-        console.log('Existing login check:', isLoggedIn ? 'Logged in' : 'Not logged in');
-        
-        return isLoggedIn;
-        
-    } catch (error) {
-        console.error('Login check error:', error);
-        return false;
-    }
-}
-
-// DOM Elements
-const loginForm = document.getElementById('loginForm');
-const loginUsername = document.getElementById('loginUsername');
-const loginPassword = document.getElementById('loginPassword');
-const passwordToggle = document.getElementById('passwordToggle');
-const usernameError = document.getElementById('usernameError');
-const passwordError = document.getElementById('passwordError');
-const loadingOverlay = document.getElementById('loadingOverlay');
-
-// Toggle password visibility
-if (passwordToggle) {
-    passwordToggle.addEventListener('click', function() {
-        if (loginPassword.type === 'password') {
-            loginPassword.type = 'text';
-            this.textContent = '🙈';
-        } else {
-            loginPassword.type = 'password';
-            this.textContent = '👁️';
+        if (colorPicker && colorPicker.style.display === 'flex' && 
+            !colorPicker.contains(e.target) && 
+            e.target !== input) {
+            hideColorPicker();
         }
     });
 }
 
-// Show error
-function showError(element, message) {
-    if (!element) return;
-    element.textContent = message;
-    element.style.display = 'block';
+function showColorPicker() {
+    const colorPicker = document.getElementById('colorPickerOverlay');
+    if (colorPicker) {
+        colorPickerVisible = true;
+        colorPicker.style.display = 'flex';
+        
+        // Reset any selected color
+        const colorOptions = document.querySelectorAll('.color-option');
+        colorOptions.forEach(option => {
+            option.classList.remove('selected');
+        });
+    }
+}
+
+function hideColorPicker() {
+    const colorPicker = document.getElementById('colorPickerOverlay');
+    if (colorPicker) {
+        colorPickerVisible = false;
+        colorPicker.style.display = 'none';
+        
+        // Clear the / character from input if it's still there
+        const input = document.getElementById('messageInput');
+        if (input && input.value === '/') {
+            input.value = '';
+            autoResize(input);
+        }
+    }
+}
+
+function selectColor(color) {
+    selectedColor = color;
+    const input = document.getElementById('messageInput');
     
-    // Add shake animation
-    element.parentElement.classList.add('shake');
+    // Clear the / character and keep focus
+    if (input) {
+        input.value = '';
+        input.focus();
+        autoResize(input);
+    }
+    
+    // Update color picker UI
+    const colorOptions = document.querySelectorAll('.color-option');
+    colorOptions.forEach(option => {
+        option.classList.remove('selected');
+        if (option.getAttribute('data-color') === color) {
+            option.classList.add('selected');
+        }
+    });
+    
+    // Show toast for selected color
+    showToast(`Selected ${color} color`, '🎨', 1000);
+    
+    // Don't hide immediately - let user see the selection
     setTimeout(() => {
-        element.parentElement.classList.remove('shake');
-    }, 500);
+        hideColorPicker();
+    }, 800);
 }
 
-// Hide error
-function hideError(element) {
-    if (!element) return;
-    element.style.display = 'none';
+// ====================
+// TYPING FUNCTIONS
+// ====================
+function handleTyping() {
+    if (!isTyping) {
+        isTyping = true;
+        sendTypingStatus(true);
+    }
+
+    if (typingTimeout) clearTimeout(typingTimeout);
+
+    typingTimeout = setTimeout(() => {
+        isTyping = false;
+        sendTypingStatus(false);
+    }, 2000);
 }
 
-// Validate form
-function validateForm() {
-    let isValid = true;
-    
-    // Username validation
-    if (!loginUsername.value.trim()) {
-        showError(usernameError, 'Please enter username');
-        isValid = false;
-    } else if (loginUsername.value.trim().length < 3) {
-        showError(usernameError, 'Username must be at least 3 characters');
-        isValid = false;
-    } else {
-        hideError(usernameError);
-    }
-    
-    // Password validation
-    if (!loginPassword.value) {
-        showError(passwordError, 'Please enter password');
-        isValid = false;
-    } else if (loginPassword.value.length < 6) {
-        showError(passwordError, 'Password must be at least 6 characters');
-        isValid = false;
-    } else {
-        hideError(passwordError);
-    }
-    
-    return isValid;
-}
-
-// Handle form submission
-async function handleLogin(event) {
-    event.preventDefault();
-    
-    if (!validateForm()) return;
-    
-    const username = loginUsername.value.trim();
-    const password = loginPassword.value;
-    
-    // Get login button
-    const loginBtn = document.getElementById('loginBtn');
-    if (!loginBtn) return;
-    
-    // Show loading
-    const originalText = loginBtn.textContent;
-    loginBtn.textContent = 'Logging in...';
-    loginBtn.disabled = true;
-    
-    if (loadingOverlay) {
-        loadingOverlay.style.display = 'flex';
-    }
-    
+async function sendTypingStatus(isTyping) {
     try {
-        // Ensure Supabase is ready
-        const supabaseReady = await ensureSupabase();
-        if (!supabaseReady) {
-            showError(passwordError, 'Cannot connect to server');
-            resetButton(loginBtn, originalText);
-            if (loadingOverlay) loadingOverlay.style.display = 'none';
+        await supabase
+            .channel(`typing:${currentUser.id}:${chatFriend.id}`)
+            .send({
+                type: 'broadcast',
+                event: 'typing',
+                payload: {
+                    userId: currentUser.id,
+                    friendId: chatFriend.id,
+                    isTyping: isTyping,
+                    timestamp: Date.now()
+                }
+            });
+    } catch (error) {
+        console.log('Typing status error:', error);
+    }
+}
+
+function setupTypingListener() {
+    supabase
+        .channel(`typing:${chatFriend.id}:${currentUser.id}`)
+        .on('broadcast', { event: 'typing' }, (payload) => {
+            if (payload.payload.userId === chatFriend.id) {
+                showTypingIndicator(payload.payload.isTyping);
+            }
+        })
+        .subscribe();
+}
+
+function showTypingIndicator(show) {
+    const container = document.getElementById('messagesContainer');
+    if (!container) return;
+
+    let indicator = document.getElementById('typingIndicator');
+
+    if (!indicator) {
+        const typingHTML = `
+            <div id="typingIndicator" class="typing-indicator" style="display: none;">
+                <div class="typing-dots">
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                </div>
+            </div>
+        `;
+        container.insertAdjacentHTML('beforeend', typingHTML);
+        indicator = document.getElementById('typingIndicator');
+    }
+
+    if (indicator) {
+        indicator.style.display = show ? 'flex' : 'none';
+
+        if (show) {
+            if (friendTypingTimeout) clearTimeout(friendTypingTimeout);
+            friendTypingTimeout = setTimeout(() => {
+                indicator.style.display = 'none';
+            }, 3000);
+        }
+    }
+}
+
+function updateInputListener() {
+    const input = document.getElementById('messageInput');
+    if (input) {
+        input.addEventListener('input', handleTyping);
+    }
+}
+
+// ====================
+// SOUND FUNCTIONS
+// ====================
+function playSentSound() {
+    try {
+        const audio = new Audio('sent.mp3');
+        audio.volume = 0.3;
+        audio.play().catch(e => console.log('Sound play failed:', e));
+    } catch (error) {
+        console.log('Sound error:', error);
+    }
+}
+
+function playReceivedSound() {
+    try {
+        const audio = new Audio('recieve.mp3');
+        audio.volume = 0.3;
+        audio.play().catch(e => console.log('Sound play failed:', e));
+    } catch (error) {
+        console.log('Sound error:', error);
+    }
+}
+
+// ====================
+// ALERT FUNCTIONS
+// ====================
+function showLoginAlert() {
+    const alertOverlay = document.getElementById('customAlert');
+    const alertIcon = document.getElementById('alertIcon');
+    const alertTitle = document.getElementById('alertTitle');
+    const alertMessage = document.getElementById('alertMessage');
+    const alertConfirm = document.getElementById('alertConfirm');
+    const alertCancel = document.getElementById('alertCancel');
+
+    alertIcon.textContent = '🔐';
+    alertTitle.textContent = 'Login Required';
+    alertMessage.textContent = 'Please login or signup to continue chatting!';
+    alertCancel.style.display = 'inline-block';
+
+    alertConfirm.textContent = 'Login';
+    alertConfirm.onclick = () => {
+        alertOverlay.style.display = 'none';
+        window.location.href = '../login/index.html';
+    };
+
+    alertCancel.textContent = 'Signup';
+    alertCancel.onclick = () => {
+        alertOverlay.style.display = 'none';
+        window.location.href = '../auth/index.html';
+    };
+
+    alertOverlay.style.display = 'flex';
+}
+
+function showCustomAlert(message, icon = '⚠️', title = 'Alert', onConfirm = null) {
+    const alertOverlay = document.getElementById('customAlert');
+    const alertIcon = document.getElementById('alertIcon');
+    const alertTitle = document.getElementById('alertTitle');
+    const alertMessage = document.getElementById('alertMessage');
+    const alertConfirm = document.getElementById('alertConfirm');
+    const alertCancel = document.getElementById('alertCancel');
+
+    alertIcon.textContent = icon;
+    alertTitle.textContent = title;
+    alertMessage.textContent = message;
+    alertCancel.style.display = 'none';
+
+    alertConfirm.textContent = 'OK';
+    alertConfirm.onclick = () => {
+        alertOverlay.style.display = 'none';
+        if (onConfirm) onConfirm();
+    };
+
+    alertOverlay.style.display = 'flex';
+}
+
+function showConfirmAlert(message, icon = '❓', title = 'Confirm', onConfirm, onCancel = null) {
+    const alertOverlay = document.getElementById('customAlert');
+    const alertIcon = document.getElementById('alertIcon');
+    const alertTitle = document.getElementById('alertTitle');
+    const alertMessage = document.getElementById('alertMessage');
+    const alertConfirm = document.getElementById('alertConfirm');
+    const alertCancel = document.getElementById('alertCancel');
+
+    alertIcon.textContent = icon;
+    alertTitle.textContent = title;
+    alertMessage.textContent = message;
+    alertCancel.style.display = 'inline-block';
+
+    alertConfirm.textContent = 'Yes';
+    alertConfirm.onclick = () => {
+        alertOverlay.style.display = 'none';
+        if (onConfirm) onConfirm();
+    };
+
+    alertCancel.textContent = 'No';
+    alertCancel.onclick = () => {
+        alertOverlay.style.display = 'none';
+        if (onCancel) onCancel();
+    };
+
+    alertOverlay.style.display = 'flex';
+}
+
+function showToast(message, icon = 'ℹ️', duration = 3000) {
+    const toast = document.getElementById('customToast');
+    const toastIcon = document.getElementById('toastIcon');
+    const toastMessage = document.getElementById('toastMessage');
+
+    toastIcon.textContent = icon;
+    toastMessage.textContent = message;
+    toast.style.display = 'flex';
+
+    setTimeout(() => {
+        toast.style.display = 'none';
+    }, duration);
+}
+
+// ====================
+// MESSAGE FUNCTIONS
+// ====================
+async function loadOldMessages(friendId) {
+    if (isLoadingMessages) return;
+    isLoadingMessages = true;
+
+    try {
+        console.log('Loading messages for friend:', friendId);
+
+        const { data: messages, error } = await supabase
+            .from('direct_messages')
+            .select('*')
+            .or(`and(sender_id.eq.${currentUser.id},receiver_id.eq.${friendId}),and(sender_id.eq.${friendId},receiver_id.eq.${currentUser.id})`)
+            .order('created_at', { ascending: true });
+
+        if (error) {
+            console.error('Query error:', error);
+            throw error;
+        }
+
+        console.log('Loaded', messages?.length || 0, 'messages');
+        currentMessages = messages || [];
+        showMessages(currentMessages);
+    } catch (error) {
+        console.error('Load error:', error);
+        showMessages([]);
+    } finally {
+        isLoadingMessages = false;
+    }
+}
+
+function showMessages(messages) {
+    const container = document.getElementById('messagesContainer');
+    if (!container) return;
+
+    console.log('Showing', messages?.length || 0, 'messages');
+
+    if (!messages || messages.length === 0) {
+        container.innerHTML = `
+            <div class="empty-chat">
+                <div class="empty-chat-icon">💬</div>
+                <h3>No messages yet</h3>
+                <p style="margin-top: 10px;">Say hello to start the conversation!</p>
+            </div>
+        `;
+        return;
+    }
+
+    let html = '';
+    let lastDate = '';
+
+    messages.forEach(msg => {
+        const isSent = msg.sender_id === currentUser.id;
+        const time = new Date(msg.created_at).toLocaleTimeString([], {
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+        const date = new Date(msg.created_at).toLocaleDateString();
+
+        if (date !== lastDate) {
+            html += `<div class="date-separator"><span>${date}</span></div>`;
+            lastDate = date;
+        }
+
+        // Check if message has color data
+        const color = msg.color || null;
+        const colorAttr = color ? `data-color="${color}"` : '';
+        
+        html += `
+            <div class="message ${isSent ? 'sent' : 'received'}" data-message-id="${msg.id}" ${colorAttr}>
+                <div class="message-content">${msg.content || ''}</div>
+                <div class="message-time">${time}</div>
+            </div>
+        `;
+    });
+
+    // Add spacer to ensure visibility
+    html += `<div style="height: 30px; opacity: 0;"></div>`;
+    container.innerHTML = html;
+
+    // Force scroll after rendering
+    setTimeout(() => {
+        forceScrollToBottom();
+    }, 100);
+}
+
+// ====================
+// SCROLL FUNCTIONS - CHROME OPTIMIZED
+// ====================
+function scrollToBottom() {
+    const container = document.getElementById('messagesContainer');
+    if (!container) return;
+
+    // Method 1: Direct scroll
+    container.scrollTop = container.scrollHeight;
+
+    // Method 2: Double check
+    setTimeout(() => {
+        container.scrollTop = container.scrollHeight;
+    }, 50);
+}
+
+function forceScrollToBottom() {
+    const container = document.getElementById('messagesContainer');
+    if (!container) return;
+
+    // Multiple methods for Chrome
+    container.scrollTop = container.scrollHeight;
+
+    setTimeout(() => {
+        container.scrollTop = container.scrollHeight;
+
+        // Try smooth scroll
+        const lastChild = container.lastElementChild;
+        if (lastChild) {
+            lastChild.scrollIntoView({ behavior: 'smooth', block: 'end' });
+        }
+
+        // Final check
+        setTimeout(() => {
+            container.scrollTop = container.scrollHeight;
+        }, 100);
+    }, 100);
+}
+
+function addMessageToUI(message, isFromRealtime = false) {
+    const container = document.getElementById('messagesContainer');
+    if (!container || !message) return;
+
+    // Remove empty state if it exists
+    if (container.querySelector('.empty-chat')) {
+        container.innerHTML = '';
+    }
+
+    const isSent = message.sender_id === currentUser.id;
+    const time = new Date(message.created_at).toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+
+    // Check if message has color data (from our local storage)
+    const color = message.color || null;
+    const colorAttr = color ? `data-color="${color}"` : '';
+    
+    const messageHTML = `
+        <div class="message ${isSent ? 'sent' : 'received'}" data-message-id="${message.id}" ${colorAttr}>
+            <div class="message-content">${message.content || ''}</div>
+            <div class="message-time">${time}</div>
+        </div>
+    `;
+
+    container.insertAdjacentHTML('beforeend', messageHTML);
+
+    // Check for duplicate
+    const isDuplicate = currentMessages.some(msg => msg.id === message.id);
+    if (!isDuplicate) {
+        // Add color to message object for local storage
+        const messageWithColor = { ...message, color: color };
+        currentMessages.push(messageWithColor);
+    }
+
+    // Force scroll for new messages
+    setTimeout(() => {
+        forceScrollToBottom();
+    }, 10);
+
+    // Play sound for received messages
+    if (message.sender_id === chatFriend.id) {
+        playReceivedSound();
+        if (!document.hasFocus()) {
+            const originalTitle = document.title;
+            document.title = '💬 ' + chatFriend.username;
+            setTimeout(() => document.title = originalTitle, 1000);
+        }
+    }
+}
+
+// ====================
+// STATUS FUNCTIONS
+// ====================
+
+function updateFriendStatus(status) {
+    const isOnline = status === 'online';
+    const statusText = document.getElementById('statusText');
+    const statusDot = document.getElementById('statusDot');
+
+    if (isOnline) {
+        statusText.textContent = 'Online';
+        statusText.style.color = '#28a745';
+        statusDot.className = 'status-dot';
+        statusDot.style.boxShadow = '0 0 8px #28a745';
+    } else {
+        statusText.textContent = 'Offline';
+        statusText.style.color = '#6c757d';
+        statusDot.className = 'status-dot offline';
+        statusDot.style.boxShadow = 'none';
+    }
+}
+
+// ====================
+// REALTIME FUNCTIONS
+// ====================
+function setupRealtime(friendId) {
+    console.log('🔧 Setting up realtime for friend:', friendId);
+
+    if (chatChannel) {
+        supabase.removeChannel(chatChannel);
+    }
+    if (statusChannel) {
+        supabase.removeChannel(statusChannel);
+    }
+
+    chatChannel = supabase.channel(`dm:${currentUser.id}:${friendId}`)
+        .on('postgres_changes', {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'direct_messages'
+        }, (payload) => {
+            console.log('📨 Realtime INSERT detected:', payload.new);
+            const newMsg = payload.new;
+            const isOurMessage = 
+                (newMsg.sender_id === currentUser.id && newMsg.receiver_id === friendId) ||
+                (newMsg.sender_id === friendId && newMsg.receiver_id === currentUser.id);
+
+            if (isOurMessage) {
+                const existingMessage = document.querySelector(`[data-message-id="${newMsg.id}"]`);
+                if (!existingMessage) {
+                    console.log('✅ Adding new message to UI (from realtime)');
+                    addMessageToUI(newMsg, true);
+                } else {
+                    console.log('🔄 Message already in UI, skipping:', newMsg.id);
+                }
+            }
+        })
+        .subscribe();
+
+    statusChannel = supabase.channel(`status:${friendId}`)
+        .on('postgres_changes', {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'profiles',
+            filter: `id=eq.${friendId}`
+        }, (payload) => {
+            console.log('🔄 Friend status updated:', payload.new.status);
+            if (payload.new.id === friendId) {
+                chatFriend.status = payload.new.status;
+                updateFriendStatus(payload.new.status);
+
+                if (payload.new.status === 'online') {
+                    showToast(`${chatFriend.username} is now online`, '🟢', 2000);
+                } else {
+                    showToast(`${chatFriend.username} is now offline`, '⚫', 2000);
+                }
+            }
+        })
+        .subscribe();
+
+    console.log('✅ Realtime active');
+}
+
+// ====================
+// SEND MESSAGE - FIXED FOR COLOR FIELD
+// ====================
+async function sendMessage() {
+    if (isSending) {
+        console.log('🔄 Message already being sent, skipping...');
+        return;
+    }
+
+    const input = document.getElementById('messageInput');
+    const text = input.value.trim();
+
+    if (!text || !chatFriend) {
+        showToast('Please type a message!', '⚠️');
+        return;
+    }
+
+    isSending = true;
+    const sendBtn = document.getElementById('sendBtn');
+    const originalText = sendBtn.innerHTML;
+
+    try {
+        console.log('📤 Sending message to:', chatFriend.id);
+        sendBtn.innerHTML = '<div class="typing-dots"><div></div><div></div><div></div></div>';
+        sendBtn.disabled = true;
+
+        // Prepare message data - WITHOUT color field
+        const messageData = {
+            sender_id: currentUser.id,
+            receiver_id: chatFriend.id,
+            content: text,
+            created_at: new Date().toISOString()
+        };
+
+        const { data, error } = await supabase
+            .from('direct_messages')
+            .insert(messageData)
+            .select()
+            .single();
+
+        if (error) throw error;
+
+        console.log('✅ Message sent to database:', data.id);
+        
+        // Create UI message WITH color (stored locally only)
+        const uiMessage = {
+            ...data,
+            color: selectedColor // Add color locally for UI only
+        };
+        
+        // Add to UI with color
+        addMessageToUI(uiMessage);
+        
+        // Reset color selection after sending
+        selectedColor = null;
+        
+        // Clear selected color UI
+        const colorOptions = document.querySelectorAll('.color-option');
+        colorOptions.forEach(option => {
+            option.classList.remove('selected');
+        });
+        
+        playSentSound();
+        input.value = '';
+        autoResize(input);
+
+        isTyping = false;
+        if (typingTimeout) {
+            clearTimeout(typingTimeout);
+            typingTimeout = null;
+        }
+        sendTypingStatus(false);
+
+        setTimeout(() => {
+            input.focus();
+            isSending = false;
+            sendBtn.innerHTML = originalText;
+            sendBtn.disabled = false;
+        }, 300);
+    } catch (error) {
+        console.error('Send failed:', error);
+        showCustomAlert('Failed to send message: ' + error.message, '❌', 'Error');
+        isSending = false;
+        sendBtn.innerHTML = originalText;
+        sendBtn.disabled = false;
+    }
+}
+
+// ====================
+// INPUT HANDLERS
+// ====================
+function handleKeyPress(event) {
+    const input = document.getElementById('messageInput');
+    const sendBtn = document.getElementById('sendBtn');
+
+    if (sendBtn) {
+        sendBtn.disabled = !input || input.value.trim() === '';
+    }
+
+    if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        
+        // Don't send if color picker is active with just /
+        if (input && input.value === '/') {
             return;
         }
         
-        // Attempt login
-        const result = await loginUser(username, password);
-        
-        if (result.success) {
-            console.log('✅ Login successful, redirecting to home...');
-            
-            // Show success message
-            const successMessage = document.getElementById('successMessage');
-            if (successMessage) {
-                successMessage.style.display = 'block';
-                successMessage.innerHTML = `
-                    <div style="text-align: center; padding: 20px;">
-                        <div style="font-size: 2rem; margin-bottom: 10px;">🎉</div>
-                        <h3 style="color: #28a745; margin-bottom: 10px;">Login Successful!</h3>
-                        <p style="color: #c0c0e0;">Redirecting to home page...</p>
-                        <div style="width: 100%; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; margin-top: 15px; overflow: hidden;">
-                            <div style="width: 0%; height: 100%; background: #667eea; animation: progress 2s linear forwards;"></div>
-                        </div>
-                    </div>
-                `;
-            }
-            
-            // Redirect after delay
-            setTimeout(() => {
-                window.location.href = '../home/index.html';
-            }, 1500);
-            
-        } else {
-            showError(passwordError, result.message || 'Login failed');
-            resetButton(loginBtn, originalText);
-            if (loadingOverlay) loadingOverlay.style.display = 'none';
+        if (input && input.value.trim()) {
+            sendMessage();
         }
-        
-    } catch (error) {
-        console.error('Login handler error:', error);
-        showError(passwordError, 'Something went wrong. Please try again.');
-        resetButton(loginBtn, originalText);
-        if (loadingOverlay) loadingOverlay.style.display = 'none';
     }
 }
 
-// Reset button state
-function resetButton(button, originalText) {
-    button.textContent = originalText;
-    button.disabled = false;
+function autoResize(textarea) {
+    textarea.style.height = 'auto';
+    const newHeight = Math.min(textarea.scrollHeight, 100);
+    textarea.style.height = newHeight + 'px';
+
+    const sendBtn = document.getElementById('sendBtn');
+    if (sendBtn) {
+        sendBtn.disabled = textarea.value.trim() === '';
+    }
 }
 
-// Initialize login page
-async function initLoginPage() {
-    console.log('Initializing login page...');
-    
-    // Ensure Supabase is loaded
-    await ensureSupabase();
-    
-    // Check if already logged in
-    const isLoggedIn = await checkExistingLogin();
-    if (isLoggedIn) {
-        console.log('✅ User already logged in, redirecting to home...');
-        
-        // Show redirect message
-        const successMessage = document.getElementById('successMessage');
-        if (successMessage) {
-            successMessage.style.display = 'block';
-            successMessage.innerHTML = `
-                <div style="text-align: center; padding: 20px;">
-                    <div style="font-size: 2rem; margin-bottom: 10px;">👋</div>
-                    <h3 style="color: #667eea; margin-bottom: 10px;">Already Logged In!</h3>
-                    <p style="color: #c0c0e0;">Redirecting to home page...</p>
-                </div>
-            `;
-        }
-        
-        // Redirect
-        setTimeout(() => {
-            window.location.href = '../home/index.html';
-        }, 1000);
+// ====================
+// NAVIGATION
+// ====================
+function goBack() {
+    if (chatChannel) {
+        supabase.removeChannel(chatChannel);
+    }
+    if (statusChannel) {
+        supabase.removeChannel(statusChannel);
+    }
+    window.location.href = '../home/index.html';
+}
+
+// ====================
+// USER INFO MODAL
+// ====================
+function showUserInfo() {
+    if (!chatFriend) {
+        showToast('User information not available', '⚠️');
         return;
     }
-    
-    console.log('User not logged in, showing login form');
-    
-    // Setup event listeners
-    if (loginForm) {
-        loginForm.addEventListener('submit', handleLogin);
-    }
-    
-    // Clear errors on input
-    if (loginUsername) {
-        loginUsername.addEventListener('input', function() {
-            if (this.value.trim()) hideError(usernameError);
-        });
-    }
-    
-    if (loginPassword) {
-        loginPassword.addEventListener('input', function() {
-            if (this.value) hideError(passwordError);
-        });
-    }
-    
-    // Auto-focus username field
-    if (loginUsername) {
-        setTimeout(() => loginUsername.focus(), 300);
-    }
-    
-    // Hide loading overlay if shown
-    if (loadingOverlay) {
-        loadingOverlay.style.display = 'none';
-    }
+
+    const modal = document.getElementById('userInfoModal');
+    const content = document.getElementById('userInfoContent');
+    const isOnline = chatFriend.status === 'online';
+
+    content.innerHTML = `
+        <div class="user-info-avatar">
+            ${chatFriend.username.charAt(0).toUpperCase()}
+        </div>
+        <div class="user-info-details">
+            <h3 class="user-info-name">${chatFriend.full_name || chatFriend.username}</h3>
+            <p class="user-info-username">@${chatFriend.username}</p>
+            <div class="user-info-status ${isOnline ? '' : 'offline'}">
+                <span class="status-dot ${isOnline ? '' : 'offline'}"></span>
+                ${isOnline ? 'Online' : 'Offline'}
+            </div>
+        </div>
+        <div class="user-info-actions">
+            <button class="info-action-btn primary" onclick="startVoiceCall()">🎤 Voice Call</button>
+            <button class="info-action-btn secondary" onclick="viewSharedMedia()">📷 Shared Media</button>
+            <button class="info-action-btn danger" onclick="blockUserPrompt()">🚫 Block User</button>
+        </div>
+    `;
+
+    modal.style.display = 'flex';
 }
 
-// Global functions
-window.togglePassword = function() {
-    const passwordInput = document.getElementById('loginPassword');
-    const toggleBtn = document.querySelector('#passwordToggle');
-    
-    if (passwordInput && toggleBtn) {
-        if (passwordInput.type === 'password') {
-            passwordInput.type = 'text';
-            toggleBtn.textContent = '🙈';
-        } else {
-            passwordInput.type = 'password';
-            toggleBtn.textContent = '👁️';
+function closeModal() {
+    document.getElementById('userInfoModal').style.display = 'none';
+}
+
+function startVoiceCall() {
+    showToast('Voice call feature coming soon!', '📞');
+}
+
+function viewSharedMedia() {
+    showToast('Shared media feature coming soon!', '📷');
+}
+
+function blockUserPrompt() {
+    showConfirmAlert(
+        `Are you sure you want to block ${chatFriend.username}?`,
+        '🚫',
+        'Block User',
+        () => {
+            showToast('User blocked!', '✅');
+            setTimeout(goBack, 1000);
         }
-    }
-};
+    );
+}
 
-window.handleLogin = handleLogin;
+// ====================
+// CLEAR CHAT
+// ====================
+async function clearChatPrompt() {
+    showConfirmAlert(
+        'Are you sure you want to clear all messages?',
+        '🗑️',
+        'Clear Chat',
+        async () => {
+            try {
+                const friendId = new URLSearchParams(window.location.search).get('friendId');
+                const { error } = await supabase
+                    .from('direct_messages')
+                    .delete()
+                    .or(`and(sender_id.eq.${currentUser.id},receiver_id.eq.${friendId}),and(sender_id.eq.${friendId},receiver_id.eq.${currentUser.id})`);
 
-// Initialize on load
-document.addEventListener('DOMContentLoaded', initLoginPage);
+                if (error) throw error;
+
+                showToast('Chat cleared!', '✅');
+                currentMessages = [];
+                showMessages([]);
+            } catch (error) {
+                console.error('Clear chat error:', error);
+                showCustomAlert('Error clearing chat', '❌', 'Error');
+            }
+        }
+    );
+}
+
+// ====================
+// CHROME SPECIFIC FIXES
+// ====================
+if (navigator.userAgent.includes('Chrome')) {
+    document.addEventListener('DOMContentLoaded', function() {
+        setTimeout(() => {
+            const container = document.getElementById('messagesContainer');
+            if (container) {
+                container.style.transform = 'translateZ(0)';
+            }
+        }, 500);
+    });
+}
