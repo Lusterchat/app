@@ -4,74 +4,136 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <!-- SEO Title -->
-    <title>RelayTalk - Login | Sign In to Your Messaging Account</title>
+    <!-- SEO Title - OPTIMIZED for ranking -->
+    <title>RelayTalk | Login</title>
 
-    <!-- Meta Descriptions -->
-    <meta name="description" content="Login to your RelayTalk account. Access your secure messaging platform, reconnect with friends, and continue your conversations instantly.">
-    <meta name="keywords" content="RelayTalk, Login, Sign In, Account Login, RelayTalk App Login, Messaging App Login, Chat App Login, Secure Login, Private Messenger Login, User Login, Access Account, Messenger Sign In, Social Login">
+    <!-- Meta Descriptions - OPTIMIZED -->
+    <meta name="description" content="Login to your RelayTalk account. Access secure messaging, reconnect with friends, and continue conversations instantly. Sign in to RelayTalk's private chat platform.">
+    <meta name="keywords" content="RelayTalk Login, Sign In RelayTalk, RelayTalk Account Login, Secure Messaging Login, Private Chat Login, RelayTalk App Sign In, Chat Platform Login, Instant Messaging Login, RelayTalk User Login, Messenger Login 2024, Login to RelayTalk, RelayTalk Access">
+    
+    <!-- Additional SEO Keywords for better ranking -->
+    <meta name="keywords" content="messenger login, chat app login, secure login, online messaging login, free chat login, private messenger sign in, social messaging login, web chat login, instant messenger login">
 
-    <!-- Open Graph -->
+    <!-- Open Graph - UPDATED for Vercel -->
     <meta property="og:type" content="website">
-    <meta property="og:title" content="RelayTalk - Login | Access Your Messaging Account">
-    <meta property="og:description" content="Sign in to your RelayTalk account to continue secure messaging with friends and family.">
-    <meta property="og:url" content="https://relaytalk.github.io/pages/login/">
-    <meta property="og:image" content="https://relaytalk.github.io/relay.png">
+    <meta property="og:title" content="Login | RelayTalk - Access Your Secure Messaging">
+    <meta property="og:description" content="Sign in to your RelayTalk account securely. Continue private conversations with friends and family on our encrypted messaging platform.">
+    <meta property="og:url" content="https://relaytalk.vercel.app/pages/login/">
+    <meta property="og:image" content="https://relaytalk.vercel.app/relayad.png">
     <meta property="og:site_name" content="RelayTalk">
+    <meta property="og:locale" content="en_US">
 
-    <!-- Twitter -->
+    <!-- Twitter - UPDATED for Vercel -->
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="RelayTalk - Login | Sign In Now">
-    <meta name="twitter:description" content="Login to your RelayTalk messaging account securely and instantly.">
-    <meta name="twitter:image" content="https://relaytalk.github.io/relay.png">
+    <meta name="twitter:title" content="Login | RelayTalk - Secure Sign In">
+    <meta name="twitter:description" content="Login to your RelayTalk messaging account. Secure, private, and instant access to your conversations.">
+    <meta name="twitter:image" content="https://relaytalk.vercel.app/relayad.png">
     <meta name="twitter:site" content="@relaytalk">
+    <meta name="twitter:creator" content="@relaytalk">
 
-    <!-- Canonical -->
-    <link rel="canonical" href="https://relaytalk.github.io/pages/login/">
+    <!-- Canonical - UPDATED for Vercel -->
+    <link rel="canonical" href="https://relaytalk.vercel.app/pages/login/">
 
-    <!-- Structured Data -->
+    <!-- Structured Data - ENHANCED for better SEO -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
       "@type": "WebPage",
-      "name": "RelayTalk - Login",
-      "description": "Login to your RelayTalk messaging account",
-      "url": "https://relaytalk.github.io/pages/login/",
+      "name": "Login | RelayTalk",
+      "description": "Login page for RelayTalk secure messaging platform",
+      "url": "https://relaytalk.vercel.app/pages/login/",
+      "mainEntity": {
+        "@type": "WebApplication",
+        "name": "RelayTalk Login",
+        "applicationCategory": "CommunicationApplication",
+        "operatingSystem": "Web",
+        "description": "Login to access RelayTalk's secure messaging features"
+      },
       "breadcrumb": {
         "@type": "BreadcrumbList",
-        "itemListElement": [{
-          "@type": "ListItem",
-          "position": 1,
-          "name": "Home",
-          "item": "https://relaytalk.github.io/"
-        },{
-          "@type": "ListItem",
-          "position": 2,
-          "name": "Login",
-          "item": "https://relaytalk.github.io/pages/login/"
-        }]
+        "itemListElement": [
+          {
+            "@type": "ListItem",
+            "position": 1,
+            "name": "Home",
+            "item": "https://relaytalk.vercel.app/"
+          },
+          {
+            "@type": "ListItem",
+            "position": 2,
+            "name": "Login",
+            "item": "https://relaytalk.vercel.app/pages/login/"
+          }
+        ]
+      },
+      "potentialAction": {
+        "@type": "LoginAction",
+        "name": "Login",
+        "target": "https://relaytalk.vercel.app/pages/login/",
+        "description": "Login to RelayTalk account"
       }
     }
     </script>
 
-    <link rel="stylesheet" href="../../style.css">
-    <link rel="stylesheet" href="style.css">
+    <!-- Additional Schema for Login Action -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "LoginAction",
+      "name": "RelayTalk Login",
+      "target": {
+        "@type": "EntryPoint",
+        "urlTemplate": "https://relaytalk.vercel.app/pages/login/",
+        "actionPlatform": [
+          "http://schema.org/DesktopWebPlatform",
+          "http://schema.org/MobileWebPlatform"
+        ]
+      },
+      "expectsAcceptanceOf": {
+        "@type": "Offer",
+        "name": "Terms of Service",
+        "url": "https://relaytalk.vercel.app/pages/auth/#terms"
+      }
+    }
+    </script>
+
+    <!-- CSS - UPDATED paths -->
+    <link rel="stylesheet" href="/style.css">
+    <link rel="stylesheet" href="/pages/login/style.css">
+    
+    <!-- Preconnect for faster loading -->
+    <link rel="preconnect" href="https://relaytalk.vercel.app">
+    <link rel="dns-prefetch" href="https://relaytalk.vercel.app">
 </head>
 <body>
     <!-- Simple Header -->
     <div class="login-header">
-        <a href="../../index.html" class="login-header-logo">✨ Relay</a>
+        <a href="/" class="login-header-logo">✨ RelayTalk</a>
+        <nav class="login-nav" aria-label="Login navigation">
+            <a href="/" class="nav-link">Home</a>
+            <a href="/pages/auth/" class="nav-link">Create Account</a>
+            <a href="/pages/login/" class="nav-link active">Login</a>
+        </nav>
     </div>
 
     <!-- Login Container -->
     <div class="login-container">
+        <!-- Hidden H1 for SEO - Desktop -->
+        <h1 class="seo-heading">Login to RelayTalk - Secure Messaging Platform</h1>
+        
         <div class="login-title-section">
             <div class="login-logo">🔐</div>
-            <h1 class="login-title">Welcome Back</h1>
-            <p class="login-subtitle">Sign in to your Relay account</p>
+            <h2 class="login-title">Welcome Back to RelayTalk</h2>
+            <p class="login-subtitle">Sign in to access your secure messaging account</p>
+            
+            <!-- SEO Rich Text (hidden visually) -->
+            <div class="seo-content" aria-hidden="true">
+                <p>RelayTalk Login provides secure access to your private messaging account. Sign in to continue conversations with friends and family on our encrypted platform.</p>
+                <p>Access features like instant messaging, friend search, notifications, and secure chat history. Your RelayTalk login credentials ensure private communication.</p>
+            </div>
         </div>
 
-        <form class="login-form" id="loginForm">
+        <form class="login-form" id="loginForm" aria-label="Login form">
             <!-- Username -->
             <div class="form-group">
                 <label class="form-label" for="loginUsername">
@@ -80,7 +142,9 @@
                 </label>
                 <input type="text" id="loginUsername" class="form-input" 
                        placeholder="Enter your username" required
-                       minlength="3" maxlength="20">
+                       minlength="3" maxlength="20"
+                       aria-describedby="usernameHelp">
+                <div class="form-help" id="usernameHelp">Enter the username you created during registration</div>
                 <div class="error-message" id="usernameError"></div>
             </div>
 
@@ -93,11 +157,14 @@
                 <div class="password-input">
                     <input type="password" id="loginPassword" class="form-input" 
                            placeholder="Enter your password" required
-                           minlength="6">
-                    <button type="button" class="password-toggle" id="passwordToggle">
+                           minlength="6"
+                           aria-describedby="passwordHelp">
+                    <button type="button" class="password-toggle" id="passwordToggle"
+                            aria-label="Show password">
                         👁️
                     </button>
                 </div>
+                <div class="form-help" id="passwordHelp">Enter your secure password</div>
                 <div class="error-message" id="passwordError"></div>
             </div>
 
@@ -105,38 +172,89 @@
             <div class="login-options">
                 <div class="remember-me">
                     <input type="checkbox" id="rememberMe">
-                    <label for="rememberMe">Remember me</label>
+                    <label for="rememberMe">Stay signed in on this device</label>
                 </div>
             </div>
 
             <!-- Submit Button -->
-            <button type="submit" class="login-btn" id="loginBtn">
-                Sign In
+            <button type="submit" class="login-btn" id="loginBtn"
+                    aria-label="Sign in to RelayTalk">
+                Sign In to RelayTalk
             </button>
         </form>
 
         <!-- Success Message (Hidden) -->
-        <div class="success-message" id="successMessage">
+        <div class="success-message" id="successMessage" role="alert">
             <!-- Content added by JS -->
         </div>
 
         <!-- Divider -->
-        <div class="divider">or</div>
+        <div class="divider">
+            <span>or</span>
+        </div>
 
-        <!-- Sign up link -->
+        <!-- Sign up link with SEO text -->
         <div class="signup-link">
-            Don't have an account?
-            <a href="../auth/index.html">Create Account</a>
+            <p>New to RelayTalk? <a href="/pages/auth/" aria-label="Create RelayTalk account">Create your free account</a> to start secure messaging.</p>
+            <p class="small-text">Join thousands of users on RelayTalk's private messaging platform.</p>
+        </div>
+        
+        <!-- SEO Footer Content -->
+        <div class="seo-footer" aria-hidden="true">
+            <h3>RelayTalk Login Features</h3>
+            <ul>
+                <li>Secure encrypted login</li>
+                <li>Instant access to messages</li>
+                <li>Cross-device synchronization</li>
+                <li>Privacy-focused authentication</li>
+                <li>No email or phone required</li>
+            </ul>
+            <p>RelayTalk provides a secure login system for its private messaging service. Access your account from any device with your username and password.</p>
         </div>
     </div>
 
     <!-- Loading Overlay -->
-    <div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-overlay" id="loadingOverlay" role="status" aria-live="polite">
         <div class="login-loader"></div>
-        <p class="loading-text">Signing you in...</p>
+        <p class="loading-text">Signing you in to RelayTalk...</p>
     </div>
 
-    <script type="module" src="script.js"></script>
+    <!-- JavaScript - UPDATED paths -->
+    <script type="module" src="/pages/login/script.js"></script>
     <script src="/utils/sw-manager.js"></script>
+    
+    <!-- Schema for FAQ -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "How do I login to RelayTalk?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Visit the RelayTalk login page, enter your username and password, and click Sign In to access your secure messaging account."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What if I forgot my RelayTalk password?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "RelayTalk uses secure password hashing. If you forget your password, you'll need to create a new account as passwords cannot be recovered for security reasons."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Is RelayTalk login secure?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes, RelayTalk uses secure authentication methods to protect your login credentials and ensure private access to your messaging account."
+          }
+        }
+      ]
+    }
+    </script>
 </body>
 </html>
