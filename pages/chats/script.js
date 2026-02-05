@@ -44,6 +44,8 @@ window.viewImageFullscreen = viewImageFullscreen;
 window.closeImageViewer = closeImageViewer;
 window.downloadImage = downloadImage;
 window.shareImage = shareImage;
+window.handleImageLoad = handleImageLoad;
+window.handleImageError = handleImageError;
 
 // ====================
 // INITIALIZATION
@@ -98,6 +100,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         addColorPickerInputListener();
         setupFileInputListeners();
 
+        // Prevent accidental back navigation
+        setupBackButtonPrevention();
+
         // Initial setup
         setTimeout(() => {
             const input = document.getElementById('messageInput');
@@ -115,7 +120,32 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 // ====================
-// IMAGE PICKER FUNCTIONS
+// FIX BACK BUTTON ISSUE
+// ====================
+function setupBackButtonPrevention() {
+    const backBtn = document.querySelector('.back-btn');
+    if (backBtn) {
+        // Remove any existing click handlers
+        backBtn.onclick = null;
+        
+        // Add new handler with delay
+        backBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // Add a small delay to prevent double-tap issues
+            this.style.pointerEvents = 'none';
+            
+            setTimeout(() => {
+                goBack();
+                this.style.pointerEvents = 'auto';
+            }, 300);
+        });
+    }
+}
+
+// ====================
+// IMAGE PICKER FUNCTIONS - FIXED
 // ====================
 function showImagePicker() {
     isImagePickerOpen = true;
@@ -126,6 +156,9 @@ function showImagePicker() {
             picker.style.opacity = '1';
             picker.querySelector('.image-picker-container').style.transform = 'translateY(0)';
         }, 10);
+        
+        // Prevent body scrolling when picker is open
+        document.body.style.overflow = 'hidden';
     }
 }
 
@@ -137,6 +170,8 @@ function closeImagePicker() {
         picker.querySelector('.image-picker-container').style.transform = 'translateY(100%)';
         setTimeout(() => {
             picker.style.display = 'none';
+            // Restore body scrolling
+            document.body.style.overflow = '';
         }, 300);
     }
 }
@@ -144,6 +179,8 @@ function closeImagePicker() {
 function openCamera() {
     const cameraInput = document.getElementById('cameraInput');
     if (cameraInput) {
+        // Clear previous value to allow same file to be selected again
+        cameraInput.value = '';
         cameraInput.click();
     }
     closeImagePicker();
@@ -152,6 +189,8 @@ function openCamera() {
 function openGallery() {
     const galleryInput = document.getElementById('galleryInput');
     if (galleryInput) {
+        // Clear previous value to allow same file to be selected again
+        galleryInput.value = '';
         galleryInput.click();
     }
     closeImagePicker();
@@ -174,18 +213,29 @@ function setupFileInputListeners() {
     }
 }
 
-// Close image picker when clicking outside
+// Close image picker when clicking outside - FIXED
 document.addEventListener('click', (e) => {
     const picker = document.getElementById('imagePickerOverlay');
     const attachBtn = document.getElementById('attachBtn');
 
     if (isImagePickerOpen && picker && !picker.contains(e.target) && e.target !== attachBtn) {
-        closeImagePicker();
+        // Don't close if clicking on file inputs
+        if (e.target.id !== 'cameraInput' && e.target.id !== 'galleryInput') {
+            closeImagePicker();
+        }
     }
 });
 
+// Prevent accidental closing on touch
+document.addEventListener('touchstart', (e) => {
+    const picker = document.getElementById('imagePickerOverlay');
+    if (isImagePickerOpen && picker && !picker.contains(e.target)) {
+        e.preventDefault();
+    }
+}, { passive: false });
+
 // ====================
-// IMAGE UPLOAD FUNCTIONS
+// IMAGE UPLOAD FUNCTIONS - FIXED FOR IMG.BB
 // ====================
 function handleImageSelect(event) {
     const file = event.target.files[0];
@@ -205,8 +255,8 @@ function handleImageSelect(event) {
 
     // Upload image
     uploadImageToImgBB(file);
-
-    // Reset file inputs
+    
+    // Reset input for next selection
     event.target.value = '';
 }
 
@@ -217,13 +267,18 @@ async function uploadImageToImgBB(file) {
         // Compress image if needed
         const processedFile = await compressImage(file);
 
-        // Create FormData
+        // Create FormData - ImgBB expects only the image file in FormData
         const formData = new FormData();
         formData.append('image', processedFile);
-        formData.append('key', IMGBB_API_KEY);
+        
+        // ImgBB expects the key as a query parameter, NOT in FormData
+        // Also set expiration (600 seconds = 10 minutes)
+        const url = `https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}&expiration=600`;
 
+        console.log('📤 Uploading to ImgBB...');
+        
         // Upload to ImgBB
-        const response = await fetch('https://api.imgbb.com/1/upload', {
+        const response = await fetch(url, {
             method: 'POST',
             body: formData
         });
@@ -233,16 +288,22 @@ async function uploadImageToImgBB(file) {
         }
 
         const data = await response.json();
+        console.log('ImgBB Response:', data);
 
         if (!data.success) {
             throw new Error(data.error?.message || 'Upload failed');
         }
 
-        // Get image URL
-        const imageUrl = data.data.url;
-        const thumbnailUrl = data.data.thumb?.url || imageUrl;
+        // Get image URL - ImgBB response structure
+        const imageUrl = data.data.url || data.data.display_url;
+        const thumbnailUrl = data.data.thumb?.url || data.data.thumb_url || imageUrl;
+
+        if (!imageUrl) {
+            throw new Error('No image URL returned from ImgBB');
+        }
 
         console.log('✅ Image uploaded:', imageUrl);
+        console.log('✅ Thumbnail:', thumbnailUrl);
 
         // Send message with image
         await sendImageMessage(imageUrl, thumbnailUrl);
@@ -401,8 +462,9 @@ async function sendImageMessage(imageUrl, thumbnailUrl) {
 }
 
 // ====================
-// IMAGE VIEWER FUNCTIONS
+// IMAGE VIEWER FUNCTIONS - FIXED
 // ====================
+
 function viewImageFullscreen(imageUrl) {
     // Remove existing viewer if any
     const existingViewer = document.getElementById('imageViewerOverlay');
@@ -410,7 +472,16 @@ function viewImageFullscreen(imageUrl) {
         existingViewer.remove();
     }
 
-    // Create fullscreen viewer
+    // Fix URL for ImgBB
+    let fixedImageUrl = imageUrl;
+    if (imageUrl.includes('i.ibb.co')) {
+        // Ensure HTTPS
+        fixedImageUrl = imageUrl.replace('http://', 'https://');
+        // Remove double slashes
+        fixedImageUrl = fixedImageUrl.replace('//i.ibb.co', 'https://i.ibb.co');
+    }
+
+    // Create fullscreen viewer with proper image URL
     const viewerHTML = `
         <div class="image-viewer-overlay" id="imageViewerOverlay">
             <button class="viewer-close" onclick="closeImageViewer()">
@@ -419,18 +490,18 @@ function viewImageFullscreen(imageUrl) {
                 </svg>
             </button>
             <div class="viewer-image-container">
-                <img src="${imageUrl}" alt="Shared image" class="viewer-image" 
+                <img src="${fixedImageUrl}" alt="Shared image" class="viewer-image" 
                      onload="this.style.opacity='1'; this.classList.add('loaded')"
-                     onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"100\" height=\"100\" viewBox=\"0 0 24 24\"><path fill=\"%23ccc\" d=\"M21,19V5C21,3.9 20.1,3 19,3H5C3.9,3 3,3.9 3,5V19C3,20.1 3.9,21 5,21H19C20.1,21 21,20.1 21,19M8.5,13.5L11,16.5L14.5,12L19,18H5L8.5,13.5Z\"/></svg>'">
+                     onerror="handleImageViewerError(this, '${fixedImageUrl}')">
             </div>
             <div class="viewer-actions">
-                <button class="viewer-action-btn" onclick="downloadImage('${imageUrl}')">
+                <button class="viewer-action-btn" onclick="downloadImage('${fixedImageUrl}')">
                     <svg viewBox="0 0 24 24">
                         <path d="M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z"/>
                     </svg>
                     <span>Download</span>
                 </button>
-                <button class="viewer-action-btn" onclick="shareImage('${imageUrl}')">
+                <button class="viewer-action-btn" onclick="shareImage('${fixedImageUrl}')">
                     <svg viewBox="0 0 24 24">
                         <path d="M18,16.08C17.24,16.08 16.56,16.38 16.04,16.85L8.91,12.7C8.96,12.47 9,12.24 9,12C9,11.76 8.96,11.53 8.91,11.3L15.96,7.19C16.5,7.69 17.21,8 18,8A3,3 0 0,0 21,5A3,3 0 0,0 18,2A3,3 0 0,0 15,5C15,5.24 15.04,5.47 15.09,5.7L8.04,9.81C7.5,9.31 6.79,9 6,9A3,3 0 0,0 3,12A3,3 0 0,0 6,15C6.79,15 7.5,14.69 8.04,14.19L15.16,18.34C15.11,18.55 15.08,18.77 15.08,19C15.08,20.61 16.39,21.91 18,21.91C19.61,21.91 20.92,20.61 20.92,19C20.92,17.39 19.61,16.08 18,16.08Z"/>
                     </svg>
@@ -451,6 +522,39 @@ function viewImageFullscreen(imageUrl) {
     }, 10);
 }
 
+// Handle image viewer errors
+function handleImageViewerError(imgElement, originalUrl) {
+    console.error('Failed to load image in viewer:', originalUrl);
+    
+    // Try to load with different protocol or fix URL
+    if (originalUrl.includes('i.ibb.co')) {
+        // Ensure HTTPS
+        const httpsUrl = originalUrl.replace('http://', 'https://');
+        if (httpsUrl !== originalUrl) {
+            imgElement.src = httpsUrl;
+            return;
+        }
+        
+        // Try without www
+        const cleanUrl = originalUrl.replace('www.', '');
+        if (cleanUrl !== originalUrl) {
+            imgElement.src = cleanUrl;
+            return;
+        }
+        
+        // Try direct .png URL
+        if (!originalUrl.endsWith('.png') && !originalUrl.endsWith('.jpg') && !originalUrl.endsWith('.jpeg')) {
+            imgElement.src = originalUrl + '.png';
+            return;
+        }
+    }
+    
+    // Fallback to error placeholder
+    imgElement.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 24 24"><path fill="%23ccc" d="M21,19V5C21,3.9 20.1,3 19,3H5C3.9,3 3,3.9 3,5V19C3,20.1 3.9,21 5,21H19C20.1,21 21,20.1 21,19M8.5,13.5L11,16.5L14.5,12L19,18H5L8.5,13.5Z"/></svg>';
+    imgElement.style.opacity = '1';
+    imgElement.classList.add('loaded');
+}
+
 function closeImageViewer() {
     const viewer = document.getElementById('imageViewerOverlay');
     if (viewer) {
@@ -462,13 +566,27 @@ function closeImageViewer() {
 }
 
 function downloadImage(imageUrl) {
+    // Fix URL if needed
+    let downloadUrl = imageUrl;
+    if (imageUrl.includes('i.ibb.co')) {
+        // Ensure HTTPS
+        downloadUrl = downloadUrl.replace('http://', 'https://');
+        // Remove double protocol
+        if (downloadUrl.startsWith('https://https://')) {
+            downloadUrl = downloadUrl.replace('https://https://', 'https://');
+        }
+    }
+    
     const link = document.createElement('a');
-    link.href = imageUrl;
+    link.href = downloadUrl;
     link.download = 'relaytalk-image-' + Date.now() + '.jpg';
     link.target = '_blank';
+    link.style.display = 'none';
     document.body.appendChild(link);
     link.click();
-    document.body.removeChild(link);
+    setTimeout(() => {
+        document.body.removeChild(link);
+    }, 100);
     showToast('Download started', '📥', 2000);
 }
 
@@ -498,19 +616,84 @@ function copyToClipboard(text) {
 }
 
 // ====================
-// MESSAGE DISPLAY FUNCTIONS
+// IMAGE LOADING HANDLERS
 // ====================
+function handleImageLoad(imgElement) {
+    imgElement.style.opacity = '1';
+    imgElement.classList.add('loaded');
+    
+    // Remove loading background
+    const container = imgElement.closest('.message-image-container');
+    if (container) {
+        container.style.background = 'none';
+        container.style.animation = 'none';
+    }
+}
 
+function handleImageError(imgElement, originalUrl) {
+    console.error('Failed to load chat image:', originalUrl);
+    
+    // Try to fix the URL
+    if (originalUrl.includes('i.ibb.co')) {
+        // Try HTTPS first
+        const httpsUrl = originalUrl.replace('http://', 'https://');
+        if (httpsUrl !== originalUrl) {
+            imgElement.src = httpsUrl;
+            return;
+        }
+        
+        // Try without www
+        const cleanUrl = originalUrl.replace('www.', '');
+        if (cleanUrl !== originalUrl) {
+            imgElement.src = cleanUrl;
+            return;
+        }
+        
+        // Try adding file extension if missing
+        if (!originalUrl.includes('.png') && !originalUrl.includes('.jpg') && !originalUrl.includes('.jpeg')) {
+            imgElement.src = originalUrl + '.png';
+            return;
+        }
+    }
+    
+    // Fallback to placeholder
+    imgElement.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 24 24"><path fill="%23ccc" d="M21,19V5C21,3.9 20.1,3 19,3H5C3.9,3 3,3.9 3,5V19C3,20.1 3.9,21 5,21H19C20.1,21 21,20.1 21,19M8.5,13.5L11,16.5L14.5,12L19,18H5L8.5,13.5Z"/></svg>';
+    imgElement.style.opacity = '1';
+    imgElement.classList.add('loaded');
+    
+    // Remove loading background
+    const container = imgElement.closest('.message-image-container');
+    if (container) {
+        container.style.background = 'rgba(0, 0, 0, 0.2)';
+        container.style.animation = 'none';
+    }
+}
+
+// ====================
+// MESSAGE DISPLAY FUNCTIONS - FIXED IMAGE URLS
+// ====================
 function createImageMessageHTML(msg, isSent, colorAttr, time) {
-    const thumbnailUrl = msg.thumbnail_url || msg.image_url;
+    // Fix image URLs for ImgBB
+    let imageUrl = msg.image_url || '';
+    let thumbnailUrl = msg.thumbnail_url || imageUrl;
+    
+    // Ensure HTTPS for ImgBB URLs and fix common issues
+    if (imageUrl.includes('i.ibb.co')) {
+        imageUrl = imageUrl.replace('http://', 'https://');
+        thumbnailUrl = thumbnailUrl.replace('http://', 'https://');
+        
+        // Remove double protocols
+        imageUrl = imageUrl.replace('https://https://', 'https://');
+        thumbnailUrl = thumbnailUrl.replace('https://https://', 'https://');
+    }
 
     return `
         <div class="message ${isSent ? 'sent' : 'received'} image-message" data-message-id="${msg.id}" ${colorAttr}>
-            <div class="message-image-container" onclick="viewImageFullscreen('${msg.image_url}')">
+            <div class="message-image-container" onclick="viewImageFullscreen('${imageUrl}')">
                 <img src="${thumbnailUrl}" alt="Shared image" class="message-image" 
                      loading="lazy" 
-                     onload="this.style.opacity='1'; this.classList.add('loaded')"
-                     onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"100\" height=\"100\" viewBox=\"0 0 24 24\"><path fill=\"%23ccc\" d=\"M21,19V5C21,3.9 20.1,3 19,3H5C3.9,3 3,3.9 3,5V19C3,20.1 3.9,21 5,21H19C20.1,21 21,20.1 21,19M8.5,13.5L11,16.5L14.5,12L19,18H5L8.5,13.5Z\"/></svg>'">
+                     onload="handleImageLoad(this)"
+                     onerror="handleImageError(this, '${thumbnailUrl}')">
                 <div class="image-overlay">
                     <svg class="image-icon" viewBox="0 0 24 24">
                         <path d="M21,19V5C21,3.9 20.1,3 19,3H5C3.9,3 3,3.9 3,5V19C3,20.1 3.9,21 5,21H19C20.1,21 21,20.1 21,19M8.5,13.5L11,16.5L14.5,12L19,18H5L8.5,13.5Z"/>
@@ -644,9 +827,6 @@ function addMessageToUI(message, isFromRealtime = false) {
     }
 }
 
-// ====================
-// COLOR PICKER FUNCTIONS
-// ====================
 function initializeColorPicker() {
     const colorPickerHTML = `
         <div class="color-picker-overlay" id="colorPickerOverlay" style="display: none;">
@@ -774,7 +954,6 @@ function selectColor(color) {
 // ====================
 // TEXT MESSAGE FUNCTIONS
 // ====================
-
 async function sendMessage() {
     if (isSending) {
         console.log('🔄 Message already being sent, skipping...');
@@ -1212,7 +1391,6 @@ function updateFriendStatus(status) {
 // ====================
 // INPUT HANDLERS
 // ====================
-
 function handleKeyPress(event) {
     const input = document.getElementById('messageInput');
     const sendBtn = document.getElementById('sendBtn');
@@ -1249,13 +1427,30 @@ function autoResize(textarea) {
 // NAVIGATION
 // ====================
 function goBack() {
+    // Add loading indicator
+    const backBtn = document.querySelector('.back-btn');
+    if (backBtn) {
+        backBtn.innerHTML = '<div class="loading-spinner-small"></div>';
+    }
+    
+    // Cleanup
     if (chatChannel) {
         supabase.removeChannel(chatChannel);
     }
     if (statusChannel) {
         supabase.removeChannel(statusChannel);
     }
-    window.location.href = '../home/index.html';
+    if (typingTimeout) {
+        clearTimeout(typingTimeout);
+    }
+    if (friendTypingTimeout) {
+        clearTimeout(friendTypingTimeout);
+    }
+    
+    // Navigate after a short delay to ensure cleanup
+    setTimeout(() => {
+        window.location.href = '../home/index.html';
+    }, 100);
 }
 
 // ====================
@@ -1419,3 +1614,19 @@ window.addEventListener('beforeunload', () => {
     if (typingTimeout) clearTimeout(typingTimeout);
     if (friendTypingTimeout) clearTimeout(friendTypingTimeout);
 });
+
+// Add small loading spinner CSS for back button
+const style = document.createElement('style');
+style.textContent = `
+    .loading-spinner-small {
+        width: 20px;
+        height: 20px;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-top: 2px solid white;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+    }
+`;
+document.head.appendChild(style);
+
+console.log('✅ Chat script loaded with all fixes!');
