@@ -24,6 +24,7 @@
             </div>
         </div>
         <div class="chat-actions">
+            <button class="chat-action-btn" onclick="attachImage()" title="Attach Image">📎</button>
             <button class="chat-action-btn" onclick="showUserInfo()" title="User Info">ⓘ</button>
             <button class="chat-action-btn" onclick="clearChatPrompt()" title="Clear Chat">🗑️</button>
         </div>
@@ -91,6 +92,9 @@
             <div id="userInfoContent"></div>
         </div>
     </div>
+
+    <!-- Hidden file input for image upload -->
+    <input type="file" id="imageFileInput" accept="image/*" capture="environment" style="display: none;">
 
     <script type="module" src="script.js"></script>
     <script src="/utils/sw-manager.js"></script>
