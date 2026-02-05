@@ -36,26 +36,37 @@ window.showToast = showToast;
 window.forceScrollToBottom = forceScrollToBottom;
 window.scrollToBottom = scrollToBottom;
 
+// Export user and friend data for img-handler.js
+window.getCurrentUser = () => currentUser;
+window.getChatFriend = () => chatFriend;
+window.getSupabaseClient = () => supabase;
+
 // ====================
-// INITIALIZATION
+// INITIALIZATION - FIXED ROUTING
 // ====================
 document.addEventListener('DOMContentLoaded', async () => {
     try {
         console.log('🔧 Initializing chat core...');
         
-        // Hide all overlays on load
-        document.getElementById('customAlert').style.display = 'none';
-        document.getElementById('customToast').style.display = 'none';
-        document.getElementById('userInfoModal').style.display = 'none';
-
+        // FIRST: Check if user is authenticated before anything else
         const { success, user } = await auth.getCurrentUser();
         if (!success || !user) {
-            showLoginAlert();
+            console.log('❌ User not authenticated, showing login');
+            showLoginScreen();
             return;
         }
 
         currentUser = user;
-        console.log('Current User:', user.id);
+        console.log('✅ Current User:', user.id);
+
+        // Hide login, show chat interface
+        document.getElementById("login").style.display = "none";
+        document.getElementById("chat").style.display = "block";
+
+        // Hide all overlays on load
+        document.getElementById('customAlert').style.display = 'none';
+        document.getElementById('customToast').style.display = 'none';
+        document.getElementById('userInfoModal').style.display = 'none';
 
         const urlParams = new URLSearchParams(window.location.search);
         const friendId = urlParams.get('friendId');
@@ -103,6 +114,30 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 });
+
+// ====================
+// NEW: SHOW LOGIN SCREEN FUNCTION
+// ====================
+function showLoginScreen() {
+    console.log('Showing login screen...');
+    document.getElementById("login").style.display = "block";
+    document.getElementById("chat").style.display = "none";
+    
+    const loginBtn = document.getElementById('loginBtn');
+    const signupBtn = document.getElementById('signupBtn');
+    
+    if (loginBtn) {
+        loginBtn.onclick = () => {
+            window.location.href = '../login/index.html';
+        };
+    }
+    
+    if (signupBtn) {
+        signupBtn.onclick = () => {
+            window.location.href = '../auth/index.html';
+        };
+    }
+}
 
 // ====================
 // FIX BACK BUTTON ISSUE
