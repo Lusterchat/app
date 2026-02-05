@@ -1,3 +1,5 @@
+
+
 /* ==================== */
 /* RESET & BASE STYLES  */
 /* ==================== */
@@ -704,4 +706,31 @@ body {
 #customToast,
 #userInfoModal {
     display: none !important;
+}
+
+/* Received message colors */
+.message.received[data-color="red"] {
+    background: linear-gradient(135deg, #ff4444, #cc0000);
+}
+.message.received[data-color="green"] {
+    background: linear-gradient(135deg, #44ff44, #00cc00);
+}
+.message.received[data-color="blue"] {
+    background: linear-gradient(135deg, #4444ff, #0000cc);
+}
+.message.received[data-color="white"] {
+    background: linear-gradient(135deg, #ffffff, #cccccc);
+    color: #000000;
+}
+.message.received[data-color="black"] {
+    background: linear-gradient(135deg, #000000, #333333);
+    color: #ffffff;
+}
+.message.received[data-color="yellow"] {
+    background: linear-gradient(135deg, #ffff44, #cccc00);
+    color: #000000;
+}
+.message.received[data-color="cyan"] {
+    background: linear-gradient(135deg, #44ffff, #00cccc);
+    color: #000000;
 }
