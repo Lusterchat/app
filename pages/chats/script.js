@@ -1,3 +1,605 @@
+
+import { auth } from '../../utils/auth.js';
+import { supabase } from '../../utils/supabase.js';
+
+console.log('✨ Chat Loaded with Enhanced Image Sharing');
+
+// ====================
+// GLOBAL VARIABLES
+// ====================
+let currentUser = null;
+let chatFriend = null;
+let chatChannel = null;
+let statusChannel = null;
+let isLoadingMessages = false;
+let currentMessages = [];
+let isSending = false;
+let isTyping = false;
+let typingTimeout = null;
+let friendTypingTimeout = null;
+let selectedColor = null;
+let colorPickerVisible = false;
+let isImagePickerOpen = false;
+
+// ImgBB API Key
+const IMGBB_API_KEY = '82e49b432e2ee14921f7d0cd81ba5551';
+
+// ====================
+// GLOBAL FUNCTION EXPORTS
+// ====================
+window.sendMessage = sendMessage;
+window.handleKeyPress = handleKeyPress;
+window.autoResize = autoResize;
+window.goBack = goBack;
+window.showUserInfo = showUserInfo;
+window.closeModal = closeModal;
+window.startVoiceCall = startVoiceCall;
+window.viewSharedMedia = viewSharedMedia;
+window.blockUserPrompt = blockUserPrompt;
+window.clearChatPrompt = clearChatPrompt;
+window.selectColor = selectColor;
+window.hideColorPicker = hideColorPicker;
+window.showImagePicker = showImagePicker;
+window.closeImagePicker = closeImagePicker;
+window.openCamera = openCamera;
+window.openGallery = openGallery;
+window.viewImageFullscreen = viewImageFullscreen;
+window.closeImageViewer = closeImageViewer;
+window.downloadImage = downloadImage;
+window.shareImage = shareImage;
+
+// ====================
+// INITIALIZATION
+// ====================
+document.addEventListener('DOMContentLoaded', async () => {
+    try {
+        // Hide all overlays on load
+        document.getElementById('customAlert').style.display = 'none';
+        document.getElementById('customToast').style.display = 'none';
+        document.getElementById('userInfoModal').style.display = 'none';
+        document.getElementById('imagePickerOverlay').style.display = 'none';
+
+        const { success, user } = await auth.getCurrentUser();
+        if (!success || !user) {
+            showLoginAlert();
+            return;
+        }
+
+        currentUser = user;
+        console.log('Current User:', user.id);
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const friendId = urlParams.get('friendId');
+
+        if (!friendId) {
+            showCustomAlert('No friend selected!', '😕', 'Error', () => {
+                window.location.href = '../home/index.html';
+            });
+            return;
+        }
+
+        const { data: friend, error: friendError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', friendId)
+            .single();
+
+        if (friendError) throw friendError;
+
+        chatFriend = friend;
+        document.getElementById('chatUserName').textContent = friend.username;
+        document.getElementById('chatUserAvatar').textContent = friend.username.charAt(0).toUpperCase();
+
+        updateFriendStatus(friend.status);
+        await loadOldMessages(friendId);
+        setupRealtime(friendId);
+        setupTypingListener();
+        updateInputListener();
+        
+        // Initialize UI components
+        initializeColorPicker();
+        addColorPickerInputListener();
+        setupFileInputListeners();
+
+        // Initial setup
+        setTimeout(() => {
+            const input = document.getElementById('messageInput');
+            if (input) autoResize(input);
+            forceScrollToBottom();
+        }, 150);
+
+        console.log('✅ Chat ready with enhanced image sharing!');
+    } catch (error) {
+        console.error('Init error:', error);
+        showCustomAlert('Error loading chat: ' + error.message, '❌', 'Error', () => {
+            window.location.href = '../home/index.html';
+        });
+    }
+});
+
+// ====================
+// IMAGE PICKER FUNCTIONS
+// ====================
+function showImagePicker() {
+    isImagePickerOpen = true;
+    const picker = document.getElementById('imagePickerOverlay');
+    if (picker) {
+        picker.style.display = 'flex';
+        setTimeout(() => {
+            picker.style.opacity = '1';
+            picker.querySelector('.image-picker-container').style.transform = 'translateY(0)';
+        }, 10);
+    }
+}
+
+function closeImagePicker() {
+    isImagePickerOpen = false;
+    const picker = document.getElementById('imagePickerOverlay');
+    if (picker) {
+        picker.style.opacity = '0';
+        picker.querySelector('.image-picker-container').style.transform = 'translateY(100%)';
+        setTimeout(() => {
+            picker.style.display = 'none';
+        }, 300);
+    }
+}
+
+function openCamera() {
+    const cameraInput = document.getElementById('cameraInput');
+    if (cameraInput) {
+        cameraInput.click();
+    }
+    closeImagePicker();
+}
+
+function openGallery() {
+    const galleryInput = document.getElementById('galleryInput');
+    if (galleryInput) {
+        galleryInput.click();
+    }
+    closeImagePicker();
+}
+
+function setupFileInputListeners() {
+    const cameraInput = document.getElementById('cameraInput');
+    const galleryInput = document.getElementById('galleryInput');
+    
+    if (cameraInput) {
+        cameraInput.addEventListener('change', handleImageSelect);
+    }
+    
+    if (galleryInput) {
+        galleryInput.addEventListener('change', handleImageSelect);
+    }
+}
+
+// Close image picker when clicking outside
+document.addEventListener('click', (e) => {
+    const picker = document.getElementById('imagePickerOverlay');
+    const attachBtn = document.getElementById('attachBtn');
+    
+    if (isImagePickerOpen && picker && !picker.contains(e.target) && e.target !== attachBtn) {
+        closeImagePicker();
+    }
+});
+
+// ====================
+// IMAGE UPLOAD FUNCTIONS
+// ====================
+function handleImageSelect(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    // Check file type
+    if (!file.type.startsWith('image/')) {
+        showToast('Please select an image file', '⚠️');
+        return;
+    }
+    
+    // Check file size (max 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+        showToast('Image too large. Max 10MB', '⚠️');
+        return;
+    }
+    
+    // Upload image
+    uploadImageToImgBB(file);
+    
+    // Reset file inputs
+    event.target.value = '';
+}
+
+async function uploadImageToImgBB(file) {
+    showLoading(true, 'Uploading image...');
+    
+    try {
+        // Compress image if needed
+        const processedFile = await compressImage(file);
+        
+        // Create FormData
+        const formData = new FormData();
+        formData.append('image', processedFile);
+        formData.append('key', IMGBB_API_KEY);
+        
+        // Upload to ImgBB
+        const response = await fetch('https://api.imgbb.com/1/upload', {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (!response.ok) {
+            throw new Error(`Upload failed: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        if (!data.success) {
+            throw new Error(data.error?.message || 'Upload failed');
+        }
+        
+        // Get image URL
+        const imageUrl = data.data.url;
+        const thumbnailUrl = data.data.thumb?.url || imageUrl;
+        
+        console.log('✅ Image uploaded:', imageUrl);
+        
+        // Send message with image
+        await sendImageMessage(imageUrl, thumbnailUrl);
+        
+    } catch (error) {
+        console.error('Image upload error:', error);
+        showCustomAlert('Failed to upload image: ' + error.message, '❌', 'Upload Error');
+    } finally {
+        showLoading(false);
+    }
+}
+
+async function compressImage(file) {
+    return new Promise((resolve) => {
+        // If file is already small, return as-is
+        if (file.size <= 800 * 1024) { // 800KB
+            resolve(file);
+            return;
+        }
+        
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        
+        reader.onload = function(e) {
+            const img = new Image();
+            img.src = e.target.result;
+            
+            img.onload = function() {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                
+                // Calculate new dimensions (max 1600px for better quality)
+                let width = img.width;
+                let height = img.height;
+                const maxSize = 1600;
+                
+                if (width > height && width > maxSize) {
+                    height = Math.round((height * maxSize) / width);
+                    width = maxSize;
+                } else if (height > maxSize) {
+                    width = Math.round((width * maxSize) / height);
+                    height = maxSize;
+                }
+                
+                canvas.width = width;
+                canvas.height = height;
+                
+                // Draw with better quality
+                ctx.imageSmoothingEnabled = true;
+                ctx.imageSmoothingQuality = 'high';
+                ctx.drawImage(img, 0, 0, width, height);
+                
+                // Higher quality compression for better previews
+                canvas.toBlob((blob) => {
+                    const compressedFile = new File([blob], file.name, {
+                        type: 'image/jpeg',
+                        lastModified: Date.now()
+                    });
+                    resolve(compressedFile);
+                }, 'image/jpeg', 0.85); // 85% quality for better images
+            };
+        };
+    });
+}
+
+async function sendImageMessage(imageUrl, thumbnailUrl) {
+    if (isSending) return;
+    
+    isSending = true;
+    const sendBtn = document.getElementById('sendBtn');
+    const originalHTML = sendBtn.innerHTML;
+
+    try {
+        // Show sending state
+        sendBtn.innerHTML = `
+            <svg class="send-icon" viewBox="0 0 24 24" style="opacity: 0.5">
+                <path d="M2,21L23,12L2,3V10L17,12L2,14V21Z"/>
+            </svg>
+        `;
+        sendBtn.disabled = true;
+
+        const messageData = {
+            sender_id: currentUser.id,
+            receiver_id: chatFriend.id,
+            content: '',
+            image_url: imageUrl,
+            thumbnail_url: thumbnailUrl,
+            created_at: new Date().toISOString()
+        };
+
+        // Add color if selected
+        if (selectedColor) {
+            messageData.color = selectedColor;
+            selectedColor = null;
+            
+            // Clear selected color UI
+            const colorOptions = document.querySelectorAll('.color-option');
+            colorOptions.forEach(option => {
+                option.classList.remove('selected');
+            });
+        }
+
+        const { data, error } = await supabase
+            .from('direct_messages')
+            .insert(messageData)
+            .select()
+            .single();
+
+        if (error) throw error;
+
+        console.log('✅ Image message sent:', data.id);
+        playSentSound();
+
+        // Clear input
+        const input = document.getElementById('messageInput');
+        if (input) {
+            input.value = '';
+            autoResize(input);
+        }
+
+        isTyping = false;
+        if (typingTimeout) {
+            clearTimeout(typingTimeout);
+            typingTimeout = null;
+        }
+        sendTypingStatus(false);
+
+        setTimeout(() => {
+            if (input) input.focus();
+            isSending = false;
+            sendBtn.innerHTML = originalHTML;
+            sendBtn.disabled = false;
+        }, 300);
+    } catch (error) {
+        console.error('Send image failed:', error);
+        showCustomAlert('Failed to send image: ' + error.message, '❌', 'Error');
+        isSending = false;
+        sendBtn.innerHTML = originalHTML;
+        sendBtn.disabled = false;
+    }
+}
+
+// ====================
+// IMAGE VIEWER FUNCTIONS
+// ====================
+function viewImageFullscreen(imageUrl) {
+    // Remove existing viewer if any
+    const existingViewer = document.getElementById('imageViewerOverlay');
+    if (existingViewer) {
+        existingViewer.remove();
+    }
+    
+    // Create fullscreen viewer
+    const viewerHTML = `
+        <div class="image-viewer-overlay" id="imageViewerOverlay">
+            <button class="viewer-close" onclick="closeImageViewer()">
+                <svg viewBox="0 0 24 24">
+                    <path d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"/>
+                </svg>
+            </button>
+            <div class="viewer-image-container">
+                <img src="${imageUrl}" alt="Shared image" class="viewer-image" 
+                     onload="this.style.opacity='1'">
+            </div>
+            <div class="viewer-actions">
+                <button class="viewer-action-btn" onclick="downloadImage('${imageUrl}')">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z"/>
+                    </svg>
+                    <span>Download</span>
+                </button>
+                <button class="viewer-action-btn" onclick="shareImage('${imageUrl}')">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M18,16.08C17.24,16.08 16.56,16.38 16.04,16.85L8.91,12.7C8.96,12.47 9,12.24 9,12C9,11.76 8.96,11.53 8.91,11.3L15.96,7.19C16.5,7.69 17.21,8 18,8A3,3 0 0,0 21,5A3,3 0 0,0 18,2A3,3 0 0,0 15,5C15,5.24 15.04,5.47 15.09,5.7L8.04,9.81C7.5,9.31 6.79,9 6,9A3,3 0 0,0 3,12A3,3 0 0,0 6,15C6.79,15 7.5,14.69 8.04,14.19L15.16,18.34C15.11,18.55 15.08,18.77 15.08,19C15.08,20.61 16.39,21.91 18,21.91C19.61,21.91 20.92,20.61 20.92,19C20.92,17.39 19.61,16.08 18,16.08Z"/>
+                    </svg>
+                    <span>Share</span>
+                </button>
+            </div>
+        </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', viewerHTML);
+    
+    // Animate in
+    setTimeout(() => {
+        const viewer = document.getElementById('imageViewerOverlay');
+        if (viewer) {
+            viewer.style.opacity = '1';
+        }
+    }, 10);
+}
+
+function closeImageViewer() {
+    const viewer = document.getElementById('imageViewerOverlay');
+    if (viewer) {
+        viewer.style.opacity = '0';
+        setTimeout(() => {
+            viewer.remove();
+        }, 300);
+    }
+}
+
+function downloadImage(imageUrl) {
+    const link = document.createElement('a');
+    link.href = imageUrl;
+    link.download = 'relaytalk-image-' + Date.now() + '.jpg';
+    link.target = '_blank';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showToast('Download started', '📥', 2000);
+}
+
+async function shareImage(imageUrl) {
+    if (navigator.share) {
+        try {
+            await navigator.share({
+                title: 'Image from RelayTalk',
+                text: 'Check out this image shared on RelayTalk!',
+                url: imageUrl
+            });
+        } catch (error) {
+            if (error.name !== 'AbortError') {
+                // Fallback to clipboard
+                copyToClipboard(imageUrl);
+            }
+        }
+    } else {
+        copyToClipboard(imageUrl);
+    }
+}
+
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text)
+        .then(() => showToast('Image URL copied!', '📋', 2000))
+        .catch(() => showToast('Cannot copy URL', '⚠️', 2000));
+}
+
+// ====================
+// MESSAGE DISPLAY FUNCTIONS
+// ====================
+function createImageMessageHTML(msg, isSent, colorAttr, time) {
+    const thumbnailUrl = msg.thumbnail_url || msg.image_url;
+    
+    return `
+        <div class="message ${isSent ? 'sent' : 'received'} image-message" data-message-id="${msg.id}" ${colorAttr}>
+            <div class="message-image-container" onclick="viewImageFullscreen('${msg.image_url}')">
+                <img src="${thumbnailUrl}" alt="Shared image" class="message-image" 
+                     loading="lazy" 
+                     onload="this.style.opacity='1'"
+                     onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"100\" height=\"100\" viewBox=\"0 0 24 24\"><path fill=\"%23ccc\" d=\"M21,19V5C21,3.9 20.1,3 19,3H5C3.9,3 3,3.9 3,5V19C3,20.1 3.9,21 5,21H19C20.1,21 21,20.1 21,19M8.5,13.5L11,16.5L14.5,12L19,18H5L8.5,13.5Z\"/></svg>'">
+                <div class="image-overlay">
+                    <svg class="image-icon" viewBox="0 0 24 24">
+                        <path d="M21,19V5C21,3.9 20.1,3 19,3H5C3.9,3 3,3.9 3,5V19C3,20.1 3.9,21 5,21H19C20.1,21 21,20.1 21,19M8.5,13.5L11,16.5L14.5,12L19,18H5L8.5,13.5Z"/>
+                    </svg>
+                </div>
+            </div>
+            ${msg.content ? `<div class="image-caption">${msg.content}</div>` : ''}
+            <div class="message-time">${time}</div>
+        </div>
+    `;
+}
+
+function createTextMessageHTML(msg, isSent, colorAttr, time) {
+    return `
+        <div class="message ${isSent ? 'sent' : 'received'}" data-message-id="${msg.id}" ${colorAttr}>
+            <div class="message-content">${msg.content || ''}</div>
+            <div class="message-time">${time}</div>
+        </div>
+    `;
+}
+
+function showMessages(messages) {
+    const container = document.getElementById('messagesContainer');
+    if (!container) return;
+
+    if (!messages || messages.length === 0) {
+        container.innerHTML = `
+            <div class="empty-chat">
+                <svg class="empty-chat-icon" viewBox="0 0 24 24">
+                    <path d="M20,2H4A2,2 0 0,0 2,4V22L6,18H20A2,2 0 0,0 22,16V4A2,2 0 0,0 20,2Z"/>
+                </svg>
+                <h3>No messages yet</h3>
+                <p style="margin-top: 10px;">Say hello to start the conversation!</p>
+            </div>
+        `;
+        return;
+    }
+
+    let html = '';
+    let lastDate = '';
+
+    messages.forEach(msg => {
+        const isSent = msg.sender_id === currentUser.id;
+        const time = new Date(msg.created_at).toLocaleTimeString([], {
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+        const date = new Date(msg.created_at).toLocaleDateString();
+
+        if (date !== lastDate) {
+            html += `<div class="date-separator"><span>${date}</span></div>`;
+            lastDate = date;
+        }
+
+        // Get color from database
+        const color = msg.color || null;
+        const colorAttr = color ? `data-color="${color}"` : '';
+        
+        // Check if message has image
+        if (msg.image_url) {
+            html += createImageMessageHTML(msg, isSent, colorAttr, time);
+        } else {
+            html += createTextMessageHTML(msg, isSent, colorAttr, time);
+        }
+    });
+
+    html += `<div style="height: 30px; opacity: 0;"></div>`;
+    container.innerHTML = html;
+
+    setTimeout(() => {
+        forceScrollToBottom();
+    }, 100);
+}
+
+function addMessageToUI(message, isFromRealtime = false) {
+    const container = document.getElementById('messagesContainer');
+    if (!container || !message) return;
+
+    if (container.querySelector('.empty-chat')) {
+        container.innerHTML = '';
+    }
+
+    const isSent = message.sender_id === currentUser.id;
+    const time = new Date(message.created_at).toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+
+    const color = message.color || null;
+    const colorAttr = color ? `data-color="${color}"` : '';
+    
+    let messageHTML;
+    
+    if (message.image_url) {
+        messageHTML = createImageMessageHTML(message, isSent, colorAttr, time);
+    } else {
+        messageHTML = createTextMessageHTML(message, isSent, colorAttr, time);
+    }
+
+    container.insertAdjacentHTML('beforeend', messageHTML);
+
+    const isDuplicate = currentMessages.some(msg => msg.id === message.id);
+    if (!isDuplicate) {
+        currentMessages.push(message);
+    }
+
+    // Animate new message
     // Animate new message
     const newMessage = container.lastElementChild;
     if (newMessage && isFromRealtime) {
