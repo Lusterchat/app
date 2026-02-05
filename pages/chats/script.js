@@ -16,7 +16,7 @@ let isSending = false;
 let isTyping = false;
 let typingTimeout = null;
 let friendTypingTimeout = null;
-let selectedColor = null; // Add this for color selection
+let selectedColor = null;
 let colorPickerVisible = false;
 
 // ====================
@@ -32,7 +32,8 @@ window.startVoiceCall = startVoiceCall;
 window.viewSharedMedia = viewSharedMedia;
 window.blockUserPrompt = blockUserPrompt;
 window.clearChatPrompt = clearChatPrompt;
-window.selectColor = selectColor; // Add this
+window.selectColor = selectColor;
+window.hideColorPicker = hideColorPicker;
 
 // ====================
 // INITIALIZATION
@@ -81,7 +82,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         setupTypingListener();
         updateInputListener();
         
-        // Initialize color picker
+        // Initialize color picker (ABOVE input field)
         initializeColorPicker();
         addColorPickerInputListener();
 
@@ -102,27 +103,32 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 // ====================
-// COLOR PICKER FUNCTIONS
+// COLOR PICKER FUNCTIONS - FIXED POSITION
 // ====================
 function initializeColorPicker() {
-    // Create color picker HTML
+    // Create color picker HTML - positioned ABOVE input field
     const colorPickerHTML = `
-        <div class="color-picker-overlay" id="colorPickerOverlay">
+        <div class="color-picker-overlay" id="colorPickerOverlay" style="display: none;">
             <div class="color-picker-title">Choose text color</div>
             <div class="color-picker-grid">
-                <div class="color-option" data-color="red" onclick="selectColor('red')"></div>
-                <div class="color-option" data-color="green" onclick="selectColor('green')"></div>
-                <div class="color-option" data-color="blue" onclick="selectColor('blue')"></div>
-                <div class="color-option" data-color="white" onclick="selectColor('white')"></div>
-                <div class="color-option" data-color="black" onclick="selectColor('black')"></div>
-                <div class="color-option" data-color="yellow" onclick="selectColor('yellow')"></div>
-                <div class="color-option" data-color="cyan" onclick="selectColor('cyan')"></div>
+                <div class="color-option" data-color="red" onclick="selectColor('red')" title="Red"></div>
+                <div class="color-option" data-color="green" onclick="selectColor('green')" title="Green"></div>
+                <div class="color-option" data-color="blue" onclick="selectColor('blue')" title="Blue"></div>
+                <div class="color-option" data-color="white" onclick="selectColor('white')" title="White"></div>
+                <div class="color-option" data-color="black" onclick="selectColor('black')" title="Black"></div>
+                <div class="color-option" data-color="yellow" onclick="selectColor('yellow')" title="Yellow"></div>
+                <div class="color-option" data-color="cyan" onclick="selectColor('cyan')" title="Cyan"></div>
             </div>
         </div>
     `;
     
-    // Add color picker to the DOM
-    document.body.insertAdjacentHTML('afterbegin', colorPickerHTML);
+    // Add color picker RIGHT BEFORE the message input wrapper
+    const inputWrapper = document.getElementById('messageInputWrapper');
+    if (inputWrapper) {
+        inputWrapper.insertAdjacentHTML('beforebegin', colorPickerHTML);
+    } else {
+        document.body.insertAdjacentHTML('afterbegin', colorPickerHTML);
+    }
 }
 
 function addColorPickerInputListener() {
@@ -135,18 +141,7 @@ function addColorPickerInputListener() {
         
         // Check if first character is /
         if (text.startsWith('/') && text.length === 1) {
-            // Show color picker
-            colorPickerVisible = true;
-            if (colorPicker) {
-                colorPicker.style.display = 'flex';
-                
-                // Adjust main content position
-                const mainContent = document.querySelector('.main-content');
-                if (mainContent) {
-                    const pickerHeight = colorPicker.offsetHeight;
-                    mainContent.style.top = `calc(80px + ${pickerHeight}px)`;
-                }
-            }
+            showColorPicker();
         } else if (colorPickerVisible && text.length > 1) {
             // Hide color picker if user continues typing
             hideColorPicker();
@@ -163,11 +158,25 @@ function addColorPickerInputListener() {
         }
     });
     
-    // Hide on blur
+    // Hide on blur with delay
     input.addEventListener('blur', function() {
         setTimeout(() => {
+            if (!document.querySelector('.color-option:hover')) {
+                hideColorPicker();
+            }
+        }, 300);
+    });
+    
+    // Hide color picker when clicking outside
+    document.addEventListener('click', function(e) {
+        const colorPicker = document.getElementById('colorPickerOverlay');
+        const input = document.getElementById('messageInput');
+        
+        if (colorPicker && colorPicker.style.display === 'flex' && 
+            !colorPicker.contains(e.target) && 
+            e.target !== input) {
             hideColorPicker();
-        }, 200);
+        }
     });
 }
 
@@ -177,12 +186,11 @@ function showColorPicker() {
         colorPickerVisible = true;
         colorPicker.style.display = 'flex';
         
-        // Adjust main content position
-        const mainContent = document.querySelector('.main-content');
-        if (mainContent) {
-            const pickerHeight = colorPicker.offsetHeight;
-            mainContent.style.top = `calc(80px + ${pickerHeight}px)`;
-        }
+        // Reset any selected color
+        const colorOptions = document.querySelectorAll('.color-option');
+        colorOptions.forEach(option => {
+            option.classList.remove('selected');
+        });
     }
 }
 
@@ -192,10 +200,11 @@ function hideColorPicker() {
         colorPickerVisible = false;
         colorPicker.style.display = 'none';
         
-        // Reset main content position
-        const mainContent = document.querySelector('.main-content');
-        if (mainContent) {
-            mainContent.style.top = '80px';
+        // Clear the / character from input if it's still there
+        const input = document.getElementById('messageInput');
+        if (input && input.value === '/') {
+            input.value = '';
+            autoResize(input);
         }
     }
 }
@@ -208,6 +217,7 @@ function selectColor(color) {
     if (input) {
         input.value = '';
         input.focus();
+        autoResize(input);
     }
     
     // Update color picker UI
@@ -222,10 +232,10 @@ function selectColor(color) {
     // Show toast for selected color
     showToast(`Selected ${color} color`, '🎨', 1000);
     
-    // Hide color picker after selection
+    // Don't hide immediately - let user see the selection
     setTimeout(() => {
         hideColorPicker();
-    }, 500);
+    }, 800);
 }
 
 // ====================
@@ -573,7 +583,7 @@ function addMessageToUI(message, isFromRealtime = false) {
         minute: '2-digit'
     });
 
-    // Check if message has color data
+    // Check if message has color data (from our local storage)
     const color = message.color || null;
     const colorAttr = color ? `data-color="${color}"` : '';
     
@@ -589,7 +599,9 @@ function addMessageToUI(message, isFromRealtime = false) {
     // Check for duplicate
     const isDuplicate = currentMessages.some(msg => msg.id === message.id);
     if (!isDuplicate) {
-        currentMessages.push(message);
+        // Add color to message object for local storage
+        const messageWithColor = { ...message, color: color };
+        currentMessages.push(messageWithColor);
     }
 
     // Force scroll for new messages
@@ -611,6 +623,7 @@ function addMessageToUI(message, isFromRealtime = false) {
 // ====================
 // STATUS FUNCTIONS
 // ====================
+
 function updateFriendStatus(status) {
     const isOnline = status === 'online';
     const statusText = document.getElementById('statusText');
@@ -691,7 +704,7 @@ function setupRealtime(friendId) {
 }
 
 // ====================
-// SEND MESSAGE - UPDATED FOR COLOR
+// SEND MESSAGE - FIXED FOR COLOR FIELD
 // ====================
 async function sendMessage() {
     if (isSending) {
@@ -716,18 +729,13 @@ async function sendMessage() {
         sendBtn.innerHTML = '<div class="typing-dots"><div></div><div></div><div></div></div>';
         sendBtn.disabled = true;
 
-        // Prepare message data with color if selected
+        // Prepare message data - WITHOUT color field
         const messageData = {
             sender_id: currentUser.id,
             receiver_id: chatFriend.id,
             content: text,
             created_at: new Date().toISOString()
         };
-
-        // Add color if selected
-        if (selectedColor) {
-            messageData.color = selectedColor;
-        }
 
         const { data, error } = await supabase
             .from('direct_messages')
@@ -738,6 +746,15 @@ async function sendMessage() {
         if (error) throw error;
 
         console.log('✅ Message sent to database:', data.id);
+        
+        // Create UI message WITH color (stored locally only)
+        const uiMessage = {
+            ...data,
+            color: selectedColor // Add color locally for UI only
+        };
+        
+        // Add to UI with color
+        addMessageToUI(uiMessage);
         
         // Reset color selection after sending
         selectedColor = null;
@@ -775,7 +792,7 @@ async function sendMessage() {
 }
 
 // ====================
-// INPUT HANDLERS - UPDATED FOR COLOR PICKER
+// INPUT HANDLERS
 // ====================
 function handleKeyPress(event) {
     const input = document.getElementById('messageInput');
@@ -914,10 +931,8 @@ async function clearChatPrompt() {
 // ====================
 // CHROME SPECIFIC FIXES
 // ====================
-// Add Chrome scroll fix
 if (navigator.userAgent.includes('Chrome')) {
     document.addEventListener('DOMContentLoaded', function() {
-        // Fix Chrome rendering
         setTimeout(() => {
             const container = document.getElementById('messagesContainer');
             if (container) {
