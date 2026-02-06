@@ -1133,3 +1133,32 @@ textarea:active {
     scrollbar-width: none;
     -ms-overflow-style: none;
 }
+
+
+/* ==================== */
+/* FIX: COLOR PICKER POSITION */
+/* ==================== */
+.color-picker-overlay {
+    position: fixed;
+    bottom: 95px; /* Above input */
+    left: 0;
+    right: 0;
+    z-index: 200;
+    background: rgba(26, 26, 46, 0.98);
+    backdrop-filter: blur(20px);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 15px 20px;
+    display: none;
+    flex-direction: column;
+    box-shadow: 0 -5px 20px rgba(0, 0, 0, 0.3);
+    animation: slideUp 0.3s ease;
+    user-select: none;
+    -webkit-user-select: none;
+    pointer-events: auto !important; /* FIX: Allow clicks */
+}
+
+/* FIX: Prevent input from losing focus when clicking color picker */
+.color-picker-overlay * {
+    pointer-events: auto;
+}
