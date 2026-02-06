@@ -11,6 +11,9 @@ let isImagePickerOpen = false;
 let imagePreviewUrl = null;
 let currentFileForUpload = null;
 
+// API Key - IMPORTANT: Move this to backend in production!
+const IMGBB_API_KEY = '82e49b432e2ee14921f7d0cd81ba5551';
+
 // ====================
 // GLOBAL FUNCTION EXPORTS - IMAGE HANDLER
 // ====================
@@ -29,6 +32,46 @@ window.handleImageError = handleImageError;
 window.cancelImageUpload = cancelImageUpload;
 window.sendImagePreview = sendImagePreview;
 window.createImageMessageHTML = createImageMessageHTML;
+window.uploadImageFromPreview = uploadImageFromPreview;
+
+// ====================
+// FIX: SLASH (/) HANDLER - IMPROVED
+// ====================
+function initializeSlashHandler() {
+    const input = document.getElementById('messageInput');
+    if (!input) return;
+
+    // Remove any existing listeners to prevent duplicates
+    input.removeEventListener('input', handleSlashInput);
+    input.removeEventListener('keydown', handleSlashKeydown);
+    
+    input.addEventListener('input', handleSlashInput);
+    input.addEventListener('keydown', handleSlashKeydown);
+}
+
+function handleSlashInput(e) {
+    const text = e.target.value;
+    const colorPicker = document.getElementById('colorPickerOverlay');
+
+    // Show color picker ONLY when slash is typed
+    if (text === '/') {
+        showColorPicker();
+    } 
+    // Hide color picker when text changes from slash
+    else if (colorPickerVisible && text !== '/') {
+        hideColorPicker();
+    }
+}
+
+function handleSlashKeydown(e) {
+    // If color picker is visible and user presses escape or backspace on slash
+    if (colorPickerVisible && (e.key === 'Escape' || (e.key === 'Backspace' && e.target.value === '/'))) {
+        e.preventDefault();
+        hideColorPicker();
+        e.target.value = '';
+        autoResize(e.target);
+    }
+}
 
 // ====================
 // INITIALIZATION
@@ -36,8 +79,9 @@ window.createImageMessageHTML = createImageMessageHTML;
 document.addEventListener('DOMContentLoaded', () => {
     console.log('🔧 Initializing image handler...');
     initializeColorPicker();
-    addColorPickerInputListener();
+    initializeSlashHandler(); // FIXED: Use new slash handler
     setupFileInputListeners();
+    setupColorPickerClickOutside();
     console.log('✅ Image handler ready!');
 });
 
@@ -45,6 +89,9 @@ document.addEventListener('DOMContentLoaded', () => {
 // COLOR PICKER FUNCTIONS
 // ====================
 function initializeColorPicker() {
+    // Check if already exists
+    if (document.getElementById('colorPickerOverlay')) return;
+
     const colorPickerHTML = `
         <div class="color-picker-overlay" id="colorPickerOverlay" style="display: none;">
             <div class="color-picker-title">Choose text color</div>
@@ -66,43 +113,12 @@ function initializeColorPicker() {
     }
 }
 
-function addColorPickerInputListener() {
-    const input = document.getElementById('messageInput');
-    if (!input) return;
-
-    input.addEventListener('input', function(e) {
-        const text = this.value;
-        const colorPicker = document.getElementById('colorPickerOverlay');
-
-        // Check if first character is /
-        if (text.startsWith('/') && text.length === 1) {
-            showColorPicker();
-        } else if (colorPickerVisible && text.length > 1) {
-            hideColorPicker();
-        } else if (!text.startsWith('/')) {
-            hideColorPicker();
-        }
-    });
-
-    input.addEventListener('focus', function() {
-        if (this.value.startsWith('/') && this.value.length === 1) {
-            showColorPicker();
-        }
-    });
-
-    input.addEventListener('blur', function() {
-        setTimeout(() => {
-            if (!document.querySelector('.color-option:hover')) {
-                hideColorPicker();
-            }
-        }, 300);
-    });
-
+function setupColorPickerClickOutside() {
     document.addEventListener('click', function(e) {
         const colorPicker = document.getElementById('colorPickerOverlay');
         const input = document.getElementById('messageInput');
-
-        if (colorPicker && colorPicker.style.display === 'flex' && 
+        
+        if (colorPickerVisible && colorPicker && 
             !colorPicker.contains(e.target) && 
             e.target !== input) {
             hideColorPicker();
@@ -169,15 +185,13 @@ function selectColor(color) {
 }
 
 // ====================
-// IMAGE PICKER FUNCTIONS - FIXED
+// IMAGE PICKER FUNCTIONS
 // ====================
 function showImagePicker() {
     // FIRST: Check if user is authenticated
     const currentUser = window.getCurrentUser ? window.getCurrentUser() : null;
     if (!currentUser) {
-        if (typeof showToast === 'function') {
-            showToast('Please login to send images', '⚠️');
-        }
+        showToast('Please login to send images', '⚠️');
         return;
     }
     
@@ -187,26 +201,25 @@ function showImagePicker() {
         picker.style.display = 'flex';
         setTimeout(() => {
             picker.style.opacity = '1';
-            picker.querySelector('.image-picker-container').style.transform = 'translateY(0)';
+            const container = picker.querySelector('.image-picker-container');
+            if (container) container.style.transform = 'translateY(0)';
         }, 10);
 
-        // Prevent body scrolling when picker is open
         document.body.style.overflow = 'hidden';
     }
 }
 
 function closeImagePicker() {
-    // Only close if not processing an image
     if (imagePreviewUrl || currentFileForUpload) return;
     
     isImagePickerOpen = false;
     const picker = document.getElementById('imagePickerOverlay');
     if (picker) {
         picker.style.opacity = '0';
-        picker.querySelector('.image-picker-container').style.transform = 'translateY(100%)';
+        const container = picker.querySelector('.image-picker-container');
+        if (container) container.style.transform = 'translateY(100%)';
         setTimeout(() => {
             picker.style.display = 'none';
-            // Restore body scrolling
             document.body.style.overflow = '';
         }, 300);
     }
@@ -215,7 +228,6 @@ function closeImagePicker() {
 function openCamera() {
     const cameraInput = document.getElementById('cameraInput');
     if (cameraInput) {
-        // Clear previous value to allow same file to be selected again
         cameraInput.value = '';
         cameraInput.click();
     }
@@ -224,7 +236,6 @@ function openCamera() {
 function openGallery() {
     const galleryInput = document.getElementById('galleryInput');
     if (galleryInput) {
-        // Clear previous value to allow same file to be selected again
         galleryInput.value = '';
         galleryInput.click();
     }
@@ -235,15 +246,11 @@ function setupFileInputListeners() {
     const galleryInput = document.getElementById('galleryInput');
 
     if (cameraInput) {
-        cameraInput.addEventListener('change', function(e) {
-            handleImageSelect(e);
-        });
+        cameraInput.addEventListener('change', handleImageSelect);
     }
 
     if (galleryInput) {
-        galleryInput.addEventListener('change', function(e) {
-            handleImageSelect(e);
-        });
+        galleryInput.addEventListener('change', handleImageSelect);
     }
 }
 
@@ -266,20 +273,13 @@ function handleImageSelect(event) {
         return;
     }
 
-    // Check authentication
-    const currentUser = window.getCurrentUser ? window.getCurrentUser() : null;
-    if (!currentUser) {
-        showToast('Please login to send images', '⚠️');
-        return;
-    }
-
     // Store file for upload
     currentFileForUpload = file;
     
     // Create preview
     createImagePreview(file);
     
-    // Reset input for next selection
+    // Reset input
     event.target.value = '';
 }
 
@@ -289,7 +289,6 @@ function createImagePreview(file) {
     reader.onload = function(e) {
         imagePreviewUrl = e.target.result;
         
-        // Create preview modal
         const previewHTML = `
             <div class="image-preview-overlay" id="imagePreviewOverlay">
                 <div class="image-preview-container">
@@ -313,14 +312,11 @@ function createImagePreview(file) {
             </div>
         `;
         
-        // Remove existing preview
         const existingPreview = document.getElementById('imagePreviewOverlay');
         if (existingPreview) existingPreview.remove();
         
-        // Add new preview
         document.body.insertAdjacentHTML('beforeend', previewHTML);
         
-        // Show preview
         setTimeout(() => {
             const preview = document.getElementById('imagePreviewOverlay');
             if (preview) preview.style.opacity = '1';
@@ -344,7 +340,6 @@ function cancelImageUpload() {
 }
 
 async function uploadImageFromPreview() {
-    // Check authentication
     const currentUser = window.getCurrentUser ? window.getCurrentUser() : null;
     const chatFriend = window.getChatFriend ? window.getChatFriend() : null;
     
@@ -366,18 +361,14 @@ async function uploadImageFromPreview() {
         return;
     }
 
-    // Close preview first
     cancelImageUpload();
-    
-    // Then upload the image
-    await uploadImageToServer(currentFileForUpload);
+    await uploadImageToImgBB(currentFileForUpload);
 }
 
 // ====================
-// IMAGE UPLOAD FUNCTIONS
+// FIXED: IMAGE UPLOAD FUNCTION
 // ====================
-async function uploadImageToServer(file) {
-    // Use the loading function from chat-core.js
+async function uploadImageToImgBB(file) {
     if (typeof showLoading === 'function') {
         showLoading(true, 'Uploading image...');
     }
@@ -386,30 +377,23 @@ async function uploadImageToServer(file) {
         // Compress image if needed
         const processedFile = await compressImage(file);
 
-        // Get ImgBB API key from server (safer approach)
-        // For now, using a placeholder - in production, fetch from your backend
-        const IMGBB_API_KEY = await getImgBBApiKey();
-        
-        if (!IMGBB_API_KEY) {
-            throw new Error('Image upload service not available');
-        }
-
-        // Create FormData for ImgBB
+        // Create FormData - CORRECT FORMAT for ImgBB
         const formData = new FormData();
         formData.append('image', processedFile);
 
-        // ImgBB expects the key as a query parameter
-        const url = `https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}&expiration=600`;
+        // ImgBB expects key as query parameter
+        const url = `https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`;
 
         console.log('📤 Uploading to ImgBB...');
 
-        // Upload to ImgBB
         const response = await fetch(url, {
             method: 'POST',
             body: formData
         });
 
         if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Upload failed:', response.status, errorText);
             throw new Error(`Upload failed: ${response.status}`);
         }
 
@@ -420,7 +404,7 @@ async function uploadImageToServer(file) {
             throw new Error(data.error?.message || 'Upload failed');
         }
 
-        // Get image URL - ImgBB response structure
+        // Get image URL - CORRECT PATHS for ImgBB
         const imageUrl = data.data.url || data.data.display_url;
         const thumbnailUrl = data.data.thumb?.url || data.data.thumb_url || imageUrl;
 
@@ -429,20 +413,15 @@ async function uploadImageToServer(file) {
         }
 
         console.log('✅ Image uploaded:', imageUrl);
-        console.log('✅ Thumbnail:', thumbnailUrl);
-
-        // Send message with image
+        
+        // Send image message
         await sendImageMessage(imageUrl, thumbnailUrl);
 
     } catch (error) {
         console.error('Image upload error:', error);
-        if (typeof showRetryAlert === 'function') {
-            showRetryAlert('Failed to upload image: ' + error.message, () => {
-                uploadImageToServer(file);
-            });
-        } else {
-            showToast('Upload failed: ' + error.message, '❌');
-        }
+        showRetryAlert('Failed to upload image: ' + error.message, () => {
+            uploadImageToImgBB(file);
+        });
     } finally {
         if (typeof showLoading === 'function') {
             showLoading(false);
@@ -450,26 +429,8 @@ async function uploadImageToServer(file) {
     }
 }
 
-async function getImgBBApiKey() {
-    // In production, fetch this from your backend server
-    // For now, return a placeholder (should be replaced with actual server fetch)
-    try {
-        // Example: Fetch from your own API endpoint
-        // const response = await fetch('/api/get-imgbb-key');
-        // const data = await response.json();
-        // return data.key;
-        
-        // TEMPORARY: Return a placeholder key (replace with actual key or server fetch)
-        return '82e49b432e2ee14921f7d0cd81ba5551'; // This should come from your server
-    } catch (error) {
-        console.error('Failed to get ImgBB key:', error);
-        return null;
-    }
-}
-
 async function compressImage(file, maxSize = 800 * 1024) {
     return new Promise((resolve, reject) => {
-        // If file is already small, return as-is
         if (file.size <= maxSize) {
             resolve(file);
             return;
@@ -486,7 +447,6 @@ async function compressImage(file, maxSize = 800 * 1024) {
                 const canvas = document.createElement('canvas');
                 const ctx = canvas.getContext('2d');
 
-                // Calculate new dimensions (max 1200px for better quality)
                 let width = img.width;
                 let height = img.height;
                 const maxDimension = 1200;
@@ -502,12 +462,10 @@ async function compressImage(file, maxSize = 800 * 1024) {
                 canvas.width = width;
                 canvas.height = height;
 
-                // Draw with better quality
                 ctx.imageSmoothingEnabled = true;
                 ctx.imageSmoothingQuality = 'high';
                 ctx.drawImage(img, 0, 0, width, height);
 
-                // Try multiple quality levels if still too large
                 const compressWithQuality = (quality = 0.8) => {
                     canvas.toBlob((blob) => {
                         if (blob.size <= maxSize || quality <= 0.3) {
@@ -517,7 +475,6 @@ async function compressImage(file, maxSize = 800 * 1024) {
                             });
                             resolve(compressedFile);
                         } else {
-                            // Try lower quality
                             compressWithQuality(quality - 0.1);
                         }
                     }, 'image/jpeg', quality);
@@ -534,26 +491,21 @@ async function compressImage(file, maxSize = 800 * 1024) {
 }
 
 // ====================
-// SEND IMAGE MESSAGE - FIXED
+// FIXED: SEND IMAGE MESSAGE
 // ====================
-
 async function sendImageMessage(imageUrl, thumbnailUrl) {
-    // Check if already sending
     if (window.isSending) {
-        console.log('Already sending a message, please wait');
+        console.log('Already sending a message');
         return;
     }
 
-    // Get user and friend data safely
     const currentUser = window.getCurrentUser ? window.getCurrentUser() : null;
     const chatFriend = window.getChatFriend ? window.getChatFriend() : null;
-    const supabaseClient = window.getSupabaseClient ? window.getSupabaseClient() : null;
+    const supabaseClient = window.getSupabaseClient ? window.getSupabaseClient() : supabase;
 
     if (!currentUser || !chatFriend || !supabaseClient) {
-        console.error('Missing required data for sending image');
-        if (typeof showToast === 'function') {
-            showToast('Cannot send image: missing data', '❌');
-        }
+        console.error('Missing required data');
+        showToast('Cannot send image', '❌');
         return;
     }
 
@@ -562,7 +514,6 @@ async function sendImageMessage(imageUrl, thumbnailUrl) {
     const originalHTML = sendBtn ? sendBtn.innerHTML : '';
 
     try {
-        // Show sending state
         if (sendBtn) {
             sendBtn.innerHTML = `
                 <svg class="send-icon" viewBox="0 0 24 24" style="opacity: 0.5">
@@ -586,7 +537,6 @@ async function sendImageMessage(imageUrl, thumbnailUrl) {
             messageData.color = selectedColor;
             selectedColor = null;
 
-            // Clear selected color UI
             const colorOptions = document.querySelectorAll('.color-option');
             colorOptions.forEach(option => {
                 option.classList.remove('selected');
@@ -603,12 +553,10 @@ async function sendImageMessage(imageUrl, thumbnailUrl) {
 
         console.log('✅ Image message sent:', data.id);
         
-        // Play sound if function exists
         if (typeof playSentSound === 'function') {
             playSentSound();
         }
 
-        // Clear input
         const input = document.getElementById('messageInput');
         if (input) {
             input.value = '';
@@ -617,7 +565,6 @@ async function sendImageMessage(imageUrl, thumbnailUrl) {
             }
         }
 
-        // Reset typing
         if (window.isTyping !== undefined) {
             window.isTyping = false;
         }
@@ -626,7 +573,6 @@ async function sendImageMessage(imageUrl, thumbnailUrl) {
             window.typingTimeout = null;
         }
         
-        // Send typing status if function exists
         if (typeof sendTypingStatus === 'function') {
             sendTypingStatus(false);
         }
@@ -655,6 +601,7 @@ async function sendImageMessage(imageUrl, thumbnailUrl) {
 // ====================
 // IMAGE MESSAGE HTML CREATOR
 // ====================
+
 function createImageMessageHTML(msg, isSent, colorAttr, time) {
     const imageUrl = msg.image_url || '';
     const thumbnailUrl = msg.thumbnail_url || imageUrl;
@@ -691,19 +638,12 @@ function handleImageError(imgElement, originalUrl) {
 }
 
 function viewImageFullscreen(imageUrl) {
-    // Remove existing viewer if any
     const existingViewer = document.getElementById('imageViewerOverlay');
-    if (existingViewer) {
-        existingViewer.remove();
-    }
+    if (existingViewer) existingViewer.remove();
 
-    // Fix URL for ImgBB
     let fixedImageUrl = imageUrl;
     if (imageUrl && imageUrl.includes('i.ibb.co')) {
-        // Ensure HTTPS
         fixedImageUrl = imageUrl.replace('http://', 'https://');
-        // Remove double slashes
-        fixedImageUrl = fixedImageUrl.replace('//i.ibb.co', 'https://i.ibb.co');
     }
 
     const viewerHTML = `
@@ -737,43 +677,23 @@ function viewImageFullscreen(imageUrl) {
 
     document.body.insertAdjacentHTML('beforeend', viewerHTML);
 
-    // Animate in
     setTimeout(() => {
         const viewer = document.getElementById('imageViewerOverlay');
-        if (viewer) {
-            viewer.style.opacity = '1';
-        }
+        if (viewer) viewer.style.opacity = '1';
     }, 10);
 }
 
-// Handle image viewer errors
 function handleImageViewerError(imgElement, originalUrl) {
     console.error('Failed to load image in viewer:', originalUrl);
     
-    // Try to load with different protocol or fix URL
     if (originalUrl && originalUrl.includes('i.ibb.co')) {
-        // Ensure HTTPS
         const httpsUrl = originalUrl.replace('http://', 'https://');
         if (httpsUrl !== originalUrl) {
             imgElement.src = httpsUrl;
             return;
         }
-        
-        // Try without www
-        const cleanUrl = originalUrl.replace('www.', '');
-        if (cleanUrl !== originalUrl) {
-            imgElement.src = cleanUrl;
-            return;
-        }
-        
-        // Try direct .png URL
-        if (!originalUrl.endsWith('.png') && !originalUrl.endsWith('.jpg') && !originalUrl.endsWith('.jpeg')) {
-            imgElement.src = originalUrl + '.png';
-            return;
-        }
     }
     
-    // Fallback to error placeholder
     imgElement.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 24 24"><path fill="%23ccc" d="M21,19V5C21,3.9 20.1,3 19,3H5C3.9,3 3,3.9 3,5V19C3,20.1 3.9,21 5,21H19C20.1,21 21,20.1 21,19M8.5,13.5L11,16.5L14.5,12L19,18H5L8.5,13.5Z"/></svg>';
     imgElement.style.opacity = '1';
     imgElement.classList.add('loaded');
@@ -783,19 +703,14 @@ function closeImageViewer() {
     const viewer = document.getElementById('imageViewerOverlay');
     if (viewer) {
         viewer.style.opacity = '0';
-        setTimeout(() => {
-            viewer.remove();
-        }, 300);
+        setTimeout(() => viewer.remove(), 300);
     }
 }
 
 function downloadImage(imageUrl) {
-    // Fix URL if needed
     let downloadUrl = imageUrl;
     if (imageUrl && imageUrl.includes('i.ibb.co')) {
-        // Ensure HTTPS
         downloadUrl = downloadUrl.replace('http://', 'https://');
-        // Remove double protocol
         if (downloadUrl.startsWith('https://https://')) {
             downloadUrl = downloadUrl.replace('https://https://', 'https://');
         }
@@ -812,9 +727,7 @@ function downloadImage(imageUrl) {
         document.body.removeChild(link);
     }, 100);
     
-    if (typeof showToast === 'function') {
-        showToast('Download started', '📥', 2000);
-    }
+    showToast('Download started', '📥', 2000);
 }
 
 async function shareImage(imageUrl) {
@@ -827,7 +740,6 @@ async function shareImage(imageUrl) {
             });
         } catch (error) {
             if (error.name !== 'AbortError') {
-                // Fallback to clipboard
                 copyToClipboard(imageUrl);
             }
         }
@@ -839,32 +751,28 @@ async function shareImage(imageUrl) {
 function copyToClipboard(text) {
     navigator.clipboard.writeText(text)
         .then(() => {
-            if (typeof showToast === 'function') {
-                showToast('Image URL copied!', '📋', 2000);
-            }
+            showToast('Image URL copied!', '📋', 2000);
         })
         .catch(() => {
-            if (typeof showToast === 'function') {
-                showToast('Cannot copy URL', '⚠️', 2000);
-            }
+            showToast('Cannot copy URL', '⚠️', 2000);
         });
 }
 
 // ====================
-// ALERT FUNCTIONS FOR IMAGE HANDLER
+// ALERT FUNCTIONS
 // ====================
 function showRetryAlert(message, onRetry, onCancel = null) {
     const alertOverlay = document.getElementById('customAlert');
+    if (!alertOverlay) {
+        console.error('Alert overlay not found');
+        return;
+    }
+
     const alertIcon = document.getElementById('alertIcon');
     const alertTitle = document.getElementById('alertTitle');
     const alertMessage = document.getElementById('alertMessage');
     const alertConfirm = document.getElementById('alertConfirm');
     const alertCancel = document.getElementById('alertCancel');
-
-    if (!alertOverlay) {
-        console.error('Alert overlay not found');
-        return;
-    }
 
     alertIcon.innerHTML = '❌';
     alertTitle.textContent = 'Upload Failed';
@@ -881,25 +789,21 @@ function showRetryAlert(message, onRetry, onCancel = null) {
     alertCancel.onclick = () => {
         alertOverlay.style.display = 'none';
         if (onCancel) onCancel();
-        if (typeof showToast === 'function') {
-            showToast('Upload cancelled', '⚠️');
-        }
+        showToast('Upload cancelled', '⚠️');
     };
 
     alertOverlay.style.display = 'flex';
 }
 
 // ====================
-// TOAST FUNCTION FOR IMAGE HANDLER
+// TOAST FUNCTION
 // ====================
 function showToast(message, icon = 'ℹ️', duration = 3000) {
-    // Use the global showToast if available
     if (window.showToast && window.showToast !== showToast) {
         window.showToast(message, icon, duration);
         return;
     }
     
-    // Fallback implementation
     const toast = document.getElementById('customToast');
     if (toast) {
         const toastIcon = document.getElementById('toastIcon');
