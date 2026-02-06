@@ -56,6 +56,9 @@ textarea:active {
 /* ==================== */
 /* FIX: COLOR PICKER POSITION & INTERACTION */
 /* ==================== */
+/* ==================== */
+/* FIXED: COLOR PICKER WITH CANCEL BUTTON */
+/* ==================== */
 .color-picker-overlay {
     position: fixed;
     bottom: 95px; /* Above input */
@@ -66,92 +69,152 @@ textarea:active {
     backdrop-filter: blur(20px);
     border-top: 1px solid rgba(255, 255, 255, 0.1);
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    padding: 15px 20px;
+    padding: 20px;
     display: none;
     flex-direction: column;
     box-shadow: 0 -5px 20px rgba(0, 0, 0, 0.3);
     animation: slideUp 0.3s ease;
     user-select: none;
     -webkit-user-select: none;
-    pointer-events: auto !important; /* FIX: Allow clicks */
+    pointer-events: auto !important;
+}
+
+.color-picker-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .color-picker-title {
-    font-size: 0.85rem;
+    font-size: 0.9rem;
     color: #a0a0c0;
-    margin-bottom: 12px;
-    text-align: center;
     font-weight: 500;
     letter-spacing: 0.5px;
 }
 
-.color-picker-grid {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    gap: 12px;
-    justify-content: center;
-}
-
-.color-option {
-    width: 40px;
-    height: 40px;
+.color-picker-cancel {
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    color: #a0a0c0;
+    width: 28px;
+    height: 28px;
     border-radius: 50%;
-    border: 2px solid transparent;
+    font-size: 1.2rem;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 0.8rem;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.2);
+    transition: all 0.3s ease;
     -webkit-tap-highlight-color: transparent;
-    touch-action: manipulation;
-    pointer-events: auto !important; /* FIX: Ensure clicks work */
+}
+
+.color-picker-cancel:hover {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    transform: rotate(90deg);
+}
+
+.color-picker-cancel:active {
+    transform: rotate(90deg) scale(0.9);
+}
+
+.color-picker-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 15px;
+}
+
+.color-option {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 10px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.3s ease;
+    -webkit-tap-highlight-color: transparent;
 }
 
 .color-option:hover {
-    transform: scale(1.1);
-    border-color: rgba(255, 255, 255, 0.5);
-}
-
-.color-option:active {
-    transform: scale(0.95);
+    background: rgba(255, 255, 255, 0.15);
+    transform: translateY(-2px);
 }
 
 .color-option.selected {
+    background: rgba(102, 126, 234, 0.2);
+    border-color: rgba(102, 126, 234, 0.5);
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(102, 126, 234, 0.2);
+}
+
+.color-preview {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    transition: all 0.3s ease;
+}
+
+.color-option.selected .color-preview {
     border-color: white;
     transform: scale(1.1);
-    box-shadow: 0 0 0 2px white, 0 0 15px rgba(255, 255, 255, 0.3);
-    animation: pulse 0.5s ease;
+    box-shadow: 0 0 0 2px white, 0 0 10px rgba(255, 255, 255, 0.3);
 }
 
-@keyframes pulse {
-    0% { transform: scale(1); }
-    50% { transform: scale(1.2); }
-    100% { transform: scale(1.1); }
+.color-name {
+    font-size: 0.75rem;
+    color: #a0a0c0;
+    text-transform: capitalize;
+    font-weight: 500;
 }
 
-.color-option[data-color="red"] {
-    background-color: #ff4444;
+.color-option.selected .color-name {
+    color: white;
+    font-weight: 600;
 }
-.color-option[data-color="green"] {
-    background-color: #44ff44;
+
+.color-picker-footer {
+    display: flex;
+    justify-content: center;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
-.color-option[data-color="blue"] {
-    background-color: #4444ff;
+
+.color-clear-btn {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #a0a0c0;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.3s ease;
+    -webkit-tap-highlight-color: transparent;
 }
-.color-option[data-color="white"] {
-    background-color: #ffffff;
+
+.color-clear-btn:hover {
+    background: rgba(255, 255, 255, 0.15);
+    color: white;
 }
-.color-option[data-color="black"] {
-    background-color: #000000;
-    border: 2px solid #444;
+
+.color-clear-btn:active {
+    transform: scale(0.95);
 }
-.color-option[data-color="yellow"] {
-    background-color: #ffff44;
-}
-.color-option[data-color="cyan"] {
-    background-color: #44ffff;
+
+.color-clear-btn svg {
+    width: 14px;
+    height: 14px;
+    fill: currentColor;
 }
 
 /* Active message color styles */
