@@ -928,3 +928,23 @@ style.textContent = `
     }
 `;
 document.head.appendChild(style);
+
+
+// ====================
+// FIX: AUTO RESIZE FUNCTION FOR IMAGE HANDLER
+// ====================
+function autoResize(textarea) {
+    if (!textarea) return;
+    
+    textarea.style.height = 'auto';
+    const newHeight = Math.min(textarea.scrollHeight, 100);
+    textarea.style.height = newHeight + 'px';
+
+    const sendBtn = document.getElementById('sendBtn');
+    if (sendBtn) {
+        sendBtn.disabled = textarea.value.trim() === '';
+    }
+}
+
+// Export it to window for img-handler.js to use
+window.autoResize = autoResize;
