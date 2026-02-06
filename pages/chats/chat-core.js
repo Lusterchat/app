@@ -17,8 +17,11 @@ let isTyping = false;
 let typingTimeout = null;
 let friendTypingTimeout = null;
 
-// Global variables shared with img-handler.js
+// Global variables for coordination with img-handler
 window.colorPickerVisible = false;
+window.currentMessages = currentMessages;
+window.currentUser = null; // Will be set after auth
+window.chatFriend = null; // Will be set after loading
 
 // ====================
 // GLOBAL FUNCTION EXPORTS - CORE CHAT
@@ -44,14 +47,20 @@ window.getCurrentUser = () => currentUser;
 window.getChatFriend = () => chatFriend;
 window.getSupabaseClient = () => supabase;
 
+// Signal that core is loaded
+if (window.chatModules) {
+    window.chatModules.coreLoaded = true;
+    console.log('✅ chat-core.js loaded and ready');
+}
+
 // ====================
-// INITIALIZATION - FIXED ROUTING
+// INITIALIZATION - FIXED
 // ====================
 document.addEventListener('DOMContentLoaded', async () => {
     try {
         console.log('🔧 Initializing chat core...');
-        
-        // FIRST: Check if user is authenticated before anything else
+
+        // Check authentication
         const { success, user } = await auth.getCurrentUser();
         if (!success || !user) {
             console.log('❌ User not authenticated, showing login');
@@ -60,6 +69,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         currentUser = user;
+        window.currentUser = user; // Set for other modules
         console.log('✅ Current User:', user.id);
 
         // Hide login, show chat interface
@@ -67,10 +77,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById("chat").style.display = "block";
 
         // Hide all overlays on load
-        document.getElementById('customAlert').style.display = 'none';
-        document.getElementById('customToast').style.display = 'none';
-        document.getElementById('userInfoModal').style.display = 'none';
+        const overlays = ['customAlert', 'customToast', 'userInfoModal'];
+        overlays.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.style.display = 'none';
+        });
 
+        // Get friend ID from URL
         const urlParams = new URLSearchParams(window.location.search);
         const friendId = urlParams.get('friendId');
 
@@ -81,6 +94,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
+        // Load friend data
         const { data: friend, error: friendError } = await supabase
             .from('profiles')
             .select('*')
@@ -90,15 +104,22 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (friendError) throw friendError;
 
         chatFriend = friend;
+        window.chatFriend = friend; // Set for other modules
+        
+        // Update UI
         document.getElementById('chatUserName').textContent = friend.username;
         document.getElementById('chatUserAvatar').textContent = friend.username.charAt(0).toUpperCase();
 
         updateFriendStatus(friend.status);
+        
+        // Load messages
         await loadOldMessages(friendId);
+        
+        // Setup real-time and listeners
         setupRealtime(friendId);
         setupTypingListener();
         updateInputListener();
-
+        
         // Prevent accidental back navigation
         setupBackButtonPrevention();
 
@@ -125,22 +146,22 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 // ====================
-// NEW: SHOW LOGIN SCREEN FUNCTION
+// LOGIN SCREEN
 // ====================
 function showLoginScreen() {
     console.log('Showing login screen...');
     document.getElementById("login").style.display = "block";
     document.getElementById("chat").style.display = "none";
-    
+
     const loginBtn = document.getElementById('loginBtn');
     const signupBtn = document.getElementById('signupBtn');
-    
+
     if (loginBtn) {
         loginBtn.onclick = () => {
             window.location.href = '../login/index.html';
         };
     }
-    
+
     if (signupBtn) {
         signupBtn.onclick = () => {
             window.location.href = '../auth/index.html';
@@ -149,22 +170,22 @@ function showLoginScreen() {
 }
 
 // ====================
-// FIX BACK BUTTON ISSUE
+// BACK BUTTON FIX
 // ====================
 function setupBackButtonPrevention() {
     const backBtn = document.querySelector('.back-btn');
     if (backBtn) {
         // Remove any existing click handlers
         backBtn.onclick = null;
-        
+
         // Add new handler with delay
         backBtn.addEventListener('click', function(e) {
             e.preventDefault();
             e.stopPropagation();
-            
+
             // Add a small delay to prevent double-tap issues
             this.style.pointerEvents = 'none';
-            
+
             setTimeout(() => {
                 goBack();
                 this.style.pointerEvents = 'auto';
@@ -184,6 +205,13 @@ async function sendMessage() {
 
     const input = document.getElementById('messageInput');
     const text = input.value.trim();
+
+    // Don't send if it's just slash or color picker is active
+    if (text === '/' || window.colorPickerVisible === true) {
+        input.value = '';
+        autoResize(input);
+        return;
+    }
 
     if (!text || !chatFriend) {
         showToast('Please type a message!', '⚠️');
@@ -209,6 +237,12 @@ async function sendMessage() {
             content: text,
             created_at: new Date().toISOString()
         };
+
+        // Check if we have a selected color from img-handler
+        if (window.selectedColor) {
+            messageData.color = window.selectedColor;
+            window.selectedColor = null; // Clear after use
+        }
 
         const { data, error } = await supabase
             .from('direct_messages')
@@ -268,7 +302,15 @@ async function loadOldMessages(friendId) {
 
         console.log('Loaded', messages?.length || 0, 'messages');
         currentMessages = messages || [];
-        showMessages(currentMessages);
+        window.currentMessages = currentMessages; // Update global
+        
+        // Use showMessages if it exists (may be overridden by script.js)
+        if (typeof showMessages === 'function') {
+            showMessages(currentMessages);
+        } else {
+            // Fallback to our own display
+            displayMessagesFallback(currentMessages);
+        }
     } catch (error) {
         console.error('Load error:', error);
         showMessages([]);
@@ -277,19 +319,8 @@ async function loadOldMessages(friendId) {
     }
 }
 
-// ====================
-// MESSAGE DISPLAY FUNCTIONS
-// ====================
-function createTextMessageHTML(msg, isSent, colorAttr, time) {
-    return `
-        <div class="message ${isSent ? 'sent' : 'received'}" data-message-id="${msg.id}" ${colorAttr}>
-            <div class="message-content">${msg.content || ''}</div>
-            <div class="message-time">${time}</div>
-        </div>
-    `;
-}
-
-function showMessages(messages) {
+// Fallback message display (in case script.js override fails)
+function displayMessagesFallback(messages) {
     const container = document.getElementById('messagesContainer');
     if (!container) return;
 
@@ -326,13 +357,28 @@ function showMessages(messages) {
         const color = msg.color || null;
         const colorAttr = color ? `data-color="${color}"` : '';
 
-        // Check if message has image (handled by image-handler.js)
+        // Check if message has image
         if (msg.image_url) {
-            // Image messages will be handled by image-handler.js
-            // We'll add a placeholder for now
-            html += createTextMessageHTML(msg, isSent, colorAttr, time);
+            // Try to use image message HTML creator from img-handler
+            if (typeof createImageMessageHTML === 'function') {
+                html += createImageMessageHTML(msg, isSent, colorAttr, time);
+            } else {
+                // Fallback to text with image indicator
+                html += `
+                    <div class="message ${isSent ? 'sent' : 'received'}" data-message-id="${msg.id}" ${colorAttr}>
+                        <div class="message-content">📸 Image shared</div>
+                        <div class="message-time">${time}</div>
+                    </div>
+                `;
+            }
         } else {
-            html += createTextMessageHTML(msg, isSent, colorAttr, time);
+            // Text message
+            html += `
+                <div class="message ${isSent ? 'sent' : 'received'}" data-message-id="${msg.id}" ${colorAttr}>
+                    <div class="message-content">${msg.content || ''}</div>
+                    <div class="message-time">${time}</div>
+                </div>
+            `;
         }
     });
 
@@ -344,6 +390,12 @@ function showMessages(messages) {
     }, 100);
 }
 
+// Original showMessages (may be overridden by script.js)
+function showMessages(messages) {
+    displayMessagesFallback(messages);
+}
+
+// Original addMessageToUI (may be overridden by script.js)
 function addMessageToUI(message, isFromRealtime = false) {
     const container = document.getElementById('messagesContainer');
     if (!container || !message) return;
@@ -364,10 +416,25 @@ function addMessageToUI(message, isFromRealtime = false) {
     let messageHTML;
 
     if (message.image_url) {
-        // Image messages handled by image-handler.js
-        messageHTML = createTextMessageHTML(message, isSent, colorAttr, time);
+        // Try to use image message HTML creator from img-handler
+        if (typeof createImageMessageHTML === 'function') {
+            messageHTML = createImageMessageHTML(message, isSent, colorAttr, time);
+        } else {
+            // Fallback
+            messageHTML = `
+                <div class="message ${isSent ? 'sent' : 'received'}" data-message-id="${message.id}" ${colorAttr}>
+                    <div class="message-content">📸 Image shared</div>
+                    <div class="message-time">${time}</div>
+                </div>
+            `;
+        }
     } else {
-        messageHTML = createTextMessageHTML(message, isSent, colorAttr, time);
+        messageHTML = `
+            <div class="message ${isSent ? 'sent' : 'received'}" data-message-id="${message.id}" ${colorAttr}>
+                <div class="message-content">${message.content || ''}</div>
+                <div class="message-time">${time}</div>
+            </div>
+        `;
     }
 
     container.insertAdjacentHTML('beforeend', messageHTML);
@@ -375,6 +442,7 @@ function addMessageToUI(message, isFromRealtime = false) {
     const isDuplicate = currentMessages.some(msg => msg.id === message.id);
     if (!isDuplicate) {
         currentMessages.push(message);
+        window.currentMessages = currentMessages; // Update global
     }
 
     // Animate new message
@@ -407,9 +475,11 @@ function addMessageToUI(message, isFromRealtime = false) {
 // ====================
 // REALTIME FUNCTIONS
 // ====================
+
 function setupRealtime(friendId) {
     console.log('🔧 Setting up realtime for friend:', friendId);
 
+    // Clean up existing channels
     if (chatChannel) {
         supabase.removeChannel(chatChannel);
     }
@@ -417,6 +487,7 @@ function setupRealtime(friendId) {
         supabase.removeChannel(statusChannel);
     }
 
+    // Chat message channel
     chatChannel = supabase.channel(`dm:${currentUser.id}:${friendId}`)
         .on('postgres_changes', {
             event: 'INSERT',
@@ -433,7 +504,14 @@ function setupRealtime(friendId) {
                 const existingMessage = document.querySelector(`[data-message-id="${newMsg.id}"]`);
                 if (!existingMessage) {
                     console.log('✅ Adding new message to UI (from realtime)');
-                    addMessageToUI(newMsg, true);
+                    
+                    // Use addMessageToUI if it exists (may be overridden)
+                    if (typeof addMessageToUI === 'function') {
+                        addMessageToUI(newMsg, true);
+                    } else {
+                        // Fallback
+                        addMessageToUIFallback(newMsg, true);
+                    }
                 } else {
                     console.log('🔄 Message already in UI, skipping:', newMsg.id);
                 }
@@ -441,6 +519,7 @@ function setupRealtime(friendId) {
         })
         .subscribe();
 
+    // Status update channel
     statusChannel = supabase.channel(`status:${friendId}`)
         .on('postgres_changes', {
             event: 'UPDATE',
@@ -451,6 +530,7 @@ function setupRealtime(friendId) {
             console.log('🔄 Friend status updated:', payload.new.status);
             if (payload.new.id === friendId) {
                 chatFriend.status = payload.new.status;
+                window.chatFriend = chatFriend; // Update global
                 updateFriendStatus(payload.new.status);
 
                 if (payload.new.status === 'online') {
@@ -463,6 +543,77 @@ function setupRealtime(friendId) {
         .subscribe();
 
     console.log('✅ Realtime active');
+}
+
+// Fallback for addMessageToUI
+function addMessageToUIFallback(message, isFromRealtime = false) {
+    const container = document.getElementById('messagesContainer');
+    if (!container || !message) return;
+
+    if (container.querySelector('.empty-chat')) {
+        container.innerHTML = '';
+    }
+
+    const isSent = message.sender_id === currentUser.id;
+    const time = new Date(message.created_at).toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+
+    const color = message.color || null;
+    const colorAttr = color ? `data-color="${color}"` : '';
+
+    let messageHTML;
+
+    if (message.image_url) {
+        messageHTML = `
+            <div class="message ${isSent ? 'sent' : 'received'}" data-message-id="${message.id}" ${colorAttr}>
+                <div class="message-content">📸 Image shared</div>
+                <div class="message-time">${time}</div>
+            </div>
+        `;
+    } else {
+        messageHTML = `
+            <div class="message ${isSent ? 'sent' : 'received'}" data-message-id="${message.id}" ${colorAttr}>
+                <div class="message-content">${message.content || ''}</div>
+                <div class="message-time">${time}</div>
+            </div>
+        `;
+    }
+
+    container.insertAdjacentHTML('beforeend', messageHTML);
+
+    const isDuplicate = currentMessages.some(msg => msg.id === message.id);
+    if (!isDuplicate) {
+        currentMessages.push(message);
+        window.currentMessages = currentMessages;
+    }
+
+    // Animate
+    const newMessage = container.lastElementChild;
+    if (newMessage && isFromRealtime) {
+        newMessage.style.opacity = '0';
+        newMessage.style.transform = 'translateY(10px)';
+
+        setTimeout(() => {
+            newMessage.style.transition = 'all 0.3s ease';
+            newMessage.style.opacity = '1';
+            newMessage.style.transform = 'translateY(0)';
+        }, 10);
+    }
+
+    setTimeout(() => {
+        forceScrollToBottom();
+    }, 10);
+
+    if (message.sender_id === chatFriend.id) {
+        playReceivedSound();
+        if (!document.hasFocus()) {
+            const originalTitle = document.title;
+            document.title = '📸 ' + chatFriend.username;
+            setTimeout(() => document.title = originalTitle, 1000);
+        }
+    }
 }
 
 // ====================
@@ -577,35 +728,6 @@ function playReceivedSound() {
 // ====================
 // ALERT FUNCTIONS
 // ====================
-
-function showLoginAlert() {
-    const alertOverlay = document.getElementById('customAlert');
-    const alertIcon = document.getElementById('alertIcon');
-    const alertTitle = document.getElementById('alertTitle');
-    const alertMessage = document.getElementById('alertMessage');
-    const alertConfirm = document.getElementById('alertConfirm');
-    const alertCancel = document.getElementById('alertCancel');
-
-    alertIcon.innerHTML = '<svg viewBox="0 0 24 24"><path d="M12,17A2,2 0 0,0 14,15C14,13.89 13.1,13 12,13A2,2 0 0,0 10,15A2,2 0 0,0 12,17M18,8A2,2 0 0,1 20,10V20A2,2 0 0,1 18,22H6A2,2 0 0,1 4,20V10C4,8.89 4.9,8 6,8H7V6A5,5 0 0,1 12,1A5,5 0 0,1 17,6V8H18M12,3A3,3 0 0,0 9,6V8H15V6A3,3 0 0,0 12,3Z"/></svg>';
-    alertTitle.textContent = 'Login Required';
-    alertMessage.textContent = 'Please login or signup to continue chatting!';
-    alertCancel.style.display = 'inline-block';
-
-    alertConfirm.textContent = 'Login';
-    alertConfirm.onclick = () => {
-        alertOverlay.style.display = 'none';
-        window.location.href = '../login/index.html';
-    };
-
-    alertCancel.textContent = 'Signup';
-    alertCancel.onclick = () => {
-        alertOverlay.style.display = 'none';
-        window.location.href = '../auth/index.html';
-    };
-
-    alertOverlay.style.display = 'flex';
-}
-
 function showCustomAlert(message, icon = '⚠️', title = 'Alert', onConfirm = null) {
     const alertOverlay = document.getElementById('customAlert');
     const alertIcon = document.getElementById('alertIcon');
@@ -698,11 +820,7 @@ function updateFriendStatus(status) {
 }
 
 // ====================
-// INPUT HANDLERS - FIXED FOR SLASH (/)
-// ====================
- 
-// ====================
-// INPUT HANDLERS - FIXED FOR SLASH (/)
+// INPUT HANDLERS - FIXED
 // ====================
 function handleKeyPress(event) {
     const input = document.getElementById('messageInput');
@@ -734,13 +852,11 @@ function handleKeyPress(event) {
             sendMessage();
         }
     }
-    
-    // Allow slash to be typed - the slash handler in img-handler.js will handle it
 }
 
 function autoResize(textarea) {
     if (!textarea) return;
-    
+
     textarea.style.height = 'auto';
     const newHeight = Math.min(textarea.scrollHeight, 100);
     textarea.style.height = newHeight + 'px';
@@ -760,7 +876,7 @@ function goBack() {
     if (backBtn) {
         backBtn.innerHTML = '<div class="loading-spinner-small"></div>';
     }
-    
+
     // Cleanup
     if (chatChannel) {
         supabase.removeChannel(chatChannel);
@@ -774,7 +890,7 @@ function goBack() {
     if (friendTypingTimeout) {
         clearTimeout(friendTypingTimeout);
     }
-    
+
     // Navigate after a short delay to ensure cleanup
     setTimeout(() => {
         window.location.href = '../home/index.html';
@@ -851,7 +967,14 @@ async function clearChatPrompt() {
 
                 showToast('Chat cleared!', '✅');
                 currentMessages = [];
-                showMessages([]);
+                window.currentMessages = currentMessages;
+                
+                // Use showMessages if it exists
+                if (typeof showMessages === 'function') {
+                    showMessages([]);
+                } else {
+                    displayMessagesFallback([]);
+                }
             } catch (error) {
                 console.error('Clear chat error:', error);
                 showCustomAlert('Error clearing chat', '❌', 'Error');
@@ -944,15 +1067,25 @@ window.addEventListener('beforeunload', () => {
 });
 
 // Add small loading spinner CSS for back button
-const style = document.createElement('style');
-style.textContent = `
-    .loading-spinner-small {
-        width: 20px;
-        height: 20px;
-        border: 2px solid rgba(255, 255, 255, 0.3);
-        border-top: 2px solid white;
-        border-radius: 50%;
-        animation: spin 0.8s linear infinite;
-    }
-`;
-document.head.appendChild(style);
+if (!document.querySelector('#loading-spinner-style')) {
+    const style = document.createElement('style');
+    style.id = 'loading-spinner-style';
+    style.textContent = `
+        .loading-spinner-small {
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top: 2px solid white;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    `;
+    document.head.appendChild(style);
+}
+
+console.log('✅ Chat core functions exported');
