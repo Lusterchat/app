@@ -372,19 +372,24 @@ function setupInputCoordination() {
 
     console.log('🔧 Setting up input coordination');
 
+    // Clear any existing listeners by cloning
+    const newInput = input.cloneNode(true);
+    input.parentNode.replaceChild(newInput, input);
+    
+    const freshInput = document.getElementById('messageInput');
+
     // Store original handlers
-    const originalKeydown = input.onkeydown;
-    const originalInput = input.oninput;
+    const originalKeydown = freshInput.onkeydown;
+    const originalInput = freshInput.oninput;
 
     // Create coordinated keydown handler
-    input.addEventListener('keydown', function(e) {
-        // First, let slash handler from img-handler work
-        if (e.key === '/' && !window.colorPickerVisible) {
-            // This will be handled by img-handler's input listener
-            return;
+    freshInput.addEventListener('keydown', function(e) {
+        // Don't prevent slash key
+        if (e.key === '/') {
+            return; // Let img-handler handle it
         }
 
-        // Then call original if exists
+        // Call original if exists
         if (originalKeydown) {
             originalKeydown.call(this, e);
         }
@@ -396,7 +401,14 @@ function setupInputCoordination() {
     });
 
     // Create coordinated input handler
-    input.addEventListener('input', function(e) {
+    freshInput.addEventListener('input', function(e) {
+        const text = e.target.value;
+        
+        // Don't interfere with slash handler
+        if (text === '/') {
+            return;
+        }
+
         // Call original if exists
         if (originalInput) {
             originalInput.call(this, e);
@@ -413,11 +425,13 @@ function setupInputCoordination() {
         }
     });
 
-    // Ensure slash handler works
-    input.addEventListener('keypress', function(e) {
-        if (e.key === '/' && e.target.value === '') {
-            // Let img-handler handle this
-            return;
+    // Add focus handler to clear slash if color picker closed
+    freshInput.addEventListener('focus', function() {
+        if (this.value === '/' && !window.colorPickerVisible) {
+            this.value = '';
+            if (typeof autoResize === 'function') {
+                autoResize(this);
+            }
         }
     });
 }
