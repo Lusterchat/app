@@ -108,15 +108,8 @@ function handleClickOutside(e) {
     if (isColorPickerOpen && !colorPicker.contains(e.target)) {
         const input = document.getElementById('messageInput');
         if (e.target !== input) {
-            if (typeof hideColorPicker === 'function') {
-                hideColorPicker();
-                // Clear slash from input if empty
-                if (input && input.value === '/') {
-                    input.value = '';
-                    if (typeof autoResize === 'function') {
-                        autoResize(input);
-                    }
-                }
+            if (typeof cancelColorSelection === 'function') {
+                cancelColorSelection();
             }
         }
     }
