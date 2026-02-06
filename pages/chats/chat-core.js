@@ -17,6 +17,9 @@ let isTyping = false;
 let typingTimeout = null;
 let friendTypingTimeout = null;
 
+// Global variables shared with img-handler.js
+window.colorPickerVisible = false;
+
 // ====================
 // GLOBAL FUNCTION EXPORTS - CORE CHAT
 // ====================
@@ -102,7 +105,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Initial setup
         setTimeout(() => {
             const input = document.getElementById('messageInput');
-            if (input) autoResize(input);
+            if (input) {
+                autoResize(input);
+                // Focus the input after initialization
+                setTimeout(() => {
+                    input.focus();
+                }, 200);
+            }
             forceScrollToBottom();
         }, 150);
 
@@ -689,7 +698,7 @@ function updateFriendStatus(status) {
 }
 
 // ====================
-// INPUT HANDLERS
+// INPUT HANDLERS - FIXED FOR SLASH (/)
 // ====================
 function handleKeyPress(event) {
     const input = document.getElementById('messageInput');
@@ -702,6 +711,20 @@ function handleKeyPress(event) {
     if (event.key === 'Enter' && !event.shiftKey) {
         event.preventDefault();
 
+        // Don't send if we're in color picker mode
+        if (window.colorPickerVisible) {
+            // Hide color picker and clear slash
+            if (typeof hideColorPicker === 'function') {
+                hideColorPicker();
+            }
+            if (input && input.value === '/') {
+                input.value = '';
+                autoResize(input);
+            }
+            return;
+        }
+
+        // Don't send if input is just slash
         if (input && input.value === '/') {
             return;
         }
@@ -710,9 +733,14 @@ function handleKeyPress(event) {
             sendMessage();
         }
     }
+    
+    // Allow slash to be typed - don't block it
+    // The slash handler in img-handler.js will show color picker
 }
 
 function autoResize(textarea) {
+    if (!textarea) return;
+    
     textarea.style.height = 'auto';
     const newHeight = Math.min(textarea.scrollHeight, 100);
     textarea.style.height = newHeight + 'px';
@@ -720,6 +748,14 @@ function autoResize(textarea) {
     const sendBtn = document.getElementById('sendBtn');
     if (sendBtn) {
         sendBtn.disabled = textarea.value.trim() === '';
+    }
+    
+    // If textarea has just slash and we're not in color picker mode, clear it
+    if (textarea.value === '/' && !window.colorPickerVisible) {
+        textarea.value = '';
+        if (sendBtn) {
+            sendBtn.disabled = true;
+        }
     }
 }
 
@@ -928,23 +964,3 @@ style.textContent = `
     }
 `;
 document.head.appendChild(style);
-
-
-// ====================
-// FIX: AUTO RESIZE FUNCTION FOR IMAGE HANDLER
-// ====================
-function autoResize(textarea) {
-    if (!textarea) return;
-    
-    textarea.style.height = 'auto';
-    const newHeight = Math.min(textarea.scrollHeight, 100);
-    textarea.style.height = newHeight + 'px';
-
-    const sendBtn = document.getElementById('sendBtn');
-    if (sendBtn) {
-        sendBtn.disabled = textarea.value.trim() === '';
-    }
-}
-
-// Export it to window for img-handler.js to use
-window.autoResize = autoResize;
