@@ -89,11 +89,11 @@
             .login-container {
                 padding: 25px 20px;
             }
-            
+
             .login-buttons {
                 flex-direction: column;
             }
-            
+
             .btn-primary, .btn-secondary {
                 width: 100%;
             }
@@ -157,7 +157,7 @@
         </main>
 
         <!-- Message Input Area -->
-        <div class="message-input-wrapper">
+        <div class="message-input-wrapper" id="messageInputWrapper">
             <div class="message-input-container">
                 <button class="attach-btn" id="attachBtn" onclick="showImagePicker()">
                     <svg class="attach-icon" viewBox="0 0 24 24">
@@ -167,10 +167,8 @@
                 <textarea 
                     class="message-input" 
                     id="messageInput" 
-                    placeholder="Type a message..."
+                    placeholder="Type a message... (Type / for colors)"
                     rows="1"
-                    onkeydown="handleKeyPress(event)"
-                    oninput="autoResize(this)"
                     style="min-height: 50px;"
                 ></textarea>
                 <button class="send-btn" id="sendBtn" onclick="sendMessage()" disabled>
@@ -209,6 +207,12 @@
     <!-- Hidden file inputs -->
     <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display: none;">
     <input type="file" id="galleryInput" accept="image/*" style="display: none;">
+
+    <!-- Color Picker will be added dynamically -->
+    
+    <!-- Image Preview will be added dynamically -->
+    
+    <!-- Image Viewer will be added dynamically -->
 
     <!-- User Info Modal -->
     <div class="modal-overlay" id="userInfoModal" style="display: none;">
