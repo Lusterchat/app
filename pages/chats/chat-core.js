@@ -20,8 +20,8 @@ let friendTypingTimeout = null;
 // Global variables for coordination with img-handler
 window.colorPickerVisible = false;
 window.currentMessages = currentMessages;
-window.currentUser = null; // Will be set after auth
-window.chatFriend = null; // Will be set after loading
+window.currentUser = null;
+window.chatFriend = null;
 
 // ====================
 // GLOBAL FUNCTION EXPORTS - CORE CHAT
@@ -41,6 +41,12 @@ window.showConfirmAlert = showConfirmAlert;
 window.showToast = showToast;
 window.forceScrollToBottom = forceScrollToBottom;
 window.scrollToBottom = scrollToBottom;
+window.loadOldMessages = loadOldMessages;
+window.showMessages = showMessages;
+window.addMessageToUI = addMessageToUI;
+window.setupRealtime = setupRealtime;
+window.handleTyping = handleTyping;
+window.sendTypingStatus = sendTypingStatus;
 
 // Export user and friend data for img-handler.js
 window.getCurrentUser = () => currentUser;
@@ -54,7 +60,7 @@ if (window.chatModules) {
 }
 
 // ====================
-// INITIALIZATION - FIXED
+// INITIALIZATION
 // ====================
 document.addEventListener('DOMContentLoaded', async () => {
     try {
@@ -69,7 +75,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         currentUser = user;
-        window.currentUser = user; // Set for other modules
+        window.currentUser = user;
         console.log('✅ Current User:', user.id);
 
         // Hide login, show chat interface
@@ -104,22 +110,22 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (friendError) throw friendError;
 
         chatFriend = friend;
-        window.chatFriend = friend; // Set for other modules
-        
+        window.chatFriend = friend;
+
         // Update UI
         document.getElementById('chatUserName').textContent = friend.username;
         document.getElementById('chatUserAvatar').textContent = friend.username.charAt(0).toUpperCase();
 
         updateFriendStatus(friend.status);
-        
+
         // Load messages
         await loadOldMessages(friendId);
-        
+
         // Setup real-time and listeners
         setupRealtime(friendId);
         setupTypingListener();
         updateInputListener();
-        
+
         // Prevent accidental back navigation
         setupBackButtonPrevention();
 
@@ -283,7 +289,7 @@ async function sendMessage() {
         sendBtn.disabled = false;
     }
 }
-        
+
 // ====================
 // MESSAGE LOADING
 // ====================
@@ -307,15 +313,10 @@ async function loadOldMessages(friendId) {
 
         console.log('Loaded', messages?.length || 0, 'messages');
         currentMessages = messages || [];
-        window.currentMessages = currentMessages; // Update global
-        
-        // Use showMessages if it exists (may be overridden by script.js)
-        if (typeof showMessages === 'function') {
-            showMessages(currentMessages);
-        } else {
-            // Fallback to our own display
-            displayMessagesFallback(currentMessages);
-        }
+        window.currentMessages = currentMessages;
+
+        // Use showMessages to display messages
+        showMessages(currentMessages);
     } catch (error) {
         console.error('Load error:', error);
         showMessages([]);
@@ -324,8 +325,7 @@ async function loadOldMessages(friendId) {
     }
 }
 
-// Fallback message display (in case script.js override fails)
-function displayMessagesFallback(messages) {
+function showMessages(messages) {
     const container = document.getElementById('messagesContainer');
     if (!container) return;
 
@@ -395,12 +395,6 @@ function displayMessagesFallback(messages) {
     }, 100);
 }
 
-// Original showMessages (may be overridden by script.js)
-function showMessages(messages) {
-    displayMessagesFallback(messages);
-}
-
-// Original addMessageToUI (may be overridden by script.js)
 function addMessageToUI(message, isFromRealtime = false) {
     const container = document.getElementById('messagesContainer');
     if (!container || !message) return;
@@ -447,7 +441,7 @@ function addMessageToUI(message, isFromRealtime = false) {
     const isDuplicate = currentMessages.some(msg => msg.id === message.id);
     if (!isDuplicate) {
         currentMessages.push(message);
-        window.currentMessages = currentMessages; // Update global
+        window.currentMessages = currentMessages;
     }
 
     // Animate new message
@@ -509,14 +503,7 @@ function setupRealtime(friendId) {
                 const existingMessage = document.querySelector(`[data-message-id="${newMsg.id}"]`);
                 if (!existingMessage) {
                     console.log('✅ Adding new message to UI (from realtime)');
-                    
-                    // Use addMessageToUI if it exists (may be overridden)
-                    if (typeof addMessageToUI === 'function') {
-                        addMessageToUI(newMsg, true);
-                    } else {
-                        // Fallback
-                        addMessageToUIFallback(newMsg, true);
-                    }
+                    addMessageToUI(newMsg, true);
                 } else {
                     console.log('🔄 Message already in UI, skipping:', newMsg.id);
                 }
@@ -535,7 +522,7 @@ function setupRealtime(friendId) {
             console.log('🔄 Friend status updated:', payload.new.status);
             if (payload.new.id === friendId) {
                 chatFriend.status = payload.new.status;
-                window.chatFriend = chatFriend; // Update global
+                window.chatFriend = chatFriend;
                 updateFriendStatus(payload.new.status);
 
                 if (payload.new.status === 'online') {
@@ -548,77 +535,6 @@ function setupRealtime(friendId) {
         .subscribe();
 
     console.log('✅ Realtime active');
-}
-
-// Fallback for addMessageToUI
-function addMessageToUIFallback(message, isFromRealtime = false) {
-    const container = document.getElementById('messagesContainer');
-    if (!container || !message) return;
-
-    if (container.querySelector('.empty-chat')) {
-        container.innerHTML = '';
-    }
-
-    const isSent = message.sender_id === currentUser.id;
-    const time = new Date(message.created_at).toLocaleTimeString([], {
-        hour: '2-digit',
-        minute: '2-digit'
-    });
-
-    const color = message.color || null;
-    const colorAttr = color ? `data-color="${color}"` : '';
-
-    let messageHTML;
-
-    if (message.image_url) {
-        messageHTML = `
-            <div class="message ${isSent ? 'sent' : 'received'}" data-message-id="${message.id}" ${colorAttr}>
-                <div class="message-content">📸 Image shared</div>
-                <div class="message-time">${time}</div>
-            </div>
-        `;
-    } else {
-        messageHTML = `
-            <div class="message ${isSent ? 'sent' : 'received'}" data-message-id="${message.id}" ${colorAttr}>
-                <div class="message-content">${message.content || ''}</div>
-                <div class="message-time">${time}</div>
-            </div>
-        `;
-    }
-
-    container.insertAdjacentHTML('beforeend', messageHTML);
-
-    const isDuplicate = currentMessages.some(msg => msg.id === message.id);
-    if (!isDuplicate) {
-        currentMessages.push(message);
-        window.currentMessages = currentMessages;
-    }
-
-    // Animate
-    const newMessage = container.lastElementChild;
-    if (newMessage && isFromRealtime) {
-        newMessage.style.opacity = '0';
-        newMessage.style.transform = 'translateY(10px)';
-
-        setTimeout(() => {
-            newMessage.style.transition = 'all 0.3s ease';
-            newMessage.style.opacity = '1';
-            newMessage.style.transform = 'translateY(0)';
-        }, 10);
-    }
-
-    setTimeout(() => {
-        forceScrollToBottom();
-    }, 10);
-
-    if (message.sender_id === chatFriend.id) {
-        playReceivedSound();
-        if (!document.hasFocus()) {
-            const originalTitle = document.title;
-            document.title = '📸 ' + chatFriend.username;
-            setTimeout(() => document.title = originalTitle, 1000);
-        }
-    }
 }
 
 // ====================
@@ -710,6 +626,7 @@ function updateInputListener() {
 // ====================
 // SOUND FUNCTIONS
 // ====================
+
 function playSentSound() {
     try {
         const audio = new Audio('sent.mp3');
@@ -834,7 +751,6 @@ function handleKeyPress(event) {
     if (sendBtn) {
         sendBtn.disabled = !input || input.value.trim() === '';
     }
-
     if (event.key === 'Enter' && !event.shiftKey) {
         event.preventDefault();
 
@@ -973,13 +889,8 @@ async function clearChatPrompt() {
                 showToast('Chat cleared!', '✅');
                 currentMessages = [];
                 window.currentMessages = currentMessages;
-                
-                // Use showMessages if it exists
-                if (typeof showMessages === 'function') {
-                    showMessages([]);
-                } else {
-                    displayMessagesFallback([]);
-                }
+
+                showMessages([]);
             } catch (error) {
                 console.error('Clear chat error:', error);
                 showCustomAlert('Error clearing chat', '❌', 'Error');
