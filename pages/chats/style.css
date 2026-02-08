@@ -1269,3 +1269,40 @@ textarea:active {
         max-width: 90% !important;
     }
 }
+
+/* ==================== */
+/* CHROME SPECIFIC FIXES */
+/* ==================== */
+
+/* Fix for Chrome image loading */
+.message-image {
+    -webkit-backface-visibility: hidden;
+    -webkit-transform: translateZ(0) scale(1.0, 1.0);
+    transform: translateZ(0);
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+}
+
+/* Prevent Chrome from blocking image URLs */
+@supports (-webkit-touch-callout: none) {
+    .message-image {
+        content-visibility: auto;
+    }
+}
+
+/* Chrome hardware acceleration */
+.image-message {
+    transform: translate3d(0, 0, 0);
+    backface-visibility: hidden;
+    perspective: 1000px;
+}
+
+/* Fix for Chrome's aggressive caching */
+.message-image[src*="i.ibb.co"] {
+    image-rendering: auto;
+}
+
+/* Chrome scroll fix */
+.messages-container {
+    -webkit-overflow-scrolling: touch;
+}
