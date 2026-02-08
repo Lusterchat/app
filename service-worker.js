@@ -1,7 +1,7 @@
 // RelayTalk Service Worker v4.1 - Fixed Game Caching
-const CACHE_NAME = 'relaytalk-cache-v4-3';
+const CACHE_NAME = 'relaytalk-cache-v4-4';
 const OFFLINE_URL = '/offline/index.html';
-const APP_VERSION = '4.3.0';
+const APP_VERSION = '4.4.0';
 
 // ====== ACTUAL GAME FILES (FROM YOUR FOLDER) ======
 const CAR_GAME_FILES = [
