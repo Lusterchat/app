@@ -1,6 +1,6 @@
 import { supabase } from '../../utils/supabase.js';
 
-console.log('✨ Image Handler Initialized - UPLOAD FIX VERSION');
+console.log('✨ Image Handler Initialized - FINAL FIX VERSION');
 
 // ====================
 // IMAGE HANDLING VARIABLES
@@ -389,65 +389,95 @@ function setupFileInputListeners() {
 function handleImageSelect(event) {
     console.log('File selected event triggered', event);
 
-    // Get the file from the event
-    const fileInput = event.target;
-    const file = fileInput.files[0];
-
-    if (!file) {
-        console.log('No file selected');
-        if (typeof showToast === 'function') {
-            showToast('No image selected', '⚠️');
+    try {
+        // Get the file from the event
+        const fileInput = event.target;
+        
+        // DEBUG: Check what's in the files
+        console.log('File input files:', fileInput.files);
+        console.log('File input files length:', fileInput.files.length);
+        
+        if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+            console.error('No files selected in input');
+            if (typeof showToast === 'function') {
+                showToast('No image selected', '⚠️');
+            }
+            return;
         }
-        return;
-    }
 
-    console.log('File selected:', {
-        name: file.name,
-        type: file.type,
-        size: file.size,
-        lastModified: file.lastModified
-    });
-
-    // Validate file
-    if (!file.type.startsWith('image/')) {
-        console.log('Not an image file:', file.type);
-        if (typeof showToast === 'function') {
-            showToast('Please select an image file', '⚠️');
+        const file = fileInput.files[0];
+        
+        if (!file) {
+            console.error('File object is null');
+            if (typeof showToast === 'function') {
+                showToast('Invalid file selection', '⚠️');
+            }
+            return;
         }
-        fileInput.value = '';
-        return;
-    }
 
-    // Check file size (max 10MB)
-    if (file.size > 10 * 1024 * 1024) {
-        console.log('File too large:', file.size);
-        if (typeof showToast === 'function') {
-            showToast('Image too large. Max 10MB', '⚠️');
+        console.log('✅ File successfully captured:', {
+            name: file.name,
+            type: file.type,
+            size: file.size,
+            lastModified: file.lastModified
+        });
+
+        // Validate file
+        if (!file.type.startsWith('image/')) {
+            console.log('Not an image file:', file.type);
+            if (typeof showToast === 'function') {
+                showToast('Please select an image file', '⚠️');
+            }
+            fileInput.value = '';
+            return;
         }
-        fileInput.value = '';
-        return;
+
+        // Check file size (max 10MB)
+        if (file.size > 10 * 1024 * 1024) {
+            console.log('File too large:', file.size);
+            if (typeof showToast === 'function') {
+                showToast('Image too large. Max 10MB', '⚠️');
+            }
+            fileInput.value = '';
+            return;
+        }
+
+        // Store file for upload IMMEDIATELY
+        currentFileForUpload = file;
+        console.log('✅ File stored for upload:', currentFileForUpload?.name);
+        
+        // Create a copy of the file object to prevent reference loss
+        const fileCopy = new File([file], file.name, {
+            type: file.type,
+            lastModified: file.lastModified
+        });
+        
+        // Create preview with the copy
+        createImagePreview(fileCopy);
+
+    } catch (error) {
+        console.error('Error handling image selection:', error);
+        if (typeof showToast === 'function') {
+            showToast('Error selecting image', '❌');
+        }
+        
+        // Reset inputs on error
+        document.getElementById('cameraInput').value = '';
+        document.getElementById('galleryInput').value = '';
+        currentFileForUpload = null;
     }
-
-    // Store file for upload
-    currentFileForUpload = file;
-    console.log('✅ File stored for upload:', currentFileForUpload.name);
-
-    // Create preview
-    createImagePreview(file);
-
-    // Don't reset input here - keep it until upload completes
 }
 
 // ====================
 // FIXED: IMAGE PREVIEW
 // ====================
 function createImagePreview(file) {
-    console.log('Creating image preview for:', file.name);
+    console.log('Creating image preview for file:', file?.name || 'unknown');
 
     if (!file) {
-        console.error('No file provided for preview');
+        console.error('createImagePreview called with null file');
         if (typeof showToast === 'function') {
-            showToast('No image file selected', '⚠️');
+            showToast('Cannot preview image', '⚠️');
         }
         return;
     }
@@ -455,59 +485,66 @@ function createImagePreview(file) {
     const reader = new FileReader();
 
     reader.onload = function(e) {
-        imagePreviewUrl = e.target.result;
+        try {
+            imagePreviewUrl = e.target.result;
 
-        const previewHTML = `
-            <div class="image-preview-overlay" id="imagePreviewOverlay">
-                <div class="image-preview-container">
-                    <div class="preview-header">
-                        <h3>Image Preview</h3>
-                        <button class="preview-close" onclick="cancelImageUpload()">×</button>
-                    </div>
-                    <div class="preview-image-container">
-                        <img src="${imagePreviewUrl}" alt="Preview" class="preview-image">
-                    </div>
-                    <div class="preview-actions">
-                        <button class="preview-btn cancel" onclick="cancelImageUpload()">Cancel</button>
-                        <button class="preview-btn send" onclick="uploadImageFromPreview()">Send Image</button>
-                    </div>
-                    <div class="preview-info">
-                        <p>File: ${file.name}</p>
-                        <p>Size: ${(file.size / 1024 / 1024).toFixed(2)} MB</p>
-                        <p>Type: ${file.type}</p>
+            const previewHTML = `
+                <div class="image-preview-overlay" id="imagePreviewOverlay">
+                    <div class="image-preview-container">
+                        <div class="preview-header">
+                            <h3>Image Preview</h3>
+                            <button class="preview-close" onclick="cancelImageUpload()">×</button>
+                        </div>
+                        <div class="preview-image-container">
+                            <img src="${imagePreviewUrl}" alt="Preview" class="preview-image">
+                        </div>
+                        <div class="preview-actions">
+                            <button class="preview-btn cancel" onclick="cancelImageUpload()">Cancel</button>
+                            <button class="preview-btn send" onclick="uploadImageFromPreview()">Send Image</button>
+                        </div>
+                        <div class="preview-info">
+                            <p>File: ${file.name}</p>
+                            <p>Size: ${(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                            <p>Type: ${file.type}</p>
+                        </div>
                     </div>
                 </div>
-            </div>
-        `;
+            `;
 
-        // Remove existing preview
-        const existingPreview = document.getElementById('imagePreviewOverlay');
-        if (existingPreview) {
-            existingPreview.remove();
-        }
-
-        // Add new preview
-        document.body.insertAdjacentHTML('beforeend', previewHTML);
-
-        // Close image picker
-        closeImagePicker();
-
-        // Show preview
-        setTimeout(() => {
-            const preview = document.getElementById('imagePreviewOverlay');
-            if (preview) {
-                preview.style.opacity = '1';
-                console.log('✅ Preview shown');
+            // Remove existing preview
+            const existingPreview = document.getElementById('imagePreviewOverlay');
+            if (existingPreview) {
+                existingPreview.remove();
             }
-        }, 10);
+
+            // Add new preview
+            document.body.insertAdjacentHTML('beforeend', previewHTML);
+
+            // Close image picker
+            closeImagePicker();
+
+            // Show preview
+            setTimeout(() => {
+                const preview = document.getElementById('imagePreviewOverlay');
+                if (preview) {
+                    preview.style.opacity = '1';
+                    console.log('✅ Preview shown');
+                }
+            }, 10);
+        } catch (error) {
+            console.error('Error creating preview HTML:', error);
+            if (typeof showToast === 'function') {
+                showToast('Error creating preview', '❌');
+            }
+        }
     };
 
     reader.onerror = function(error) {
-        console.error('Error reading file:', error);
+        console.error('Error reading file for preview:', error);
         if (typeof showToast === 'function') {
             showToast('Error reading image file', '❌');
         }
-        // Reset file inputs
+        // Reset everything
         document.getElementById('cameraInput').value = '';
         document.getElementById('galleryInput').value = '';
         currentFileForUpload = null;
@@ -519,15 +556,20 @@ function createImagePreview(file) {
 // ====================
 // IMAGE PREVIEW FUNCTIONS
 // ====================
+
 function cancelImageUpload() {
     console.log('Cancelling image upload');
-    imagePreviewUrl = null;
-    currentFileForUpload = null;
-    uploadInProgress = false;
-
+    
     // Reset file inputs
     document.getElementById('cameraInput').value = '';
     document.getElementById('galleryInput').value = '';
+    
+    // Reset variables but DON'T set currentFileForUpload to null if upload is in progress
+    // Let uploadImageFromPreview handle the file reference
+    if (!uploadInProgress) {
+        imagePreviewUrl = null;
+        currentFileForUpload = null;
+    }
 
     const preview = document.getElementById('imagePreviewOverlay');
     if (preview) {
@@ -552,14 +594,14 @@ function sendImagePreview() {
 }
 
 async function uploadImageFromPreview() {
-    console.log('Uploading image from preview');
+    console.log('uploadImageFromPreview called');
 
     if (uploadInProgress) {
         console.log('Upload already in progress');
         return;
     }
 
-    // Get user and friend info
+    // Get user and friend info first
     const currentUser = window.getCurrentUser ? window.getCurrentUser() : null;
     const chatFriend = window.getChatFriend ? window.getChatFriend() : null;
 
@@ -581,11 +623,19 @@ async function uploadImageFromPreview() {
         return;
     }
 
-    // Check if file exists
-    if (!currentFileForUpload) {
-        console.log('No file to upload');
+    // Check if we have a valid file BEFORE canceling preview
+    console.log('Checking currentFileForUpload:', currentFileForUpload);
+    console.log('File details:', {
+        exists: !!currentFileForUpload,
+        name: currentFileForUpload?.name,
+        type: currentFileForUpload?.type,
+        size: currentFileForUpload?.size
+    });
+
+    if (!currentFileForUpload || !currentFileForUpload.name || !currentFileForUpload.type) {
+        console.error('No valid file to upload');
         if (typeof showToast === 'function') {
-            showToast('No image to upload', '⚠️');
+            showToast('No image selected or file is invalid', '⚠️');
         }
         cancelImageUpload();
         return;
@@ -594,6 +644,9 @@ async function uploadImageFromPreview() {
     console.log('Starting upload process for:', currentFileForUpload.name);
     uploadInProgress = true;
 
+    // Store file in a local variable before canceling preview
+    const fileToUpload = currentFileForUpload;
+    
     // Cancel preview first
     cancelImageUpload();
 
@@ -603,7 +656,7 @@ async function uploadImageFromPreview() {
     }
 
     try {
-        await uploadImageToImgBB(currentFileForUpload);
+        await uploadImageToImgBB(fileToUpload);
     } catch (error) {
         console.error('Upload failed:', error);
         if (typeof showToast === 'function') {
@@ -618,54 +671,64 @@ async function uploadImageFromPreview() {
 }
 
 // ====================
-// FIXED: IMAGE UPLOAD TO IMGBB (NULL CHECK ADDED)
+// FIXED: IMAGE UPLOAD TO IMGBB
 // ====================
-
 async function uploadImageToImgBB(file) {
-    console.log('Starting ImgBB upload');
+    console.log('uploadImageToImgBB called with file:', file?.name || 'unknown');
 
-    // VALIDATE FILE FIRST - FIX FOR NULL ERROR
+    // EXTENSIVE VALIDATION
     if (!file) {
-        console.error('File is null or undefined');
+        console.error('❌ uploadImageToImgBB: File is null');
         throw new Error('No image file selected');
     }
 
-    if (!file.name || !file.type || typeof file.size === 'undefined') {
-        console.error('Invalid file object:', file);
+    if (!file.name || file.name === 'unknown' || !file.type || typeof file.size === 'undefined') {
+        console.error('❌ uploadImageToImgBB: Invalid file object:', {
+            name: file.name,
+            type: file.type,
+            size: file.size
+        });
         throw new Error('Invalid image file');
     }
 
-    console.log('Uploading file:', file.name);
+    console.log('✅ Starting ImgBB upload for:', file.name);
 
     try {
         console.log('File details:', {
             name: file.name,
             type: file.type,
-            size: file.size + ' bytes'
+            size: file.size + ' bytes',
+            isFileInstance: file instanceof File
+        });
+
+        // Create a backup copy of the file to prevent any reference issues
+        const fileCopy = new File([file], file.name, {
+            type: file.type,
+            lastModified: Date.now()
         });
 
         // First compress the image
         console.log('Compressing image...');
         let processedFile;
         try {
-            processedFile = await compressImage(file);
+            processedFile = await compressImage(fileCopy);
             console.log('Compression complete:', processedFile?.name);
         } catch (compressError) {
             console.warn('Compression failed, using original file:', compressError.message);
-            processedFile = file;
+            processedFile = fileCopy;
         }
 
-        // Double-check processed file
+        // Final validation
         if (!processedFile) {
             console.error('Processed file is null, using original');
-            processedFile = file;
+            processedFile = fileCopy;
         }
 
         // Create FormData
         const formData = new FormData();
         formData.append('key', IMGBB_API_KEY);
         formData.append('image', processedFile);
-        formData.append('name', `relaytalk_${Date.now()}`);
+        formData.append('name', `relaytalk_${Date.now()}_${file.name.replace(/\s+/g, '_')}`);
         formData.append('expiration', '600');
 
         // Upload to ImgBB
@@ -995,6 +1058,7 @@ function handleImageError(imgElement, originalUrl) {
 // ====================
 // IMAGE VIEWER FUNCTIONS
 // ====================
+
 function viewImageFullscreen(imageUrl) {
     const existingViewer = document.getElementById('imageViewerOverlay');
     if (existingViewer) existingViewer.remove();
@@ -1122,4 +1186,4 @@ function copyToClipboard(text) {
         });
 }
 
-console.log('✅ Image handler functions exported - FIXED UPLOAD');
+console.log('✅ Image handler functions exported - FINAL FIX');
