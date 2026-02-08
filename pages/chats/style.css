@@ -1,6 +1,34 @@
 /* ==================== */
 /* RESET & BASE STYLES  */
 /* ==================== */
+
+/* ADD THIS AT THE TOP OF YOUR style.css */
+:root {
+    --primary-gradient: linear-gradient(135deg, #667eea, #764ba2);
+    --secondary-bg: rgba(26, 26, 46, 0.95);
+    --text-primary: white;
+    --text-secondary: #a0a0c0;
+}
+
+/* Prevent text selection on buttons */
+button, .message, .chat-user-avatar {
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+/* Ensure images don't overflow */
+img {
+    max-width: 100%;
+    height: auto;
+}
+
+/* Fix for iOS Safari input zoom */
+@media screen and (max-width: 767px) {
+    input, textarea {
+        font-size: 16px !important; /* Prevents zoom on focus */
+    }
+}
+
 * {
     margin: 0;
     padding: 0;
