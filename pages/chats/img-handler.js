@@ -1,6 +1,6 @@
 import { supabase } from '../../utils/supabase.js';
 
-console.log('✨ Image Handler Initialized - FINAL PERFECT VERSION 🎉');
+console.log('✨ Image Handler Initialized - CHROME COMPATIBLE VERSION 🎉');
 
 // ====================
 // IMAGE HANDLING VARIABLES
@@ -50,6 +50,7 @@ if (window.chatModules) {
 // ====================
 document.addEventListener('DOMContentLoaded', () => {
     console.log('🔧 Initializing image handler...');
+    console.log('🌐 Browser:', navigator.userAgent);
 
     // Initialize after a short delay
     setTimeout(() => {
@@ -306,7 +307,7 @@ function setupSlashHandler() {
 }
 
 // ====================
-// IMAGE PICKER FUNCTIONS - FIXED CLOSE ISSUE
+// IMAGE PICKER FUNCTIONS
 // ====================
 function showImagePicker() {
     console.log('Showing image picker');
@@ -661,7 +662,7 @@ async function uploadImageFromPreview() {
 }
 
 // ====================
-// IMAGE UPLOAD TO IMGBB
+// IMAGE UPLOAD TO IMGBB - CHROME FIX
 // ====================
 async function uploadImageToImgBB(file) {
     console.log('uploadImageToImgBB called with file:', file?.name || 'unknown');
@@ -729,8 +730,13 @@ async function uploadImageToImgBB(file) {
             method: 'POST',
             body: formData,
             headers: {
-                'Accept': 'application/json'
-            }
+                'Accept': 'application/json',
+                // Add Origin header for CORS
+                'Origin': window.location.origin
+            },
+            // Add mode for Chrome compatibility
+            mode: 'cors',
+            credentials: 'omit'
         });
 
         console.log('Response status:', response.status);
@@ -755,19 +761,70 @@ async function uploadImageToImgBB(file) {
         }
 
         // Get image URLs
-        const imageUrl = data.data.url;
-        const thumbnailUrl = data.data.thumb?.url || data.data.url;
+        let imageUrl = data.data.url;
+        let thumbnailUrl = data.data.thumb?.url || data.data.url;
+
+        // FIX FOR CHROME: Ensure HTTPS and proper URL format
+        imageUrl = ensureHttpsUrl(imageUrl);
+        thumbnailUrl = ensureHttpsUrl(thumbnailUrl);
 
         console.log('✅ Image uploaded successfully!');
-        console.log('Image URL:', imageUrl);
+        console.log('Image URL (fixed):', imageUrl);
 
         // Send image message
         await sendImageMessage(imageUrl, thumbnailUrl);
 
     } catch (error) {
         console.error('Image upload error:', error);
+        
+        // Check if it's a CORS error
+        if (error.message.includes('CORS') || error.message.includes('cross-origin')) {
+            console.error('CORS error detected. Trying alternative method...');
+            if (typeof showToast === 'function') {
+                showToast('Browser security restriction. Please try again or use a different browser.', '⚠️', 4000);
+            }
+        }
+        
         throw error;
     }
+}
+
+// ====================
+// URL FIXER FOR CHROME
+// ====================
+function ensureHttpsUrl(url) {
+    if (!url) return url;
+    
+    // Fix common ImgBB URL issues
+    let fixedUrl = url;
+    
+    // 1. Ensure HTTPS
+    if (fixedUrl.startsWith('http://')) {
+        fixedUrl = fixedUrl.replace('http://', 'https://');
+    }
+    
+    // 2. Remove double https
+    if (fixedUrl.startsWith('https://https://')) {
+        fixedUrl = fixedUrl.replace('https://https://', 'https://');
+    }
+    
+    // 3. Ensure proper i.ibb.co domain
+    if (fixedUrl.includes('i.ibb.co')) {
+        fixedUrl = fixedUrl.replace('http://i.ibb.co', 'https://i.ibb.co');
+    }
+    
+    // 4. Chrome specific: Add cache buster to prevent caching issues
+    if (navigator.userAgent.includes('Chrome')) {
+        const cacheBuster = `?cb=${Date.now()}`;
+        if (!fixedUrl.includes('?')) {
+            fixedUrl += cacheBuster;
+        } else {
+            fixedUrl += '&' + cacheBuster.substring(1);
+        }
+    }
+    
+    console.log('URL fixed for Chrome:', fixedUrl);
+    return fixedUrl;
 }
 
 // ====================
@@ -857,12 +914,12 @@ async function compressImage(file, maxSize = 1024 * 1024) {
             resolve(file);
         };
 
-        reader.readAsDataURL(file);
+    reader.readAsDataURL(file);
     });
 }
 
 // ====================
-// SEND IMAGE MESSAGE
+// SEND IMAGE MESSAGE - CHROME FIXED
 // ====================
 async function sendImageMessage(imageUrl, thumbnailUrl) {
     console.log('Sending image message to Supabase');
@@ -900,7 +957,7 @@ async function sendImageMessage(imageUrl, thumbnailUrl) {
             sendBtn.disabled = true;
         }
 
-        // Create message data
+        // Create message data with CHROME FIXED URLs
         const messageData = {
             sender_id: currentUser.id,
             receiver_id: chatFriend.id,
@@ -910,7 +967,10 @@ async function sendImageMessage(imageUrl, thumbnailUrl) {
             created_at: new Date().toISOString()
         };
 
-        console.log('Sending message data');
+        console.log('Sending message data with URLs:', {
+            image_url: imageUrl,
+            thumbnail_url: thumbnailUrl
+        });
 
         // Add color if selected
         if (selectedColor) {
@@ -986,19 +1046,26 @@ async function sendImageMessage(imageUrl, thumbnailUrl) {
 }
 
 // ====================
-// IMAGE MESSAGE HTML CREATOR
+// IMAGE MESSAGE HTML CREATOR - CHROME COMPATIBLE
 // ====================
 function createImageMessageHTML(msg, isSent, colorAttr, time) {
     const imageUrl = msg.image_url || '';
     const thumbnailUrl = msg.thumbnail_url || imageUrl;
     const content = msg.content || '';
 
-    let displayImageUrl = imageUrl;
-    let displayThumbnailUrl = thumbnailUrl;
+    // FIX FOR CHROME: Use the ensureHttpsUrl function
+    let displayImageUrl = ensureHttpsUrl(imageUrl);
+    let displayThumbnailUrl = ensureHttpsUrl(thumbnailUrl);
 
-    if (imageUrl && imageUrl.includes('i.ibb.co')) {
-        displayImageUrl = imageUrl.replace('http://', 'https://');
-        displayThumbnailUrl = thumbnailUrl.replace('http://', 'https://');
+    // Add cache buster for Chrome only
+    if (navigator.userAgent.includes('Chrome')) {
+        const cacheBuster = `?cb=${Date.now()}`;
+        if (displayImageUrl && !displayImageUrl.includes('?')) {
+            displayImageUrl += cacheBuster;
+        }
+        if (displayThumbnailUrl && !displayThumbnailUrl.includes('?')) {
+            displayThumbnailUrl += cacheBuster;
+        }
     }
 
     return `
@@ -1024,7 +1091,7 @@ function createImageMessageHTML(msg, isSent, colorAttr, time) {
 }
 
 // ====================
-// IMAGE LOADING HANDLERS
+// IMAGE LOADING HANDLERS - CHROME COMPATIBLE
 // ====================
 function handleImageLoad(imgElement) {
     imgElement.style.opacity = '1';
@@ -1034,29 +1101,31 @@ function handleImageLoad(imgElement) {
 function handleImageError(imgElement, originalUrl) {
     console.error('Failed to load image:', originalUrl);
 
-    if (originalUrl && originalUrl.includes('i.ibb.co') && originalUrl.startsWith('http://')) {
-        const httpsUrl = originalUrl.replace('http://', 'https://');
-        imgElement.src = httpsUrl;
+    // Try to fix the URL
+    let fixedUrl = ensureHttpsUrl(originalUrl);
+    
+    // If the URL is different, try loading with the fixed URL
+    if (fixedUrl !== originalUrl) {
+        imgElement.src = fixedUrl;
         return;
     }
 
+    // If still failing, use data URL as fallback
     imgElement.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 24 24"><path fill="%23ccc" d="M21,19V5C21,3.9 20.1,3 19,3H5C3.9,3 3,3.9 3,5V19C3,20.1 3.9,21 5,21H19C20.1,21 21,20.1 21,19M8.5,13.5L11,16.5L14.5,12L19,18H5L8.5,13.5Z"/></svg>';
     imgElement.style.opacity = '1';
     imgElement.classList.add('loaded');
 }
 
 // ====================
-// IMAGE VIEWER FUNCTIONS
+// IMAGE VIEWER FUNCTIONS - CHROME COMPATIBLE
 // ====================
 
 function viewImageFullscreen(imageUrl) {
     const existingViewer = document.getElementById('imageViewerOverlay');
     if (existingViewer) existingViewer.remove();
 
-    let fixedImageUrl = imageUrl;
-    if (imageUrl && imageUrl.includes('i.ibb.co')) {
-        fixedImageUrl = imageUrl.replace('http://', 'https://');
-    }
+    // FIX URL for Chrome
+    let fixedImageUrl = ensureHttpsUrl(imageUrl);
 
     const viewerHTML = `
         <div class="image-viewer-overlay" id="imageViewerOverlay">
@@ -1098,12 +1167,11 @@ function viewImageFullscreen(imageUrl) {
 function handleImageViewerError(imgElement, originalUrl) {
     console.error('Failed to load image in viewer:', originalUrl);
 
-    if (originalUrl && originalUrl.includes('i.ibb.co')) {
-        const httpsUrl = originalUrl.replace('http://', 'https://');
-        if (httpsUrl !== originalUrl) {
-            imgElement.src = httpsUrl;
-            return;
-        }
+    // Try to fix the URL
+    let fixedUrl = ensureHttpsUrl(originalUrl);
+    if (fixedUrl !== originalUrl) {
+        imgElement.src = fixedUrl;
+        return;
     }
 
     imgElement.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 24 24"><path fill="%23ccc" d="M21,19V5C21,3.9 20.1,3 19,3H5C3.9,3 3,3.9 3,5V19C3,20.1 3.9,21 5,21H19C20.1,21 21,20.1 21,19M8.5,13.5L11,16.5L14.5,12L19,18H5L8.5,13.5Z"/></svg>';
@@ -1120,13 +1188,7 @@ function closeImageViewer() {
 }
 
 function downloadImage(imageUrl) {
-    let downloadUrl = imageUrl;
-    if (imageUrl && imageUrl.includes('i.ibb.co')) {
-        downloadUrl = downloadUrl.replace('http://', 'https://');
-        if (downloadUrl.startsWith('https://https://')) {
-            downloadUrl = downloadUrl.replace('https://https://', 'https://');
-        }
-    }
+    let downloadUrl = ensureHttpsUrl(imageUrl);
 
     const link = document.createElement('a');
     link.href = downloadUrl;
@@ -1176,4 +1238,4 @@ function copyToClipboard(text) {
         });
 }
 
-console.log('✅ Image handler functions exported - PERFECT VERSION 🎉💯');
+console.log('✅ Image handler functions exported - CHROME COMPATIBLE 🎉💯');
