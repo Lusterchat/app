@@ -1,7 +1,7 @@
 import { auth } from '../../utils/auth.js';
 import { supabase } from '../../utils/supabase.js';
 
-console.log('✨ Chat Core Initialized');
+console.log('✨ Chat Core Initialized - IMAGE FIX VERSION');
 
 // ====================
 // CORE CHAT VARIABLES
