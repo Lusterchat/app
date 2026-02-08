@@ -54,7 +54,7 @@ textarea:active {
 }
 
 /* ==================== */
-/* FIXED COLOR PICKER - SIMPLIFIED AND RELIABLE */
+/* FIXED COLOR PICKER */
 /* ==================== */
 .color-picker-overlay {
     position: fixed;
@@ -73,6 +73,8 @@ textarea:active {
     animation: fadeIn 0.3s ease;
     min-width: 300px;
     max-width: 90%;
+    transition: opacity 0.3s ease;
+    opacity: 0;
 }
 
 .color-picker-grid {
