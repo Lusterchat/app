@@ -2,30 +2,18 @@
 /* RESET & BASE STYLES  */
 /* ==================== */
 
-/* ADD THIS AT THE TOP OF YOUR style.css */
 :root {
     --primary-gradient: linear-gradient(135deg, #667eea, #764ba2);
     --secondary-bg: rgba(26, 26, 46, 0.95);
     --text-primary: white;
     --text-secondary: #a0a0c0;
+    --mobile-fix: 0;
 }
 
-/* Prevent text selection on buttons */
-button, .message, .chat-user-avatar {
-    user-select: none;
-    -webkit-user-select: none;
-}
-
-/* Ensure images don't overflow */
-img {
-    max-width: 100%;
-    height: auto;
-}
-
-/* Fix for iOS Safari input zoom */
-@media screen and (max-width: 767px) {
-    input, textarea {
-        font-size: 16px !important; /* Prevents zoom on focus */
+/* MOBILE CHROME FIXES */
+@media screen and (max-width: 768px) {
+    :root {
+        --mobile-fix: 1;
     }
 }
 
@@ -40,6 +28,7 @@ html, body {
     height: 100%;
     width: 100%;
     overflow: hidden;
+    overscroll-behavior: none;
 }
 
 body {
@@ -48,37 +37,27 @@ body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     display: flex;
     flex-direction: column;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
 }
 
 /* ==================== */
-/* REMOVE BLUE ANIMATIONS/TAPS */
+/* MOBILE TOUCH FIXES */
 /* ==================== */
 button, 
 input, 
 textarea,
 [role="button"] {
-    -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
     -webkit-tap-highlight-color: transparent;
     outline: none;
+    touch-action: manipulation;
 }
 
-/* Remove all blue outlines on focus */
 *:focus {
     outline: none !important;
-}
-
-/* Specific focus styles for accessibility without blue */
-.message-input:focus {
-    border-color: rgba(102, 126, 234, 0.5);
-    background: rgba(255, 255, 255, 0.12);
-    box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
-}
-
-/* Remove blue highlight on active states */
-button:active,
-input:active,
-textarea:active {
-    transform: scale(0.98);
 }
 
 /* ==================== */
@@ -91,6 +70,7 @@ textarea:active {
     transform: translateX(-50%);
     background: rgba(26, 26, 46, 0.95);
     backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 20px;
     padding: 20px;
@@ -122,6 +102,7 @@ textarea:active {
     justify-content: center;
     transition: all 0.2s ease;
     border: 2px solid transparent;
+    touch-action: manipulation;
 }
 
 .color-option:hover {
@@ -166,6 +147,7 @@ textarea:active {
     cursor: pointer;
     font-size: 0.9rem;
     transition: all 0.3s ease;
+    touch-action: manipulation;
 }
 
 .color-clear-btn:hover {
@@ -186,6 +168,7 @@ textarea:active {
     justify-content: center;
     font-size: 1.2rem;
     transition: all 0.3s ease;
+    touch-action: manipulation;
 }
 
 .color-close-btn:hover {
@@ -194,57 +177,13 @@ textarea:active {
     transform: rotate(90deg);
 }
 
-/* Message color styles */
-.message[data-color="red"] {
-    background: linear-gradient(135deg, #ff4444, #cc0000) !important;
-}
-
-.message[data-color="green"] {
-    background: linear-gradient(135deg, #44ff44, #00cc00) !important;
-}
-
-.message[data-color="blue"] {
-    background: linear-gradient(135deg, #4444ff, #0000cc) !important;
-}
-
-.message[data-color="white"] {
-    background: linear-gradient(135deg, #ffffff, #cccccc) !important;
-    color: #000000 !important;
-}
-
-.message[data-color="black"] {
-    background: linear-gradient(135deg, #000000, #333333) !important;
-    color: #ffffff !important;
-}
-
-.message[data-color="yellow"] {
-    background: linear-gradient(135deg, #ffff44, #cccc00) !important;
-    color: #000000 !important;
-}
-
-.message[data-color="cyan"] {
-    background: linear-gradient(135deg, #44ffff, #00cccc) !important;
-    color: #000000 !important;
-}
-
-.message[data-color="purple"] {
-    background: linear-gradient(135deg, #aa44ff, #7700cc) !important;
-}
-
-.message[data-color="pink"] {
-    background: linear-gradient(135deg, #ff44aa, #cc0077) !important;
-}
-
-.message[data-color="orange"] {
-    background: linear-gradient(135deg, #ffaa44, #cc7700) !important;
-}
-
 /* ==================== */
-/* IMAGE MESSAGE STYLES */
+/* IMAGE MESSAGE STYLES - MOBILE OPTIMIZED */
 /* ==================== */
 .image-message {
     max-width: 85% !important;
     padding: 10px !important;
+    transform: translate3d(0, 0, 0);
 }
 
 .message-image-container {
@@ -255,6 +194,9 @@ textarea:active {
     background: rgba(0, 0, 0, 0.2);
     margin-bottom: 8px;
     transition: all 0.3s ease;
+    transform: translate3d(0, 0, 0);
+    will-change: transform;
+    touch-action: manipulation;
 }
 
 .message-image-container:hover {
@@ -269,6 +211,34 @@ textarea:active {
     border-radius: 14px;
     max-height: 400px;
     object-fit: cover;
+    -webkit-backface-visibility: hidden;
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+    backface-visibility: hidden;
+    will-change: transform;
+    opacity: 0;
+    transition: opacity 0.3s ease !important;
+}
+
+.message-image.loaded {
+    opacity: 1 !important;
+}
+
+/* MOBILE CHROME SPECIFIC IMAGE FIXES */
+@media screen and (max-width: 768px) {
+    .message-image {
+        content-visibility: auto;
+        -webkit-user-drag: none;
+        pointer-events: auto;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+    
+    .message-image[src*="i.ibb.co"] {
+        image-rendering: auto;
+    }
 }
 
 .image-overlay {
@@ -297,7 +267,7 @@ textarea:active {
 }
 
 /* ==================== */
-/* IMAGE VIEWER */
+/* IMAGE VIEWER - MOBILE FRIENDLY */
 /* ==================== */
 .image-viewer-overlay {
     position: fixed;
@@ -311,6 +281,8 @@ textarea:active {
     align-items: center;
     justify-content: center;
     backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    touch-action: none;
 }
 
 .viewer-close {
@@ -330,6 +302,7 @@ textarea:active {
     justify-content: center;
     z-index: 4001;
     transition: all 0.3s ease;
+    touch-action: manipulation;
 }
 
 .viewer-close:hover {
@@ -344,6 +317,7 @@ textarea:active {
     align-items: center;
     justify-content: center;
     padding: 20px;
+    touch-action: manipulation;
 }
 
 .viewer-image {
@@ -351,6 +325,9 @@ textarea:active {
     max-height: 100%;
     object-fit: contain;
     border-radius: 10px;
+    -webkit-backface-visibility: hidden;
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
 }
 
 .viewer-actions {
@@ -379,6 +356,7 @@ textarea:active {
     gap: 8px;
     min-width: 140px;
     justify-content: center;
+    touch-action: manipulation;
 }
 
 .viewer-action-btn:hover {
@@ -387,7 +365,7 @@ textarea:active {
 }
 
 /* ==================== */
-/* IMAGE PICKER */
+/* IMAGE PICKER - MOBILE OPTIMIZED */
 /* ==================== */
 .image-picker-overlay {
     position: fixed;
@@ -401,6 +379,8 @@ textarea:active {
     align-items: center;
     justify-content: center;
     backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+    touch-action: none;
 }
 
 .image-picker-container {
@@ -442,6 +422,7 @@ textarea:active {
     align-items: center;
     justify-content: center;
     transition: all 0.3s ease;
+    touch-action: manipulation;
 }
 
 .image-picker-close:hover {
@@ -469,6 +450,7 @@ textarea:active {
     gap: 15px;
     transition: all 0.3s ease;
     text-align: left;
+    touch-action: manipulation;
 }
 
 .image-picker-option:hover {
@@ -498,6 +480,8 @@ textarea:active {
     align-items: center;
     justify-content: center;
     backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    touch-action: none;
 }
 
 .image-preview-container {
@@ -538,6 +522,7 @@ textarea:active {
     align-items: center;
     justify-content: center;
     transition: all 0.3s ease;
+    touch-action: manipulation;
 }
 
 .preview-close:hover {
@@ -550,6 +535,7 @@ textarea:active {
     border-radius: 15px;
     overflow: hidden;
     background: rgba(0, 0, 0, 0.2);
+    touch-action: manipulation;
 }
 
 .preview-image {
@@ -558,6 +544,9 @@ textarea:active {
     display: block;
     max-height: 300px;
     object-fit: contain;
+    -webkit-backface-visibility: hidden;
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
 }
 
 .preview-actions {
@@ -575,6 +564,7 @@ textarea:active {
     font-weight: 600;
     cursor: pointer;
     transition: all 0.3s ease;
+    touch-action: manipulation;
 }
 
 .preview-btn.cancel {
@@ -611,7 +601,7 @@ textarea:active {
 }
 
 /* ==================== */
-/* CHAT HEADER */
+/* CHAT HEADER - MOBILE OPTIMIZED */
 /* ==================== */
 .chat-header {
     display: flex;
@@ -619,6 +609,7 @@ textarea:active {
     padding: 18px 20px;
     background: rgba(26, 26, 46, 0.95);
     backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     position: fixed;
     top: 0;
@@ -643,6 +634,7 @@ textarea:active {
     align-items: center;
     justify-content: center;
     transition: all 0.2s ease;
+    touch-action: manipulation;
 }
 
 .back-btn:hover {
@@ -719,6 +711,7 @@ textarea:active {
     align-items: center;
     justify-content: center;
     transition: all 0.3s ease;
+    touch-action: manipulation;
 }
 
 .chat-action-btn:hover {
@@ -734,7 +727,7 @@ textarea:active {
 }
 
 /* ==================== */
-/* MESSAGE INPUT */
+/* MESSAGE INPUT - MOBILE FIXED */
 /* ==================== */
 .message-input-wrapper {
     position: fixed;
@@ -743,9 +736,10 @@ textarea:active {
     right: 0;
     background: rgba(26, 26, 46, 0.95);
     backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
     border-top: 1px solid rgba(255, 255, 255, 0.1);
     z-index: 100;
-    padding: 15px 20px 18px 20px;
+    padding: 15px 20px calc(18px + env(safe-area-inset-bottom, 0px));
 }
 
 .message-input-container {
@@ -766,6 +760,7 @@ textarea:active {
     cursor: pointer;
     transition: all 0.3s ease;
     flex-shrink: 0;
+    touch-action: manipulation;
 }
 
 .attach-btn:hover {
@@ -799,10 +794,19 @@ textarea:active {
     max-height: 130px;
     overflow-y: auto;
     transition: all 0.3s ease;
+    touch-action: manipulation;
+    -webkit-appearance: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* FIX FOR MOBILE CHROME INPUT ZOOM */
+@media screen and (max-width: 767px) {
+    .message-input {
+        font-size: 16px !important;
+    }
 }
 
 .message-input:focus {
-    outline: none;
     border-color: rgba(102, 126, 234, 0.5);
     background: rgba(255, 255, 255, 0.12);
     box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
@@ -821,6 +825,7 @@ textarea:active {
     justify-content: center;
     flex-shrink: 0;
     transition: all 0.3s ease;
+    touch-action: manipulation;
 }
 
 .send-btn:hover:not(:disabled) {
@@ -840,14 +845,14 @@ textarea:active {
 }
 
 /* ==================== */
-/* MAIN CONTENT */
+/* MAIN CONTENT - MOBILE OPTIMIZED */
 /* ==================== */
 .main-content {
     position: fixed;
     top: 80px;
     left: 0;
     right: 0;
-    bottom: 95px;
+    bottom: calc(95px + env(safe-area-inset-bottom, 0px));
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -860,6 +865,14 @@ textarea:active {
     display: flex;
     flex-direction: column;
     gap: 14px;
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.messages-container::-webkit-scrollbar {
+    display: none;
 }
 
 /* ==================== */
@@ -872,6 +885,8 @@ textarea:active {
     word-wrap: break-word;
     line-height: 1.4;
     animation: fadeIn 0.3s ease;
+    transform: translate3d(0, 0, 0);
+    backface-visibility: hidden;
 }
 
 .message.sent {
@@ -916,6 +931,7 @@ textarea:active {
 /* ==================== */
 /* EMPTY CHAT */
 /* ==================== */
+
 .empty-chat {
     display: flex;
     flex-direction: column;
@@ -979,7 +995,6 @@ textarea:active {
 /* ==================== */
 /* LOADING OVERLAY */
 /* ==================== */
-
 .loading-overlay {
     position: fixed;
     top: 0;
@@ -993,6 +1008,7 @@ textarea:active {
     flex-direction: column;
     z-index: 5000;
     backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
 }
 
 .loading-spinner {
@@ -1017,7 +1033,7 @@ textarea:active {
 }
 
 /* ==================== */
-/* MODALS */
+/* MODALS - MOBILE COMPATIBLE */
 /* ==================== */
 .modal-overlay {
     position: fixed;
@@ -1031,6 +1047,7 @@ textarea:active {
     align-items: center;
     z-index: 2000;
     backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
 }
 
 .modal-content {
@@ -1071,6 +1088,7 @@ textarea:active {
     align-items: center;
     justify-content: center;
     transition: all 0.3s ease;
+    touch-action: manipulation;
 }
 
 .modal-close:hover {
@@ -1145,6 +1163,7 @@ textarea:active {
     align-items: center;
     justify-content: center;
     gap: 8px;
+    touch-action: manipulation;
 }
 
 .info-action-btn:hover {
@@ -1174,6 +1193,7 @@ textarea:active {
     font-weight: 600;
     cursor: pointer;
     transition: all 0.3s ease;
+    touch-action: manipulation;
 }
 
 .btn-primary:hover {
@@ -1191,6 +1211,7 @@ textarea:active {
     font-weight: 600;
     cursor: pointer;
     transition: all 0.3s ease;
+    touch-action: manipulation;
 }
 
 .btn-secondary:hover {
@@ -1198,32 +1219,17 @@ textarea:active {
 }
 
 /* ==================== */
-/* SCROLLBAR HIDING */
-/* ==================== */
-.messages-container::-webkit-scrollbar {
-    display: none;
-}
-
-.messages-container {
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-}
-
-.message-input::-webkit-scrollbar {
-    display: none;
-}
-
-.message-input {
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-}
-
-/* ==================== */
-/* ANIMATIONS */
+/* ANIMATIONS - MOBILE OPTIMIZED */
 /* ==================== */
 @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
+    from { 
+        opacity: 0;
+        transform: translate3d(0, 10px, 0);
+    }
+    to { 
+        opacity: 1;
+        transform: translate3d(0, 0, 0);
+    }
 }
 
 @keyframes slideUp {
@@ -1248,160 +1254,6 @@ textarea:active {
     }
 }
 
-/* ==================== */
-/* RESPONSIVE */
-/* ==================== */
-@media (max-width: 768px) {
-    .color-picker-overlay {
-        bottom: 110px;
-        min-width: 280px;
-    }
-    
-    .color-picker-grid {
-        grid-template-columns: repeat(3, 1fr);
-    }
-    
-    .message {
-        max-width: 85%;
-    }
-    
-    .image-message {
-        max-width: 90% !important;
-    }
-}
-
-/* ==================== */
-/* CHROME SPECIFIC FIXES */
-/* ==================== */
-
-/* ==================== */
-/* CHROME SPECIFIC FIXES - ENHANCED */
-/* ==================== */
-
-/* Chrome image rendering fix - IMPROVED */
-.message-image, .viewer-image, .preview-image {
-    -webkit-backface-visibility: hidden;
-    -webkit-transform: translateZ(0);
-    transform: translateZ(0);
-    image-rendering: -webkit-optimize-contrast;
-    image-rendering: crisp-edges;
-    backface-visibility: hidden;
-    will-change: transform;
-}
-
-/* Chrome CORS image fix - CRITICAL */
-.message-image {
-    cross-origin: anonymous; /* This fixes Chrome CORS issues! */
-}
-
-/* Chrome GPU acceleration for smooth animations */
-.message, .image-message, .message-image-container {
-    transform: translate3d(0, 0, 0);
-    backface-visibility: hidden;
-    perspective: 1000px;
-    will-change: transform;
-}
-
-/* Prevent Chrome from blocking image URLs - ENHANCED */
-@supports (-webkit-touch-callout: none) {
-    .message-image {
-        content-visibility: auto;
-        -webkit-user-drag: none;
-    }
-}
-
-/* Chrome cache busting for ImgBB images */
-.message-image[src*="i.ibb.co"] {
-    image-rendering: auto;
-    -webkit-font-smoothing: antialiased;
-}
-
-/* Chrome smooth scrolling */
-.messages-container {
-    -webkit-overflow-scrolling: touch;
-    scroll-behavior: smooth;
-}
-
-/* Chrome input fixes */
-.message-input {
-    -webkit-appearance: none;
-    -webkit-tap-highlight-color: transparent;
-}
-
-/* Chrome modal backdrop fix */
-.modal-overlay, .image-preview-overlay, .image-viewer-overlay {
-    -webkit-backdrop-filter: blur(20px);
-    backdrop-filter: blur(20px);
-}
-
-/* Chrome animation performance */
-@keyframes fadeIn {
-    from { 
-        opacity: 0;
-        transform: translate3d(0, 10px, 0);
-    }
-    to { 
-        opacity: 1;
-        transform: translate3d(0, 0, 0);
-    }
-}
-
-/* Chrome prevents some pseudo-elements */
-@media (-webkit-min-device-pixel-ratio: 0) {
-    .message::before {
-        content: none;
-    }
-}
-
-
-/* ==================== */
-/* CHROME IMAGE FIXES - CRITICAL */
-/* ==================== */
-
-/* Chrome image stability fix */
-.message-image {
-    -webkit-backface-visibility: hidden !important;
-    -webkit-transform: translateZ(0) !important;
-    transform: translateZ(0) !important;
-    image-rendering: -webkit-optimize-contrast !important;
-    image-rendering: crisp-edges !important;
-    backface-visibility: hidden !important;
-    will-change: transform !important;
-    display: block !important;
-    position: relative !important;
-    opacity: 0;
-    transition: opacity 0.3s ease !important;
-}
-
-/* Chrome loaded state */
-.message-image.loaded {
-    opacity: 1 !important;
-}
-
-/* Prevent Chrome from reloading images */
-.message-image[src] {
-    content-visibility: auto;
-    -webkit-user-drag: none;
-    pointer-events: auto;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-}
-
-/* Chrome specific fix for imgbb.co images */
-.message-image[src*="i.ibb.co"] {
-    image-rendering: auto;
-}
-
-/* Chrome container for stable rendering */
-.message-image-container {
-    transform: translate3d(0, 0, 0) !important;
-    will-change: transform !important;
-    backface-visibility: hidden !important;
-    overflow: hidden !important;
-    display: block !important;
-}
-
-/* Chrome loading animation */
 @keyframes chromeImageFadeIn {
     0% { 
         opacity: 0;
@@ -1417,59 +1269,170 @@ textarea:active {
     animation: chromeImageFadeIn 0.2s ease forwards;
 }
 
-/* Chrome message bubble fix */
-.message.image-message {
-    transform: translate3d(0, 0, 0) !important;
-    backface-visibility: hidden !important;
-    perspective: 1000px !important;
-    will-change: transform !important;
+/* ==================== */
+/* RESPONSIVE DESIGN - MOBILE FIRST */
+/* ==================== */
+@media (max-width: 768px) {
+    .color-picker-overlay {
+        bottom: 120px;
+        min-width: 280px;
+        max-width: 95%;
+    }
+
+    .color-picker-grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+    }
+
+    .color-option {
+        width: 45px;
+        height: 45px;
+    }
+
+    .message {
+        max-width: 85%;
+    }
+
+    .image-message {
+        max-width: 90% !important;
+    }
+
+    .chat-header {
+        padding: 15px;
+        height: 70px;
+    }
+
+    .chat-user-avatar {
+        width: 45px;
+        height: 45px;
+        font-size: 1.1rem;
+    }
+
+    .chat-user-details h3 {
+        font-size: 1.1rem;
+    }
+
+    .back-btn {
+        width: 40px;
+        height: 40px;
+        font-size: 1.4rem;
+    }
+
+    .message-input-wrapper {
+        padding: 12px 15px calc(15px + env(safe-area-inset-bottom, 0px));
+    }
+
+    .message-input {
+        padding: 12px 16px;
+        font-size: 1rem;
+    }
+
+    .attach-btn, .send-btn {
+        width: 44px;
+        height: 44px;
+    }
+
+    .main-content {
+        top: 70px;
+        bottom: calc(85px + env(safe-area-inset-bottom, 0px));
+    }
+
+    .messages-container {
+        padding: 15px 15px 70px 15px;
+        gap: 12px;
+    }
 }
 
-/* Chrome smooth scrolling */
-.messages-container {
-    -webkit-overflow-scrolling: touch !important;
-    scroll-behavior: smooth !important;
+@media (max-width: 480px) {
+    .message {
+        max-width: 90%;
+        padding: 11px 15px;
+    }
+
+    .image-message {
+        max-width: 95% !important;
+        padding: 8px !important;
+    }
+
+    .color-picker-overlay {
+        bottom: 110px;
+        padding: 15px;
+    }
+
+    .color-picker-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+
+    .color-option {
+        width: 40px;
+        height: 40px;
+    }
+
+    .viewer-action-btn {
+        min-width: 120px;
+        padding: 10px 20px;
+        font-size: 0.9rem;
+    }
+
+    .image-picker-option {
+        padding: 16px;
+        font-size: 1rem;
+    }
 }
 
-/* Chrome input fixes */
-.message-input {
-    -webkit-appearance: none !important;
-    -webkit-tap-highlight-color: transparent !important;
+/* ==================== */
+/* SAFE AREA INSETS FOR NOTCHES */
+/* ==================== */
+@supports (padding: max(0px)) {
+    .chat-header {
+        padding-top: max(18px, env(safe-area-inset-top, 0px));
+        height: calc(80px + env(safe-area-inset-top, 0px));
+    }
+
+    .main-content {
+        top: calc(80px + env(safe-area-inset-top, 0px));
+    }
+
+    .message-input-wrapper {
+        padding-left: max(20px, env(safe-area-inset-left, 0px));
+        padding-right: max(20px, env(safe-area-inset-right, 0px));
+    }
 }
 
-/* Chrome modal backdrop fix */
-.modal-overlay, 
-.image-preview-overlay, 
-.image-viewer-overlay {
-    -webkit-backdrop-filter: blur(20px) !important;
-    backdrop-filter: blur(20px) !important;
-}
-
-/* Chrome hardware acceleration for better performance */
-.chat-header,
-.message-input-wrapper,
-.color-picker-overlay {
-    transform: translate3d(0, 0, 0);
-    backface-visibility: hidden;
-}
-
-/* Chrome prevents some pseudo-elements */
+/* ==================== */
+/* CHROME SPECIFIC FIXES - FINAL */
+/* ==================== */
 @media (-webkit-min-device-pixel-ratio: 0) {
     .message::before,
     .message::after {
         content: none !important;
     }
+    
+    .message-input {
+        -webkit-appearance: none;
+        border-radius: 24px;
+    }
+    
+    /* Prevent Chrome from showing blue outline */
+    button:focus,
+    input:focus,
+    textarea:focus {
+        outline: none;
+    }
 }
 
-/* Chrome touch action fix */
-.message-image-container {
-    touch-action: manipulation;
+/* Prevent Chrome pull-to-refresh */
+body {
+    overscroll-behavior-y: contain;
 }
 
-/* Chrome image preload hint */
-.message-image {
-    content-visibility: auto;
+/* Fix for Chrome address bar hiding/showing */
+@media screen and (max-width: 768px) {
+    html, body {
+        height: -webkit-fill-available;
+    }
+    
+    .main-content {
+        height: calc(100% - 70px - calc(85px + env(safe-area-inset-bottom, 0px)));
+    }
 }
-
-
-
