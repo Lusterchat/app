@@ -1352,3 +1352,124 @@ textarea:active {
         content: none;
     }
 }
+
+
+/* ==================== */
+/* CHROME IMAGE FIXES - CRITICAL */
+/* ==================== */
+
+/* Chrome image stability fix */
+.message-image {
+    -webkit-backface-visibility: hidden !important;
+    -webkit-transform: translateZ(0) !important;
+    transform: translateZ(0) !important;
+    image-rendering: -webkit-optimize-contrast !important;
+    image-rendering: crisp-edges !important;
+    backface-visibility: hidden !important;
+    will-change: transform !important;
+    display: block !important;
+    position: relative !important;
+    opacity: 0;
+    transition: opacity 0.3s ease !important;
+}
+
+/* Chrome loaded state */
+.message-image.loaded {
+    opacity: 1 !important;
+}
+
+/* Prevent Chrome from reloading images */
+.message-image[src] {
+    content-visibility: auto;
+    -webkit-user-drag: none;
+    pointer-events: auto;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* Chrome specific fix for imgbb.co images */
+.message-image[src*="i.ibb.co"] {
+    image-rendering: auto;
+}
+
+/* Chrome container for stable rendering */
+.message-image-container {
+    transform: translate3d(0, 0, 0) !important;
+    will-change: transform !important;
+    backface-visibility: hidden !important;
+    overflow: hidden !important;
+    display: block !important;
+}
+
+/* Chrome loading animation */
+@keyframes chromeImageFadeIn {
+    0% { 
+        opacity: 0;
+        transform: translate3d(0, 5px, 0);
+    }
+    100% { 
+        opacity: 1;
+        transform: translate3d(0, 0, 0);
+    }
+}
+
+.message-image-container {
+    animation: chromeImageFadeIn 0.2s ease forwards;
+}
+
+/* Chrome message bubble fix */
+.message.image-message {
+    transform: translate3d(0, 0, 0) !important;
+    backface-visibility: hidden !important;
+    perspective: 1000px !important;
+    will-change: transform !important;
+}
+
+/* Chrome smooth scrolling */
+.messages-container {
+    -webkit-overflow-scrolling: touch !important;
+    scroll-behavior: smooth !important;
+}
+
+/* Chrome input fixes */
+.message-input {
+    -webkit-appearance: none !important;
+    -webkit-tap-highlight-color: transparent !important;
+}
+
+/* Chrome modal backdrop fix */
+.modal-overlay, 
+.image-preview-overlay, 
+.image-viewer-overlay {
+    -webkit-backdrop-filter: blur(20px) !important;
+    backdrop-filter: blur(20px) !important;
+}
+
+/* Chrome hardware acceleration for better performance */
+.chat-header,
+.message-input-wrapper,
+.color-picker-overlay {
+    transform: translate3d(0, 0, 0);
+    backface-visibility: hidden;
+}
+
+/* Chrome prevents some pseudo-elements */
+@media (-webkit-min-device-pixel-ratio: 0) {
+    .message::before,
+    .message::after {
+        content: none !important;
+    }
+}
+
+/* Chrome touch action fix */
+.message-image-container {
+    touch-action: manipulation;
+}
+
+/* Chrome image preload hint */
+.message-image {
+    content-visibility: auto;
+}
+
+
+
