@@ -1,6 +1,6 @@
 import { supabase } from '../../utils/supabase.js';
 
-console.log('✨ Image Handler Initialized - FINAL FIX VERSION');
+console.log('✨ Image Handler Initialized - FINAL PERFECT VERSION 🎉');
 
 // ====================
 // IMAGE HANDLING VARIABLES
@@ -306,7 +306,7 @@ function setupSlashHandler() {
 }
 
 // ====================
-// IMAGE PICKER FUNCTIONS
+// IMAGE PICKER FUNCTIONS - FIXED CLOSE ISSUE
 // ====================
 function showImagePicker() {
     console.log('Showing image picker');
@@ -335,8 +335,9 @@ function showImagePicker() {
 }
 
 function closeImagePicker() {
-    if (imagePreviewUrl || currentFileForUpload) {
-        console.log('Image preview active, not closing picker');
+    // FIX: Allow closing even if preview is active, but check if upload is in progress
+    if (uploadInProgress) {
+        console.log('Upload in progress, not closing picker');
         return;
     }
 
@@ -384,7 +385,7 @@ function setupFileInputListeners() {
 }
 
 // ====================
-// FIXED: IMAGE SELECTION AND PREVIEW
+// IMAGE SELECTION AND PREVIEW
 // ====================
 function handleImageSelect(event) {
     console.log('File selected event triggered', event);
@@ -392,10 +393,6 @@ function handleImageSelect(event) {
     try {
         // Get the file from the event
         const fileInput = event.target;
-        
-        // DEBUG: Check what's in the files
-        console.log('File input files:', fileInput.files);
-        console.log('File input files length:', fileInput.files.length);
         
         if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
             console.error('No files selected in input');
@@ -442,18 +439,12 @@ function handleImageSelect(event) {
             return;
         }
 
-        // Store file for upload IMMEDIATELY
+        // Store file for upload
         currentFileForUpload = file;
         console.log('✅ File stored for upload:', currentFileForUpload?.name);
         
-        // Create a copy of the file object to prevent reference loss
-        const fileCopy = new File([file], file.name, {
-            type: file.type,
-            lastModified: file.lastModified
-        });
-        
-        // Create preview with the copy
-        createImagePreview(fileCopy);
+        // Create preview
+        createImagePreview(file);
 
     } catch (error) {
         console.error('Error handling image selection:', error);
@@ -469,7 +460,7 @@ function handleImageSelect(event) {
 }
 
 // ====================
-// FIXED: IMAGE PREVIEW
+// IMAGE PREVIEW
 // ====================
 function createImagePreview(file) {
     console.log('Creating image preview for file:', file?.name || 'unknown');
@@ -520,7 +511,7 @@ function createImagePreview(file) {
             // Add new preview
             document.body.insertAdjacentHTML('beforeend', previewHTML);
 
-            // Close image picker
+            // FIX: Close image picker BEFORE showing preview
             closeImagePicker();
 
             // Show preview
@@ -548,6 +539,8 @@ function createImagePreview(file) {
         document.getElementById('cameraInput').value = '';
         document.getElementById('galleryInput').value = '';
         currentFileForUpload = null;
+        // Close picker on error
+        closeImagePicker();
     };
 
     reader.readAsDataURL(file);
@@ -564,12 +557,10 @@ function cancelImageUpload() {
     document.getElementById('cameraInput').value = '';
     document.getElementById('galleryInput').value = '';
     
-    // Reset variables but DON'T set currentFileForUpload to null if upload is in progress
-    // Let uploadImageFromPreview handle the file reference
-    if (!uploadInProgress) {
-        imagePreviewUrl = null;
-        currentFileForUpload = null;
-    }
+    // Reset all variables
+    imagePreviewUrl = null;
+    currentFileForUpload = null;
+    uploadInProgress = false;
 
     const preview = document.getElementById('imagePreviewOverlay');
     if (preview) {
@@ -623,15 +614,7 @@ async function uploadImageFromPreview() {
         return;
     }
 
-    // Check if we have a valid file BEFORE canceling preview
-    console.log('Checking currentFileForUpload:', currentFileForUpload);
-    console.log('File details:', {
-        exists: !!currentFileForUpload,
-        name: currentFileForUpload?.name,
-        type: currentFileForUpload?.type,
-        size: currentFileForUpload?.size
-    });
-
+    // Check if we have a valid file
     if (!currentFileForUpload || !currentFileForUpload.name || !currentFileForUpload.type) {
         console.error('No valid file to upload');
         if (typeof showToast === 'function') {
@@ -644,11 +627,18 @@ async function uploadImageFromPreview() {
     console.log('Starting upload process for:', currentFileForUpload.name);
     uploadInProgress = true;
 
-    // Store file in a local variable before canceling preview
+    // Store file in a local variable
     const fileToUpload = currentFileForUpload;
     
-    // Cancel preview first
-    cancelImageUpload();
+    // Remove preview first
+    const preview = document.getElementById('imagePreviewOverlay');
+    if (preview) {
+        preview.style.opacity = '0';
+        setTimeout(() => {
+            preview.remove();
+            console.log('✅ Preview removed');
+        }, 300);
+    }
 
     // Show loading
     if (typeof showLoading === 'function') {
@@ -671,12 +661,12 @@ async function uploadImageFromPreview() {
 }
 
 // ====================
-// FIXED: IMAGE UPLOAD TO IMGBB
+// IMAGE UPLOAD TO IMGBB
 // ====================
 async function uploadImageToImgBB(file) {
     console.log('uploadImageToImgBB called with file:', file?.name || 'unknown');
 
-    // EXTENSIVE VALIDATION
+    // VALIDATION
     if (!file) {
         console.error('❌ uploadImageToImgBB: File is null');
         throw new Error('No image file selected');
@@ -701,7 +691,7 @@ async function uploadImageToImgBB(file) {
             isFileInstance: file instanceof File
         });
 
-        // Create a backup copy of the file to prevent any reference issues
+        // Create a backup copy of the file
         const fileCopy = new File([file], file.name, {
             type: file.type,
             lastModified: Date.now()
@@ -1186,4 +1176,4 @@ function copyToClipboard(text) {
         });
 }
 
-console.log('✅ Image handler functions exported - FINAL FIX');
+console.log('✅ Image handler functions exported - PERFECT VERSION 🎉💯');
