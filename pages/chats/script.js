@@ -1,5 +1,5 @@
 // ====================
-// MAIN SCRIPT - CHAT MODULE COORDINATOR
+// MAIN SCRIPT - MOBILE CHROME FIXED VERSION
 // ====================
 console.log('🚀 RelayTalk Chat Application Starting...');
 
@@ -13,6 +13,35 @@ window.chatModules = {
     imgHandlerLoaded: false,
     ready: false
 };
+
+// Mobile detection
+function isMobileChrome() {
+    const ua = navigator.userAgent;
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua) && /Chrome/i.test(ua);
+}
+
+window.isMobileChrome = isMobileChrome;
+
+// Apply mobile fixes immediately
+if (isMobileChrome()) {
+    console.log('📱 Mobile Chrome detected - applying initial fixes');
+    
+    // Prevent pull-to-refresh
+    document.addEventListener('touchmove', function(e) {
+        if (e.touches.length > 1) {
+            e.preventDefault();
+        }
+    }, { passive: false });
+    
+    // Fix for address bar hiding
+    let vh = window.innerHeight * 0.01;
+    document.documentElement.style.setProperty('--vh', `${vh}px`);
+    
+    window.addEventListener('resize', () => {
+        let vh = window.innerHeight * 0.01;
+        document.documentElement.style.setProperty('--vh', `${vh}px`);
+    });
+}
 
 // Wait for both modules to signal they're ready
 let moduleCheckInterval = setInterval(() => {
@@ -42,6 +71,15 @@ function setupApplication() {
     const input = document.getElementById('messageInput');
     if (input) {
         input.placeholder = 'Type a message...';
+        
+        // Mobile Chrome input fix
+        if (isMobileChrome()) {
+            input.addEventListener('focus', function() {
+                setTimeout(() => {
+                    window.scrollTo(0, 0);
+                }, 100);
+            });
+        }
     }
 
     // Verify critical elements exist
@@ -73,12 +111,66 @@ function setupApplication() {
 
         // Setup debug helper
         window.debugChatState = debugChatState;
+        
+        // Mobile specific setup
+        if (isMobileChrome()) {
+            setupMobileChromeFixes();
+        }
     } else {
         console.error('❌ Some critical elements are missing');
         if (typeof showCustomAlert === 'function') {
             showCustomAlert('Some elements failed to load. Please refresh.', '❌', 'Error');
         }
     }
+}
+
+// ====================
+// MOBILE CHROME SPECIFIC FIXES
+// ====================
+function setupMobileChromeFixes() {
+    console.log('Setting up Mobile Chrome fixes...');
+    
+    // Fix for viewport height changes
+    function updateViewportHeight() {
+        const vh = window.innerHeight * 0.01;
+        document.documentElement.style.setProperty('--vh', `${vh}px`);
+    }
+    
+    window.addEventListener('resize', updateViewportHeight);
+    updateViewportHeight();
+    
+    // Fix for 100vh issue on mobile
+    document.documentElement.style.height = '100%';
+    document.body.style.height = '100%';
+    
+    // Fix for input zoom on focus
+    const inputs = document.querySelectorAll('input, textarea, select');
+    inputs.forEach(input => {
+        input.addEventListener('focus', () => {
+            setTimeout(() => {
+                window.scrollTo(0, 0);
+            }, 100);
+        });
+    });
+    
+    // Prevent double-tap zoom
+    let lastTouchEnd = 0;
+    document.addEventListener('touchend', function(event) {
+        const now = (new Date()).getTime();
+        if (now - lastTouchEnd <= 300) {
+            event.preventDefault();
+        }
+        lastTouchEnd = now;
+    }, false);
+    
+    // Fix for fast clicks
+    document.addEventListener('touchstart', function(e) {
+        if (e.touches.length > 1) {
+            e.preventDefault();
+        }
+    }, { passive: false });
+    
+    console.log('✅ Mobile Chrome fixes applied');
 }
 
 // ====================
@@ -97,6 +189,37 @@ function setupGlobalHandlers() {
 
     // Setup keyboard shortcuts
     setupKeyboardShortcuts();
+    
+    // Setup touch handlers for mobile
+    if (isMobileChrome()) {
+        setupTouchHandlers();
+    }
+}
+
+function setupTouchHandlers() {
+    // Fix for touch events on buttons
+    const buttons = document.querySelectorAll('button');
+    buttons.forEach(button => {
+        button.addEventListener('touchstart', function(e) {
+            this.style.transform = 'scale(0.98)';
+        });
+        
+        button.addEventListener('touchend', function(e) {
+            this.style.transform = '';
+        });
+    });
+    
+    // Fix for scrolling in messages container
+    const messagesContainer = document.getElementById('messagesContainer');
+    if (messagesContainer) {
+        messagesContainer.addEventListener('touchstart', function(e) {
+            this.style.overflowY = 'hidden';
+        });
+        
+        messagesContainer.addEventListener('touchmove', function(e) {
+            this.style.overflowY = 'auto';
+        });
+    }
 }
 
 function handleClickOutside(e) {
@@ -382,11 +505,25 @@ function setupGlobalErrorHandlers() {
             showToast('An error occurred. Please try again.', '⚠️');
         }
     });
+    
+    // Network error handling
+    window.addEventListener('online', function() {
+        if (typeof showToast === 'function') {
+            showToast('Back online', '🟢', 2000);
+        }
+    });
+    
+    window.addEventListener('offline', function() {
+        if (typeof showToast === 'function') {
+            showToast('No internet connection', '⚠️', 2000);
+        }
+    });
 }
 
 // ====================
 // DEBUG & UTILITY FUNCTIONS
 // ====================
+ 
 function debugChatState() {
     console.log('=== CHAT DEBUG INFO ===');
     console.log('Current User:', window.currentUser);
@@ -397,6 +534,7 @@ function debugChatState() {
     console.log('Selected Color:', window.selectedColor);
     console.log('Current Messages:', window.currentMessages ? window.currentMessages.length : 0);
     console.log('Chat Modules Ready:', window.chatModules?.ready);
+    console.log('Mobile Chrome:', isMobileChrome());
     console.log('=====================');
 }
 
@@ -467,3 +605,32 @@ console.log('✅ Main coordinator loaded - waiting for modules...');
 
 // Signal that main script is loaded
 window.mainScriptLoaded = true;
+
+// Add CSS for mobile fixes
+if (isMobileChrome()) {
+    const style = document.createElement('style');
+    style.textContent = `
+        /* Mobile Chrome fixes */
+        html, body {
+            height: -webkit-fill-available !important;
+            max-height: -webkit-fill-available !important;
+            overflow: hidden !important;
+        }
+        
+        #chat {
+            height: 100vh;
+            height: calc(var(--vh, 1vh) * 100);
+        }
+        
+        .main-content {
+            height: calc(100vh - 150px);
+            height: calc(calc(var(--vh, 1vh) * 100) - 150px);
+        }
+        
+        /* Prevent blue tap highlight */
+        * {
+            -webkit-tap-highlight-color: rgba(0,0,0,0) !important;
+        }
+    `;
+    document.head.appendChild(style);
+}
