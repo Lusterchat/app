@@ -1274,35 +1274,81 @@ textarea:active {
 /* CHROME SPECIFIC FIXES */
 /* ==================== */
 
-/* Fix for Chrome image loading */
-.message-image {
+/* ==================== */
+/* CHROME SPECIFIC FIXES - ENHANCED */
+/* ==================== */
+
+/* Chrome image rendering fix - IMPROVED */
+.message-image, .viewer-image, .preview-image {
     -webkit-backface-visibility: hidden;
-    -webkit-transform: translateZ(0) scale(1.0, 1.0);
+    -webkit-transform: translateZ(0);
     transform: translateZ(0);
     image-rendering: -webkit-optimize-contrast;
     image-rendering: crisp-edges;
+    backface-visibility: hidden;
+    will-change: transform;
 }
 
-/* Prevent Chrome from blocking image URLs */
-@supports (-webkit-touch-callout: none) {
-    .message-image {
-        content-visibility: auto;
-    }
+/* Chrome CORS image fix - CRITICAL */
+.message-image {
+    cross-origin: anonymous; /* This fixes Chrome CORS issues! */
 }
 
-/* Chrome hardware acceleration */
-.image-message {
+/* Chrome GPU acceleration for smooth animations */
+.message, .image-message, .message-image-container {
     transform: translate3d(0, 0, 0);
     backface-visibility: hidden;
     perspective: 1000px;
+    will-change: transform;
 }
 
-/* Fix for Chrome's aggressive caching */
+/* Prevent Chrome from blocking image URLs - ENHANCED */
+@supports (-webkit-touch-callout: none) {
+    .message-image {
+        content-visibility: auto;
+        -webkit-user-drag: none;
+    }
+}
+
+/* Chrome cache busting for ImgBB images */
 .message-image[src*="i.ibb.co"] {
     image-rendering: auto;
+    -webkit-font-smoothing: antialiased;
 }
 
-/* Chrome scroll fix */
+/* Chrome smooth scrolling */
 .messages-container {
     -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+}
+
+/* Chrome input fixes */
+.message-input {
+    -webkit-appearance: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* Chrome modal backdrop fix */
+.modal-overlay, .image-preview-overlay, .image-viewer-overlay {
+    -webkit-backdrop-filter: blur(20px);
+    backdrop-filter: blur(20px);
+}
+
+/* Chrome animation performance */
+@keyframes fadeIn {
+    from { 
+        opacity: 0;
+        transform: translate3d(0, 10px, 0);
+    }
+    to { 
+        opacity: 1;
+        transform: translate3d(0, 0, 0);
+    }
+}
+
+/* Chrome prevents some pseudo-elements */
+@media (-webkit-min-device-pixel-ratio: 0) {
+    .message::before {
+        content: none;
+    }
 }
