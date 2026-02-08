@@ -1,6 +1,6 @@
 import { supabase } from '../../utils/supabase.js';
 
-console.log('✨ Image Handler Initialized - FIXED IMAGE UPLOAD');
+console.log('✨ Image Handler Initialized - UPLOAD FIX VERSION');
 
 // ====================
 // IMAGE HANDLING VARIABLES
@@ -10,6 +10,7 @@ let colorPickerVisible = false;
 let isImagePickerOpen = false;
 let imagePreviewUrl = null;
 let currentFileForUpload = null;
+let uploadInProgress = false;
 
 // API Key
 const IMGBB_API_KEY = '82e49b432e2ee14921f7d0cd81ba5551';
@@ -36,6 +37,7 @@ window.createImageMessageHTML = createImageMessageHTML;
 window.uploadImageFromPreview = uploadImageFromPreview;
 window.removeSelectedColor = removeSelectedColor;
 window.cancelColorSelection = cancelColorSelection;
+window.handleImageSelect = handleImageSelect;
 
 // Signal that img-handler is loaded
 if (window.chatModules) {
@@ -304,7 +306,7 @@ function setupSlashHandler() {
 }
 
 // ====================
-// IMAGE PICKER FUNCTIONS - FIXED
+// IMAGE PICKER FUNCTIONS
 // ====================
 function showImagePicker() {
     console.log('Showing image picker');
@@ -385,13 +387,14 @@ function setupFileInputListeners() {
 // FIXED: IMAGE SELECTION AND PREVIEW
 // ====================
 function handleImageSelect(event) {
-    console.log('File selected event triggered');
-    
+    console.log('File selected event triggered', event);
+
     // Get the file from the event
-    const file = event.target.files[0];
-    
+    const fileInput = event.target;
+    const file = fileInput.files[0];
+
     if (!file) {
-        console.log('No file selected in event');
+        console.log('No file selected');
         if (typeof showToast === 'function') {
             showToast('No image selected', '⚠️');
         }
@@ -411,6 +414,7 @@ function handleImageSelect(event) {
         if (typeof showToast === 'function') {
             showToast('Please select an image file', '⚠️');
         }
+        fileInput.value = '';
         return;
     }
 
@@ -420,18 +424,18 @@ function handleImageSelect(event) {
         if (typeof showToast === 'function') {
             showToast('Image too large. Max 10MB', '⚠️');
         }
+        fileInput.value = '';
         return;
     }
 
     // Store file for upload
     currentFileForUpload = file;
-    console.log('✅ File stored for upload:', currentFileForUpload?.name);
+    console.log('✅ File stored for upload:', currentFileForUpload.name);
 
     // Create preview
     createImagePreview(file);
 
-    // Reset input for next selection
-    event.target.value = '';
+    // Don't reset input here - keep it until upload completes
 }
 
 // ====================
@@ -439,7 +443,7 @@ function handleImageSelect(event) {
 // ====================
 function createImagePreview(file) {
     console.log('Creating image preview for:', file.name);
-    
+
     if (!file) {
         console.error('No file provided for preview');
         return;
@@ -481,7 +485,7 @@ function createImagePreview(file) {
 
         // Add new preview
         document.body.insertAdjacentHTML('beforeend', previewHTML);
-        
+
         // Close image picker
         closeImagePicker();
 
@@ -500,19 +504,27 @@ function createImagePreview(file) {
         if (typeof showToast === 'function') {
             showToast('Error reading image file', '❌');
         }
+        // Reset file inputs
+        document.getElementById('cameraInput').value = '';
+        document.getElementById('galleryInput').value = '';
     };
 
     reader.readAsDataURL(file);
 }
 
 // ====================
-// IMAGE PREVIEW FUNCTIONS - FIXED
+// IMAGE PREVIEW FUNCTIONS
 // ====================
 function cancelImageUpload() {
     console.log('Cancelling image upload');
     imagePreviewUrl = null;
     currentFileForUpload = null;
-    
+    uploadInProgress = false;
+
+    // Reset file inputs
+    document.getElementById('cameraInput').value = '';
+    document.getElementById('galleryInput').value = '';
+
     const preview = document.getElementById('imagePreviewOverlay');
     if (preview) {
         preview.style.opacity = '0';
@@ -537,6 +549,11 @@ function sendImagePreview() {
 
 async function uploadImageFromPreview() {
     console.log('Uploading image from preview');
+
+    if (uploadInProgress) {
+        console.log('Upload already in progress');
+        return;
+    }
 
     // Get user and friend info
     const currentUser = window.getCurrentUser ? window.getCurrentUser() : null;
@@ -571,7 +588,8 @@ async function uploadImageFromPreview() {
     }
 
     console.log('Starting upload process for:', currentFileForUpload.name);
-    
+    uploadInProgress = true;
+
     // Cancel preview first
     cancelImageUpload();
 
@@ -584,8 +602,11 @@ async function uploadImageFromPreview() {
         await uploadImageToImgBB(currentFileForUpload);
     } catch (error) {
         console.error('Upload failed:', error);
-        // Error is already handled in uploadImageToImgBB
+        if (typeof showToast === 'function') {
+            showToast('Failed to upload image', '❌');
+        }
     } finally {
+        uploadInProgress = false;
         if (typeof showLoading === 'function') {
             showLoading(false);
         }
@@ -597,22 +618,12 @@ async function uploadImageFromPreview() {
 // ====================
 
 async function uploadImageToImgBB(file) {
-    console.log('Starting ImgBB upload for file:', file?.name || 'unknown');
+    console.log('Starting ImgBB upload for file:', file.name);
 
-    // Check if file exists
-    if (!file) {
-        console.error('Invalid file object: null');
+    // Validate file
+    if (!file || !file.name || !file.type || typeof file.size === 'undefined') {
+        console.error('Invalid file object:', file);
         throw new Error('No valid image file selected');
-    }
-
-    // Check if file has required properties
-    if (!file.name || !file.type || typeof file.size === 'undefined') {
-        console.error('File missing required properties:', {
-            name: file.name,
-            type: file.type,
-            size: file.size
-        });
-        throw new Error('Invalid file format');
     }
 
     try {
@@ -630,19 +641,17 @@ async function uploadImageToImgBB(file) {
             console.log('Compression complete:', processedFile?.name);
         } catch (compressError) {
             console.warn('Compression failed, using original file:', compressError.message);
-            processedFile = file; // Use original if compression fails
+            processedFile = file;
         }
 
-        // Create FormData for ImgBB
+        // Create FormData
         const formData = new FormData();
         formData.append('key', IMGBB_API_KEY);
         formData.append('image', processedFile);
-        
-        // Optional parameters for better quality
         formData.append('name', `relaytalk_${Date.now()}`);
-        formData.append('expiration', '600'); // 10 minutes expiration
+        formData.append('expiration', '600');
 
-        // ImgBB endpoint
+        // Upload to ImgBB
         const url = 'https://api.imgbb.com/1/upload';
         console.log('Uploading to ImgBB...');
 
@@ -675,52 +684,27 @@ async function uploadImageToImgBB(file) {
             throw new Error('No image URL returned from server');
         }
 
-        // Get image URLs from response
+        // Get image URLs
         const imageUrl = data.data.url;
         const thumbnailUrl = data.data.thumb?.url || data.data.url;
-        const mediumUrl = data.data.medium?.url || data.data.url;
 
         console.log('✅ Image uploaded successfully!');
         console.log('Image URL:', imageUrl);
-        console.log('Thumbnail URL:', thumbnailUrl);
 
         // Send image message
         await sendImageMessage(imageUrl, thumbnailUrl);
 
     } catch (error) {
         console.error('Image upload error:', error);
-        
-        // Show user-friendly error message
-        let errorMessage = 'Failed to upload image';
-        if (error.message.includes('network') || error.message.includes('fetch')) {
-            errorMessage = 'Network error. Please check your connection.';
-        } else if (error.message.includes('413')) {
-            errorMessage = 'Image too large. Please try a smaller image.';
-        } else if (error.message.includes('Invalid file')) {
-            errorMessage = 'Invalid image file. Please try another image.';
-        }
-        
-        if (typeof showToast === 'function') {
-            showToast(errorMessage, '❌', 3000);
-        }
-        
-        // Also show retry option
-        if (typeof showRetryAlert === 'function' && file) {
-            showRetryAlert(errorMessage, () => {
-                uploadImageToImgBB(file);
-            });
-        }
-        
         throw error;
     }
 }
 
 // ====================
-// FIXED: IMAGE COMPRESSION
+// IMAGE COMPRESSION
 // ====================
-async function compressImage(file, maxSize = 1024 * 1024) { // 1MB default
+async function compressImage(file, maxSize = 1024 * 1024) {
     return new Promise((resolve, reject) => {
-        // If file is already small enough, return as-is
         if (file.size <= maxSize) {
             console.log('File already small enough, skipping compression');
             resolve(file);
@@ -728,21 +712,20 @@ async function compressImage(file, maxSize = 1024 * 1024) { // 1MB default
         }
 
         console.log('Compressing file from', file.size, 'bytes');
-        
+
         const reader = new FileReader();
-        
+
         reader.onload = function(e) {
             const img = new Image();
-            
+
             img.onload = function() {
                 const canvas = document.createElement('canvas');
                 const ctx = canvas.getContext('2d');
-                
-                // Calculate new dimensions (max 1200px on longest side)
+
                 let width = img.width;
                 let height = img.height;
                 const MAX_DIMENSION = 1200;
-                
+
                 if (width > height && width > MAX_DIMENSION) {
                     height = Math.round((height * MAX_DIMENSION) / width);
                     width = MAX_DIMENSION;
@@ -750,64 +733,60 @@ async function compressImage(file, maxSize = 1024 * 1024) { // 1MB default
                     width = Math.round((width * MAX_DIMENSION) / height);
                     height = MAX_DIMENSION;
                 }
-                
+
                 canvas.width = width;
                 canvas.height = height;
-                
-                // Draw image with smoothing
+
                 ctx.imageSmoothingEnabled = true;
                 ctx.imageSmoothingQuality = 'high';
                 ctx.drawImage(img, 0, 0, width, height);
-                
-                // Convert to blob with quality adjustment
+
                 let quality = 0.8;
-                
+
                 const tryCompress = () => {
                     canvas.toBlob((blob) => {
                         if (!blob) {
                             reject(new Error('Failed to create blob'));
                             return;
                         }
-                        
+
                         console.log('Compressed to:', blob.size, 'bytes, quality:', quality);
-                        
+
                         if (blob.size <= maxSize || quality <= 0.3) {
-                            // Create new file from blob
                             const compressedFile = new File([blob], file.name, {
                                 type: 'image/jpeg',
                                 lastModified: Date.now()
                             });
                             resolve(compressedFile);
                         } else {
-                            // Reduce quality and try again
                             quality -= 0.1;
                             tryCompress();
                         }
                     }, 'image/jpeg', quality);
                 };
-                
+
                 tryCompress();
             };
-            
+
             img.onerror = () => {
                 console.warn('Failed to load image for compression, using original');
-                resolve(file); // Fallback to original
+                resolve(file);
             };
-            
+
             img.src = e.target.result;
         };
-        
+
         reader.onerror = () => {
             console.warn('Failed to read file for compression, using original');
-            resolve(file); // Fallback to original
+            resolve(file);
         };
-        
+
         reader.readAsDataURL(file);
     });
 }
 
 // ====================
-// FIXED: SEND IMAGE MESSAGE
+// SEND IMAGE MESSAGE
 // ====================
 async function sendImageMessage(imageUrl, thumbnailUrl) {
     console.log('Sending image message to Supabase');
@@ -849,16 +828,13 @@ async function sendImageMessage(imageUrl, thumbnailUrl) {
         const messageData = {
             sender_id: currentUser.id,
             receiver_id: chatFriend.id,
-            content: '', // Empty content for image-only messages
+            content: '',
             image_url: imageUrl,
             thumbnail_url: thumbnailUrl,
             created_at: new Date().toISOString()
         };
 
-        console.log('Sending message data:', {
-            ...messageData,
-            image_url: imageUrl?.substring(0, 100) + '...' // Truncate for logging
-        });
+        console.log('Sending message data');
 
         // Add color if selected
         if (selectedColor) {
@@ -866,12 +842,6 @@ async function sendImageMessage(imageUrl, thumbnailUrl) {
             console.log('Adding color to message:', selectedColor);
             selectedColor = null;
             window.selectedColor = null;
-
-            // Clear UI selection
-            const colorOptions = document.querySelectorAll('.color-option');
-            colorOptions.forEach(option => {
-                option.classList.remove('selected');
-            });
         }
 
         // Insert into database
@@ -893,13 +863,9 @@ async function sendImageMessage(imageUrl, thumbnailUrl) {
             playSentSound();
         }
 
-        // Clear input
-        const input = document.getElementById('messageInput');
-        if (input) {
-            if (typeof autoResize === 'function') {
-                autoResize(input);
-            }
-        }
+        // Reset file inputs
+        document.getElementById('cameraInput').value = '';
+        document.getElementById('galleryInput').value = '';
 
         // Reset typing
         if (window.isTyping !== undefined) {
@@ -910,14 +876,12 @@ async function sendImageMessage(imageUrl, thumbnailUrl) {
             window.typingTimeout = null;
         }
 
-        // Send typing status
         if (typeof sendTypingStatus === 'function') {
             sendTypingStatus(false);
         }
 
         console.log('✅ Image message process complete');
 
-        // Show success toast
         if (typeof showToast === 'function') {
             showToast('Image sent successfully!', '✅', 2000);
         }
@@ -933,7 +897,7 @@ async function sendImageMessage(imageUrl, thumbnailUrl) {
             sendBtn.innerHTML = originalHTML;
             sendBtn.disabled = false;
         }
-        
+
         // Focus input
         const input = document.getElementById('messageInput');
         if (input) {
@@ -950,7 +914,6 @@ function createImageMessageHTML(msg, isSent, colorAttr, time) {
     const thumbnailUrl = msg.thumbnail_url || imageUrl;
     const content = msg.content || '';
 
-    // Ensure HTTPS for ImgBB images
     let displayImageUrl = imageUrl;
     let displayThumbnailUrl = thumbnailUrl;
 
@@ -981,7 +944,9 @@ function createImageMessageHTML(msg, isSent, colorAttr, time) {
     `;
 }
 
-// Image loading handlers
+// ====================
+// IMAGE LOADING HANDLERS
+// ====================
 function handleImageLoad(imgElement) {
     imgElement.style.opacity = '1';
     imgElement.classList.add('loaded');
@@ -990,19 +955,20 @@ function handleImageLoad(imgElement) {
 function handleImageError(imgElement, originalUrl) {
     console.error('Failed to load image:', originalUrl);
 
-    // Try HTTPS if failed with HTTP
     if (originalUrl && originalUrl.includes('i.ibb.co') && originalUrl.startsWith('http://')) {
         const httpsUrl = originalUrl.replace('http://', 'https://');
         imgElement.src = httpsUrl;
         return;
     }
 
-    // Fallback to placeholder
     imgElement.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 24 24"><path fill="%23ccc" d="M21,19V5C21,3.9 20.1,3 19,3H5C3.9,3 3,3.9 3,5V19C3,20.1 3.9,21 5,21H19C20.1,21 21,20.1 21,19M8.5,13.5L11,16.5L14.5,12L19,18H5L8.5,13.5Z"/></svg>';
     imgElement.style.opacity = '1';
     imgElement.classList.add('loaded');
 }
 
+// ====================
+// IMAGE VIEWER FUNCTIONS
+// ====================
 function viewImageFullscreen(imageUrl) {
     const existingViewer = document.getElementById('imageViewerOverlay');
     if (existingViewer) existingViewer.remove();
@@ -1128,77 +1094,6 @@ function copyToClipboard(text) {
                 showToast('Cannot copy URL', '⚠️', 2000);
             }
         });
-}
-
-// ====================
-// ALERT FUNCTIONS
-// ====================
-
-function showRetryAlert(message, onRetry, onCancel = null) {
-    const alertOverlay = document.getElementById('customAlert');
-    if (!alertOverlay) {
-        console.error('Alert overlay not found');
-        return;
-    }
-
-    const alertIcon = document.getElementById('alertIcon');
-    const alertTitle = document.getElementById('alertTitle');
-    const alertMessage = document.getElementById('alertMessage');
-    const alertConfirm = document.getElementById('alertConfirm');
-    const alertCancel = document.getElementById('alertCancel');
-
-    alertIcon.innerHTML = '❌';
-    alertTitle.textContent = 'Upload Failed';
-    alertMessage.textContent = message;
-    alertCancel.style.display = 'inline-block';
-
-    alertConfirm.textContent = 'Retry';
-    alertConfirm.onclick = () => {
-        alertOverlay.style.display = 'none';
-        if (onRetry) onRetry();
-    };
-
-    alertCancel.textContent = 'Cancel';
-    alertCancel.onclick = () => {
-        alertOverlay.style.display = 'none';
-        if (onCancel) onCancel();
-        if (typeof showToast === 'function') {
-            showToast('Upload cancelled', '⚠️');
-        }
-    };
-
-    alertOverlay.style.display = 'flex';
-}
-
-// ====================
-// TOAST FUNCTION
-// ====================
-function showToast(message, icon = 'ℹ️', duration = 3000) {
-    if (window.showToast && window.showToast !== showToast) {
-        window.showToast(message, icon, duration);
-        return;
-    }
-
-    const toast = document.getElementById('customToast');
-    if (toast) {
-        const toastIcon = document.getElementById('toastIcon');
-        const toastMessage = document.getElementById('toastMessage');
-
-        if (toastIcon) toastIcon.innerHTML = icon;
-        if (toastMessage) toastMessage.textContent = message;
-
-        toast.style.display = 'flex';
-        setTimeout(() => {
-            toast.style.opacity = '1';
-        }, 10);
-
-        setTimeout(() => {
-            toast.style.opacity = '0';
-            setTimeout(() => {
-                toast.style.display = 'none';
-            }, 300);
-        }, duration);
-    }
 }
 
 console.log('✅ Image handler functions exported - FIXED UPLOAD');
