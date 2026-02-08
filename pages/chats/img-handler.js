@@ -39,6 +39,8 @@ window.removeSelectedColor = removeSelectedColor;
 window.cancelColorSelection = cancelColorSelection;
 window.handleImageSelect = handleImageSelect;
 window.isMobileChrome = isMobileChrome;
+window.fixImgBBUrls = fixImgBBUrls;
+window.getImgBBUrlWithFallback = getImgBBUrlWithFallback;
 
 // Signal that img-handler is loaded
 if (window.chatModules) {
@@ -52,8 +54,106 @@ if (window.chatModules) {
 function isMobileChrome() {
     const ua = navigator.userAgent;
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
-    const isChrome = /Chrome/i.test(ua);
+    const isChrome = /Chrome/i.test(ua) && !/Edge|Edg|OPR/i.test(ua);
     return isMobile && isChrome;
+}
+
+function isIOSChrome() {
+    const ua = navigator.userAgent;
+    return /CriOS/i.test(ua) && /iPhone|iPad|iPod/i.test(ua);
+}
+
+// ====================
+// URL FIXER - ENHANCED FOR CHROME MOBILE DNS ISSUES
+// ====================
+function fixImgBBUrls(url) {
+    if (!url || !url.includes('ibb.co')) return url;
+    
+    console.log('Fixing ImgBB URL for Chrome mobile:', url);
+    
+    // ALWAYS use i.ibb.co CDN for Chrome mobile
+    if (isMobileChrome() || isIOSChrome()) {
+        let fixedUrl = url;
+        
+        // Replace ibb.co with i.ibb.co
+        fixedUrl = fixedUrl.replace('https://ibb.co/', 'https://i.ibb.co/');
+        fixedUrl = fixedUrl.replace('http://ibb.co/', 'https://i.ibb.co/');
+        
+        // Ensure .jpg extension for CDN
+        if (!fixedUrl.includes('.jpg') && !fixedUrl.includes('.png') && !fixedUrl.includes('.gif')) {
+            fixedUrl += '.jpg';
+        }
+        
+        // Add mobile-specific cache busting
+        const cacheBuster = `?mobile_${Date.now()}`;
+        if (!fixedUrl.includes('?')) {
+            fixedUrl += cacheBuster;
+        } else {
+            fixedUrl = fixedUrl.split('?')[0] + cacheBuster;
+        }
+        
+        console.log('Fixed URL for mobile:', fixedUrl);
+        return fixedUrl;
+    }
+    
+    return ensureHttpsUrl(url);
+}
+
+function getImgBBUrlWithFallback(imageCode) {
+    console.log('Getting ImgBB URL with fallback for code:', imageCode);
+    
+    // CHROME MOBILE FIX: Always return CDN URL
+    if (isMobileChrome() || isIOSChrome()) {
+        const url = `https://i.ibb.co/${imageCode}.jpg?mobile=${Date.now()}`;
+        console.log('Using mobile CDN URL:', url);
+        return url;
+    }
+    
+    // For desktop, try multiple formats
+    const baseUrls = [
+        `https://i.ibb.co/${imageCode}.jpg?cb=${Date.now()}`,
+        `https://ibb.co/${imageCode}`,
+        `https://i.ibb.co/${imageCode}.png?cb=${Date.now()}`
+    ];
+    
+    return baseUrls[0];
+}
+
+function ensureHttpsUrl(url) {
+    if (!url) return url;
+    
+    console.log('Original URL for HTTPS fix:', url);
+    
+    let fixedUrl = url;
+    
+    // Always convert to https
+    if (fixedUrl.startsWith('http://')) {
+        fixedUrl = fixedUrl.replace('http://', 'https://');
+    }
+    
+    // Remove duplicate https
+    if (fixedUrl.startsWith('https://https://')) {
+        fixedUrl = fixedUrl.replace('https://https://', 'https://');
+    }
+    
+    // CHROME MOBILE FIX: Convert ibb.co to i.ibb.co for better reliability
+    if ((isMobileChrome() || isIOSChrome()) && fixedUrl.includes('ibb.co/') && !fixedUrl.includes('i.ibb.co/')) {
+        fixedUrl = fixedUrl.replace('ibb.co/', 'i.ibb.co/');
+        if (!fixedUrl.includes('.jpg') && !fixedUrl.includes('.png') && !fixedUrl.includes('.gif')) {
+            fixedUrl += '.jpg';
+        }
+    }
+    
+    // Add cache busting
+    const cacheBuster = isMobileChrome() ? `?mcb=${Date.now()}` : `?cb=${Date.now()}`;
+    if (!fixedUrl.includes('?')) {
+        fixedUrl += cacheBuster;
+    } else if (!fixedUrl.includes('cb=') && !fixedUrl.includes('mobile=') && !fixedUrl.includes('t=')) {
+        fixedUrl += '&' + cacheBuster.substring(1);
+    }
+    
+    console.log('HTTPS fixed URL:', fixedUrl);
+    return fixedUrl;
 }
 
 // ====================
@@ -63,6 +163,7 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('🔧 Initializing image handler...');
     console.log('🌐 Browser:', navigator.userAgent);
     console.log('📱 Mobile Chrome:', isMobileChrome());
+    console.log('📱 iOS Chrome:', isIOSChrome());
 
     // Initialize after a short delay
     setTimeout(() => {
@@ -72,7 +173,7 @@ document.addEventListener('DOMContentLoaded', () => {
         setupColorPickerClickOutside();
 
         // Mobile Chrome specific fixes
-        if (isMobileChrome()) {
+        if (isMobileChrome() || isIOSChrome()) {
             applyMobileChromeFixes();
         }
 
@@ -87,21 +188,37 @@ document.addEventListener('DOMContentLoaded', () => {
 function applyMobileChromeFixes() {
     console.log('Applying Mobile Chrome fixes...');
     
+    // Add mobile Chrome class to body
+    document.body.classList.add('chrome-mobile');
+    
     // Fix for file input not working on mobile Chrome
     document.addEventListener('touchstart', function(e) {
         if (e.target.id === 'cameraInput' || e.target.id === 'galleryInput') {
             e.preventDefault();
         }
     }, { passive: false });
+
+    // Prevent pull-to-refresh
+    document.body.style.overscrollBehavior = 'none';
     
-    // Prevent default behaviors that cause issues
-    document.addEventListener('touchmove', function(e) {
-        if (e.target.classList.contains('message-image-container') || 
-            e.target.classList.contains('message-image')) {
-            e.preventDefault();
+    // Fix 100vh issue on Chrome mobile
+    function setVH() {
+        let vh = window.innerHeight * 0.01;
+        document.documentElement.style.setProperty('--vh', `${vh}px`);
+    }
+    setVH();
+    window.addEventListener('resize', setVH);
+    
+    // Prevent double-tap zoom
+    let lastTouchEnd = 0;
+    document.addEventListener('touchend', function(event) {
+        const now = Date.now();
+        if (now - lastTouchEnd <= 300) {
+            event.preventDefault();
         }
-    }, { passive: false });
-    
+        lastTouchEnd = now;
+    }, false);
+
     // Fix for iOS Safari input zoom
     const inputs = document.querySelectorAll('input, textarea');
     inputs.forEach(input => {
@@ -111,6 +228,8 @@ function applyMobileChromeFixes() {
             }, 100);
         });
     });
+    
+    console.log('✅ Mobile Chrome fixes applied');
 }
 
 // ====================
@@ -381,24 +500,18 @@ function closeImagePicker() {
 
 function openCamera() {
     console.log('Opening camera');
-    
+
     // MOBILE FIX: Use different approach for mobile
-    if (isMobileChrome()) {
+    if (isMobileChrome() || isIOSChrome()) {
         const cameraInput = document.getElementById('cameraInput');
         if (cameraInput) {
-            // Create a new input element to reset it
-            const newInput = cameraInput.cloneNode(true);
-            cameraInput.parentNode.replaceChild(newInput, cameraInput);
-            newInput.style.display = 'none';
-            newInput.id = 'cameraInput';
+            // Reset input
+            cameraInput.value = '';
             
-            // Add event listener
-            newInput.addEventListener('change', handleImageSelect);
-            
-            // Trigger click
+            // Use a small delay for mobile
             setTimeout(() => {
-                newInput.click();
-            }, 100);
+                cameraInput.click();
+            }, 300);
         }
     } else {
         const cameraInput = document.getElementById('cameraInput');
@@ -411,24 +524,18 @@ function openCamera() {
 
 function openGallery() {
     console.log('Opening gallery');
-    
+
     // MOBILE FIX: Use different approach for mobile
-    if (isMobileChrome()) {
+    if (isMobileChrome() || isIOSChrome()) {
         const galleryInput = document.getElementById('galleryInput');
         if (galleryInput) {
-            // Create a new input element to reset it
-            const newInput = galleryInput.cloneNode(true);
-            galleryInput.parentNode.replaceChild(newInput, galleryInput);
-            newInput.style.display = 'none';
-            newInput.id = 'galleryInput';
+            // Reset input
+            galleryInput.value = '';
             
-            // Add event listener
-            newInput.addEventListener('change', handleImageSelect);
-            
-            // Trigger click
+            // Use a small delay for mobile
             setTimeout(() => {
-                newInput.click();
-            }, 100);
+                galleryInput.click();
+            }, 300);
         }
     } else {
         const galleryInput = document.getElementById('galleryInput');
@@ -455,6 +562,7 @@ function setupFileInputListeners() {
 // ====================
 // IMAGE SELECTION AND PREVIEW - MOBILE OPTIMIZED
 // ====================
+
 function handleImageSelect(event) {
     console.log('File selected event triggered', event);
 
@@ -495,10 +603,12 @@ function handleImageSelect(event) {
             return;
         }
 
-        if (file.size > 10 * 1024 * 1024) {
+        // MOBILE FIX: Larger limit for modern mobile cameras
+        const maxSize = isMobileChrome() || isIOSChrome() ? 20 * 1024 * 1024 : 10 * 1024 * 1024;
+        if (file.size > maxSize) {
             console.log('File too large:', file.size);
             if (typeof showToast === 'function') {
-                showToast('Image too large. Max 10MB', '⚠️');
+                showToast(`Image too large. Max ${maxSize/(1024*1024)}MB`, '⚠️');
             }
             fileInput.value = '';
             return;
@@ -578,14 +688,14 @@ function createImagePreview(file) {
                 const preview = document.getElementById('imagePreviewOverlay');
                 if (preview) {
                     preview.style.opacity = '1';
-                    
+
                     // MOBILE FIX: Prevent scrolling in preview
-                    if (isMobileChrome()) {
+                    if (isMobileChrome() || isIOSChrome()) {
                         preview.addEventListener('touchmove', function(e) {
                             e.preventDefault();
                         }, { passive: false });
                     }
-                    
+
                     console.log('✅ Preview shown');
                 }
             }, 10);
@@ -774,11 +884,14 @@ async function uploadImageToImgBB(file) {
         const url = 'https://api.imgbb.com/1/upload';
         console.log('Uploading to ImgBB...');
 
-        // MOBILE FIX: Different timeout for mobile
-        const timeout = isMobileChrome() ? 30000 : 15000;
-        
+        // MOBILE FIX: Longer timeout for mobile
+        const timeout = isMobileChrome() || isIOSChrome() ? 45000 : 25000;
+
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), timeout);
+        const timeoutId = setTimeout(() => {
+            console.log('Upload timeout triggered');
+            controller.abort();
+        }, timeout);
 
         const response = await fetch(url, {
             method: 'POST',
@@ -817,11 +930,13 @@ async function uploadImageToImgBB(file) {
         let imageUrl = data.data.url;
         let thumbnailUrl = data.data.thumb?.url || data.data.url;
 
-        imageUrl = ensureHttpsUrl(imageUrl);
-        thumbnailUrl = ensureHttpsUrl(thumbnailUrl);
+        // CHROME MOBILE FIX: Apply URL fixes for mobile
+        imageUrl = fixImgBBUrls(imageUrl);
+        thumbnailUrl = fixImgBBUrls(thumbnailUrl);
 
         console.log('✅ Image uploaded successfully!');
-        console.log('Image URL (fixed):', imageUrl);
+        console.log('Image URL (mobile fixed):', imageUrl);
+        console.log('Thumbnail URL (mobile fixed):', thumbnailUrl);
 
         await sendImageMessage(imageUrl, thumbnailUrl);
 
@@ -838,51 +953,15 @@ async function uploadImageToImgBB(file) {
             if (typeof showToast === 'function') {
                 showToast('Browser security restriction. Please try again.', '⚠️', 4000);
             }
+        } else if (error.message.includes('network')) {
+            console.error('Network error detected.');
+            if (typeof showToast === 'function') {
+                showToast('Network error. Please check your connection.', '⚠️', 4000);
+            }
         }
 
         throw error;
     }
-}
-
-// ====================
-// URL FIXER - ENHANCED FOR MOBILE
-// ====================
-function ensureHttpsUrl(url) {
-    if (!url) return url;
-
-    let fixedUrl = url;
-
-    if (fixedUrl.startsWith('http://')) {
-        fixedUrl = fixedUrl.replace('http://', 'https://');
-    }
-
-    if (fixedUrl.startsWith('https://https://')) {
-        fixedUrl = fixedUrl.replace('https://https://', 'https://');
-    }
-
-    if (fixedUrl.includes('i.ibb.co')) {
-        fixedUrl = fixedUrl.replace('http://i.ibb.co', 'https://i.ibb.co');
-    }
-
-    // MOBILE FIX: Different cache busting for mobile
-    if (isMobileChrome()) {
-        const cacheBuster = `?mobile_cb=${Date.now()}`;
-        if (!fixedUrl.includes('?')) {
-            fixedUrl += cacheBuster;
-        } else {
-            fixedUrl += '&' + cacheBuster.substring(1);
-        }
-    } else if (navigator.userAgent.includes('Chrome')) {
-        const cacheBuster = `?cb=${Date.now()}`;
-        if (!fixedUrl.includes('?')) {
-            fixedUrl += cacheBuster;
-        } else {
-            fixedUrl += '&' + cacheBuster.substring(1);
-        }
-    }
-
-    console.log('URL fixed:', fixedUrl);
-    return fixedUrl;
 }
 
 // ====================
@@ -914,7 +993,9 @@ async function compressImage(file, maxSize = 1024 * 1024) {
 
                 let width = img.width;
                 let height = img.height;
-                const MAX_DIMENSION = isMobileChrome() ? 800 : 1200;
+                
+                // MOBILE FIX: Different dimensions for mobile
+                const MAX_DIMENSION = isMobileChrome() || isIOSChrome() ? 1200 : 1600;
 
                 if (width > height && width > MAX_DIMENSION) {
                     height = Math.round((height * MAX_DIMENSION) / width);
@@ -928,10 +1009,10 @@ async function compressImage(file, maxSize = 1024 * 1024) {
                 canvas.height = height;
 
                 ctx.imageSmoothingEnabled = true;
-                ctx.imageSmoothingQuality = 'medium'; // Lower quality for mobile
+                ctx.imageSmoothingQuality = isMobileChrome() ? 'medium' : 'high';
                 ctx.drawImage(img, 0, 0, width, height);
 
-                let quality = isMobileChrome() ? 0.7 : 0.8;
+                let quality = isMobileChrome() || isIOSChrome() ? 0.75 : 0.85;
 
                 const tryCompress = () => {
                     canvas.toBlob((blob) => {
@@ -943,7 +1024,7 @@ async function compressImage(file, maxSize = 1024 * 1024) {
 
                         console.log('Compressed to:', blob.size, 'bytes, quality:', quality);
 
-                        if (blob.size <= maxSize || quality <= 0.3) {
+                        if (blob.size <= maxSize || quality <= 0.4) {
                             const compressedFile = new File([blob], file.name, {
                                 type: 'image/jpeg',
                                 lastModified: Date.now()
@@ -1100,21 +1181,24 @@ async function sendImageMessage(imageUrl, thumbnailUrl) {
 // IMAGE MESSAGE HTML CREATOR - MOBILE OPTIMIZED
 // ====================
 function createImageMessageHTML(msg, isSent, colorAttr, time) {
-    const imageUrl = msg.image_url || '';
-    const thumbnailUrl = msg.thumbnail_url || imageUrl;
+    let imageUrl = msg.image_url || '';
+    let thumbnailUrl = msg.thumbnail_url || imageUrl;
     const content = msg.content || '';
 
-    let displayImageUrl = ensureHttpsUrl(imageUrl);
-    let displayThumbnailUrl = ensureHttpsUrl(thumbnailUrl);
+    // CHROME MOBILE FIX: Apply URL fixes before creating HTML
+    imageUrl = fixImgBBUrls(imageUrl);
+    thumbnailUrl = fixImgBBUrls(thumbnailUrl);
 
     return `
         <div class="message ${isSent ? 'sent' : 'received'} image-message" data-message-id="${msg.id}" ${colorAttr}>
-            <div class="message-image-container" onclick="viewImageFullscreen('${displayImageUrl}')">
-                <img src="${displayThumbnailUrl}" 
+            <div class="message-image-container" onclick="viewImageFullscreen('${imageUrl}')">
+                <img src="${thumbnailUrl}" 
                      alt="Shared image" 
                      class="message-image"
                      onload="handleImageLoad(this)"
-                     onerror="handleImageError(this, '${displayImageUrl}')">
+                     onerror="handleImageError(this, '${imageUrl}')"
+                     loading="${isMobileChrome() || isIOSChrome() ? 'lazy' : 'eager'}"
+                     decoding="async">
                 <div class="image-overlay">
                     <svg viewBox="0 0 24 24" style="width: 24px; height: 24px; fill: white;">
                         <path d="M21,19V5C21,3.9 20.1,3 19,3H5C3.9,3 3,3.9 3,5V19C3,20.1 3.9,21 5,21H19C20.1,21 21,20.1 21,19M8.5,13.5L11,16.5L14.5,12L19,18H5L8.5,13.5Z"/>
@@ -1130,36 +1214,58 @@ function createImageMessageHTML(msg, isSent, colorAttr, time) {
 }
 
 // ====================
-// IMAGE LOADING HANDLERS
+// IMAGE LOADING HANDLERS - CHROME MOBILE OPTIMIZED
 // ====================
 function handleImageLoad(imgElement) {
+    console.log('Image loaded successfully');
     imgElement.style.opacity = '1';
     imgElement.classList.add('loaded');
+    
+    // MOBILE FIX: Force repaint for Chrome mobile
+    if (isMobileChrome() || isIOSChrome()) {
+        imgElement.style.transform = 'translateZ(0)';
+    }
 }
 
 function handleImageError(imgElement, originalUrl) {
     console.error('Failed to load image:', originalUrl);
-
-    let fixedUrl = ensureHttpsUrl(originalUrl);
-
+    
+    // Try multiple fixes for Chrome mobile
+    let fixedUrl = fixImgBBUrls(originalUrl);
+    
     if (fixedUrl !== originalUrl) {
+        console.log('Retrying with fixed URL:', fixedUrl);
         imgElement.src = fixedUrl;
         return;
     }
-
+    
+    // Try with ensureHttpsUrl
+    fixedUrl = ensureHttpsUrl(originalUrl);
+    if (fixedUrl !== originalUrl) {
+        console.log('Retrying with HTTPS URL:', fixedUrl);
+        imgElement.src = fixedUrl;
+        return;
+    }
+    
+    // Fallback to placeholder
     imgElement.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 24 24"><path fill="%23ccc" d="M21,19V5C21,3.9 20.1,3 19,3H5C3.9,3 3,3.9 3,5V19C3,20.1 3.9,21 5,21H19C20.1,21 21,20.1 21,19M8.5,13.5L11,16.5L14.5,12L19,18H5L8.5,13.5Z"/></svg>';
     imgElement.style.opacity = '1';
     imgElement.classList.add('loaded');
+    
+    if (typeof showToast === 'function') {
+        showToast('Failed to load image', '⚠️', 2000);
+    }
 }
 
 // ====================
-// IMAGE VIEWER FUNCTIONS
+// IMAGE VIEWER FUNCTIONS - MOBILE COMPATIBLE
 // ====================
 function viewImageFullscreen(imageUrl) {
     const existingViewer = document.getElementById('imageViewerOverlay');
     if (existingViewer) existingViewer.remove();
 
-    let fixedImageUrl = ensureHttpsUrl(imageUrl);
+    // CHROME MOBILE FIX: Apply URL fixes
+    let fixedImageUrl = fixImgBBUrls(imageUrl);
 
     const viewerHTML = `
         <div class="image-viewer-overlay" id="imageViewerOverlay">
@@ -1171,7 +1277,8 @@ function viewImageFullscreen(imageUrl) {
             <div class="viewer-image-container">
                 <img src="${fixedImageUrl}" alt="Shared image" class="viewer-image" 
                      onload="this.style.opacity='1'; this.classList.add('loaded')"
-                     onerror="handleImageViewerError(this, '${fixedImageUrl}')">
+                     onerror="handleImageViewerError(this, '${fixedImageUrl}')"
+                     loading="eager">
             </div>
             <div class="viewer-actions">
                 <button class="viewer-action-btn" onclick="downloadImage('${fixedImageUrl}')">
@@ -1195,13 +1302,26 @@ function viewImageFullscreen(imageUrl) {
     setTimeout(() => {
         const viewer = document.getElementById('imageViewerOverlay');
         if (viewer) viewer.style.opacity = '1';
+        
+        // MOBILE FIX: Prevent scrolling in viewer
+        if (isMobileChrome() || isIOSChrome()) {
+            viewer.addEventListener('touchmove', function(e) {
+                e.preventDefault();
+            }, { passive: false });
+        }
     }, 10);
 }
 
 function handleImageViewerError(imgElement, originalUrl) {
     console.error('Failed to load image in viewer:', originalUrl);
 
-    let fixedUrl = ensureHttpsUrl(originalUrl);
+    let fixedUrl = fixImgBBUrls(originalUrl);
+    if (fixedUrl !== originalUrl) {
+        imgElement.src = fixedUrl;
+        return;
+    }
+
+    fixedUrl = ensureHttpsUrl(originalUrl);
     if (fixedUrl !== originalUrl) {
         imgElement.src = fixedUrl;
         return;
@@ -1271,17 +1391,4 @@ function copyToClipboard(text) {
         });
 }
 
-
-// DNS fallback for Chrome mobile
-function getImgBBUrlWithFallback(imageCode) {
-  const baseUrls = [
-    `https://i.ibb.co/${imageCode}.jpg`,  // CDN URL (most reliable)
-    `https://ibb.co/${imageCode}`,        // Original URL
-  ];
-  
-  return baseUrls[0]; // Always use CDN for mobile
-}
-
-// Use in your image loading:
-const mobileSafeUrl = getImgBBUrlWithFallback('mC76sJ6s');
 console.log('✅ Image handler functions exported - CHROME MOBILE FIXED 🎉💯');
