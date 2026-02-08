@@ -1,6 +1,6 @@
 import { supabase } from '../../utils/supabase.js';
 
-console.log('✨ Image Handler Initialized - NO AUTO DELETE VERSION 🎉');
+console.log('✨ Image Handler Initialized - MULTI-IMAGE VERSION 🎉');
 
 // ====================
 // IMAGE HANDLING VARIABLES
@@ -8,9 +8,11 @@ console.log('✨ Image Handler Initialized - NO AUTO DELETE VERSION 🎉');
 let selectedColor = null;
 let colorPickerVisible = false;
 let isImagePickerOpen = false;
-let imagePreviewUrl = null;
-let currentFileForUpload = null;
+let selectedImages = []; // Array for multiple images
+let currentImageIndex = 0;
 let uploadInProgress = false;
+let isUploadingMultiple = false;
+let uploadQueue = [];
 
 // API Key
 const IMGBB_API_KEY = '82e49b432e2ee14921f7d0cd81ba5551';
@@ -41,6 +43,8 @@ window.handleImageSelect = handleImageSelect;
 window.isMobileChrome = isMobileChrome;
 window.fixImgBBUrls = fixImgBBUrls;
 window.getImgBBUrlWithFallback = getImgBBUrlWithFallback;
+window.prevImage = prevImage;
+window.nextImage = nextImage;
 
 // Signal that img-handler is loaded
 if (window.chatModules) {
@@ -68,17 +72,17 @@ function isIOSChrome() {
 // ====================
 function fixImgBBUrls(url) {
     if (!url || !url.includes('ibb.co')) return url;
-    
+
     let fixedUrl = url;
-    
+
     if (isMobileChrome() || isIOSChrome()) {
         fixedUrl = fixedUrl.replace('https://ibb.co/', 'https://i.ibb.co/');
         fixedUrl = fixedUrl.replace('http://ibb.co/', 'https://i.ibb.co/');
-        
+
         if (!fixedUrl.includes('.jpg') && !fixedUrl.includes('.png') && !fixedUrl.includes('.gif')) {
             fixedUrl += '.jpg';
         }
-        
+
         const cacheBuster = `?mobile_${Date.now()}`;
         if (!fixedUrl.includes('?')) {
             fixedUrl += cacheBuster;
@@ -86,7 +90,7 @@ function fixImgBBUrls(url) {
             fixedUrl = fixedUrl.split('?')[0] + cacheBuster;
         }
     }
-    
+
     return ensureHttpsUrl(url);
 }
 
@@ -94,30 +98,30 @@ function getImgBBUrlWithFallback(imageCode) {
     if (isMobileChrome() || isIOSChrome()) {
         return `https://i.ibb.co/${imageCode}.jpg?mobile=${Date.now()}`;
     }
-    
+
     return `https://i.ibb.co/${imageCode}.jpg?cb=${Date.now()}`;
 }
 
 function ensureHttpsUrl(url) {
     if (!url) return url;
-    
+
     let fixedUrl = url;
-    
+
     if (fixedUrl.startsWith('http://')) {
         fixedUrl = fixedUrl.replace('http://', 'https://');
     }
-    
+
     if (fixedUrl.startsWith('https://https://')) {
         fixedUrl = fixedUrl.replace('https://https://', 'https://');
     }
-    
+
     const cacheBuster = isMobileChrome() ? `?mcb=${Date.now()}` : `?cb=${Date.now()}`;
     if (!fixedUrl.includes('?')) {
         fixedUrl += cacheBuster;
     } else if (!fixedUrl.includes('cb=') && !fixedUrl.includes('mobile=') && !fixedUrl.includes('t=')) {
         fixedUrl += '&' + cacheBuster.substring(1);
     }
-    
+
     return fixedUrl;
 }
 
@@ -138,8 +142,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         console.log('✅ Image handler ready!');
-        setTimeout(addColorPickerToDOM, 200);
-    }, 500);
+        setTimeout(addColorPickerToDOM, 100);
+    }, 300);
 });
 
 // ====================
@@ -147,9 +151,9 @@ document.addEventListener('DOMContentLoaded', () => {
 // ====================
 function applyMobileChromeFixes() {
     console.log('Applying Mobile Chrome fixes...');
-    
+
     document.body.classList.add('chrome-mobile');
-    
+
     document.addEventListener('touchstart', function(e) {
         if (e.target.id === 'cameraInput' || e.target.id === 'galleryInput') {
             e.preventDefault();
@@ -157,14 +161,14 @@ function applyMobileChromeFixes() {
     }, { passive: false });
 
     document.body.style.overscrollBehavior = 'none';
-    
+
     function setVH() {
         let vh = window.innerHeight * 0.01;
         document.documentElement.style.setProperty('--vh', `${vh}px`);
     }
     setVH();
     window.addEventListener('resize', setVH);
-    
+
     let lastTouchEnd = 0;
     document.addEventListener('touchend', function(event) {
         const now = Date.now();
@@ -179,7 +183,7 @@ function applyMobileChromeFixes() {
         input.addEventListener('focus', function() {
             setTimeout(() => {
                 window.scrollTo(0, 0);
-            }, 100);
+            }, 50);
         });
     });
 }
@@ -236,7 +240,7 @@ function initializeColorPicker() {
         if (!document.getElementById('colorPickerOverlay')) {
             addColorPickerToDOM();
         }
-    }, 300);
+    }, 200);
 }
 
 function setupColorPickerClickOutside() {
@@ -273,7 +277,7 @@ function showColorPicker() {
     } else {
         console.log('❌ Color picker not found in DOM');
         addColorPickerToDOM();
-        setTimeout(showColorPicker, 100);
+        setTimeout(showColorPicker, 50);
     }
 }
 
@@ -287,7 +291,7 @@ function hideColorPicker() {
         colorPicker.style.opacity = '0';
         setTimeout(() => {
             colorPicker.style.display = 'none';
-        }, 300);
+        }, 150);
     }
 }
 
@@ -315,7 +319,7 @@ function removeSelectedColor() {
     });
 
     if (typeof showToast === 'function') {
-        showToast('Color cleared', '↩️', 1000);
+        showToast('Color cleared', '↩️', 800);
     }
 
     setTimeout(() => {
@@ -331,7 +335,7 @@ function removeSelectedColor() {
                 }
             }
         }
-    }, 800);
+    }, 500);
 }
 
 function selectColor(color) {
@@ -348,7 +352,7 @@ function selectColor(color) {
     });
 
     if (typeof showToast === 'function') {
-        showToast(`${color} color selected`, '🎨', 1000);
+        showToast(`${color} color selected`, '🎨', 800);
     }
 
     setTimeout(() => {
@@ -364,7 +368,7 @@ function selectColor(color) {
                 }
             }
         }
-    }, 800);
+    }, 500);
 }
 
 // ====================
@@ -427,7 +431,7 @@ function showImagePicker() {
             document.body.style.overflow = 'hidden';
             console.log('✅ Image picker shown');
         }
-    }, isMobileChrome() ? 100 : 0);
+    }, isMobileChrome() ? 50 : 0);
 }
 
 function closeImagePicker() {
@@ -443,7 +447,7 @@ function closeImagePicker() {
         setTimeout(() => {
             picker.style.display = 'none';
             document.body.style.overflow = '';
-        }, 300);
+        }, 150);
         console.log('✅ Image picker closed');
     }
 }
@@ -457,7 +461,7 @@ function openCamera() {
             cameraInput.value = '';
             setTimeout(() => {
                 cameraInput.click();
-            }, 300);
+            }, 200);
         }
     } else {
         const cameraInput = document.getElementById('cameraInput');
@@ -477,7 +481,7 @@ function openGallery() {
             galleryInput.value = '';
             setTimeout(() => {
                 galleryInput.click();
-            }, 300);
+            }, 200);
         }
     } else {
         const galleryInput = document.getElementById('galleryInput');
@@ -502,7 +506,7 @@ function setupFileInputListeners() {
 }
 
 // ====================
-// IMAGE SELECTION AND PREVIEW
+// IMAGE SELECTION AND PREVIEW - MULTI-IMAGE SUPPORT
 // ====================
 function handleImageSelect(event) {
     console.log('File selected event triggered', event);
@@ -513,83 +517,105 @@ function handleImageSelect(event) {
         if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
             console.error('No files selected in input');
             if (typeof showToast === 'function') {
-                showToast('No image selected', '⚠️');
+                showToast('No images selected', '⚠️');
             }
             return;
         }
 
-        const file = fileInput.files[0];
+        const files = Array.from(fileInput.files);
 
-        if (!file) {
-            console.error('File object is null');
+        if (files.length === 0) {
+            console.error('No valid files selected');
             if (typeof showToast === 'function') {
-                showToast('Invalid file selection', '⚠️');
+                showToast('No images selected', '⚠️');
             }
             return;
         }
 
-        console.log('✅ File successfully captured:', {
-            name: file.name,
-            type: file.type,
-            size: file.size
-        });
+        console.log(`✅ ${files.length} images selected`);
 
-        if (!file.type.startsWith('image/')) {
-            console.log('Not an image file:', file.type);
-            if (typeof showToast === 'function') {
-                showToast('Please select an image file', '⚠️');
-            }
-            fileInput.value = '';
-            return;
-        }
-
+        // Validate all files
+        const validFiles = [];
         const maxSize = isMobileChrome() || isIOSChrome() ? 20 * 1024 * 1024 : 10 * 1024 * 1024;
-        if (file.size > maxSize) {
-            console.log('File too large:', file.size);
+
+        for (const file of files) {
+            if (!file.type.startsWith('image/')) {
+                console.log('Skipping non-image file:', file.name, file.type);
+                continue;
+            }
+
+            if (file.size > maxSize) {
+                console.log('File too large, skipping:', file.name, file.size);
+                if (typeof showToast === 'function') {
+                    showToast(`${file.name} is too large (max ${maxSize/(1024*1024)}MB)`, '⚠️');
+                }
+                continue;
+            }
+
+            validFiles.push(file);
+        }
+
+        if (validFiles.length === 0) {
+            console.log('No valid image files selected');
             if (typeof showToast === 'function') {
-                showToast(`Image too large. Max ${maxSize/(1024*1024)}MB`, '⚠️');
+                showToast('Please select valid image files', '⚠️');
             }
             fileInput.value = '';
             return;
         }
 
-        currentFileForUpload = file;
-        console.log('✅ File stored for upload:', currentFileForUpload?.name);
+        if (validFiles.length > 10) {
+            console.log('Too many images, limiting to 10');
+            if (typeof showToast === 'function') {
+                showToast('Limited to 10 images at once', '⚠️');
+            }
+            validFiles.splice(10);
+        }
 
-        createImagePreview(file);
+        // Store selected images
+        selectedImages = validFiles;
+        currentImageIndex = 0;
+
+        console.log(`✅ ${selectedImages.length} valid images ready for preview`);
+
+        // Create preview for first image
+        createMultiImagePreview();
 
     } catch (error) {
         console.error('Error handling image selection:', error);
         if (typeof showToast === 'function') {
-            showToast('Error selecting image', '❌');
+            showToast('Error selecting images', '❌');
         }
 
         document.getElementById('cameraInput').value = '';
         document.getElementById('galleryInput').value = '';
-        currentFileForUpload = null;
+        selectedImages = [];
+        currentImageIndex = 0;
     }
 }
 
 // ====================
-// IMAGE PREVIEW
+// MULTI-IMAGE PREVIEW
 // ====================
 
-function createImagePreview(file) {
-    console.log('Creating image preview for file:', file?.name || 'unknown');
+function createMultiImagePreview() {
+    console.log('Creating multi-image preview');
 
-    if (!file) {
-        console.error('createImagePreview called with null file');
+    if (!selectedImages || selectedImages.length === 0) {
+        console.error('No images to preview');
         if (typeof showToast === 'function') {
-            showToast('Cannot preview image', '⚠️');
+            showToast('No images to preview', '⚠️');
         }
         return;
     }
+
+    const file = selectedImages[currentImageIndex];
 
     const reader = new FileReader();
 
     reader.onload = function(e) {
         try {
-            imagePreviewUrl = e.target.result;
+            const imagePreviewUrl = e.target.result;
 
             const previewHTML = `
                 <div class="image-preview-overlay" id="imagePreviewOverlay">
@@ -598,17 +624,31 @@ function createImagePreview(file) {
                             <h3>Image Preview</h3>
                             <button class="preview-close" onclick="cancelImageUpload()">×</button>
                         </div>
-                        <div class="preview-image-container">
-                            <img src="${imagePreviewUrl}" alt="Preview" class="preview-image">
+                        <div class="preview-image-wrapper">
+                            ${selectedImages.length > 1 ? `
+                                <div class="preview-counter">${currentImageIndex + 1}/${selectedImages.length}</div>
+                            ` : ''}
+                            <div class="preview-image-container">
+                                <img src="${imagePreviewUrl}" alt="Preview" class="preview-image" onload="this.style.opacity='1'">
+                            </div>
+                            ${selectedImages.length > 1 ? `
+                                <div style="display: flex; justify-content: space-between; margin-top: 15px;">
+                                    <button onclick="prevImage()" class="preview-btn cancel" ${currentImageIndex === 0 ? 'disabled style="opacity:0.5"' : ''}>← Previous</button>
+                                    <button onclick="nextImage()" class="preview-btn cancel" ${currentImageIndex === selectedImages.length - 1 ? 'disabled style="opacity:0.5"' : ''}>Next →</button>
+                                </div>
+                            ` : ''}
                         </div>
                         <div class="preview-actions">
                             <button class="preview-btn cancel" onclick="cancelImageUpload()">Cancel</button>
-                            <button class="preview-btn send" onclick="uploadImageFromPreview()">Send Image</button>
+                            <button class="preview-btn send" onclick="uploadImageFromPreview()">
+                                ${selectedImages.length > 1 ? `Send ${selectedImages.length} Images` : 'Send Image'}
+                            </button>
                         </div>
                         <div class="preview-info">
                             <p>File: ${file.name}</p>
                             <p>Size: ${(file.size / 1024 / 1024).toFixed(2)} MB</p>
                             <p>Type: ${file.type}</p>
+                            ${selectedImages.length > 1 ? `<p>Total: ${selectedImages.length} images</p>` : ''}
                         </div>
                     </div>
                 </div>
@@ -652,8 +692,73 @@ function createImagePreview(file) {
         }
         document.getElementById('cameraInput').value = '';
         document.getElementById('galleryInput').value = '';
-        currentFileForUpload = null;
+        selectedImages = [];
+        currentImageIndex = 0;
         closeImagePicker();
+    };
+
+    reader.readAsDataURL(file);
+}
+
+function prevImage() {
+    if (currentImageIndex > 0) {
+        currentImageIndex--;
+        updatePreviewImage();
+    }
+}
+
+function nextImage() {
+    if (currentImageIndex < selectedImages.length - 1) {
+        currentImageIndex++;
+        updatePreviewImage();
+    }
+}
+
+function updatePreviewImage() {
+    const previewContainer = document.querySelector('.preview-image-container img');
+    const counter = document.querySelector('.preview-counter');
+    const prevBtn = document.querySelector('button[onclick="prevImage()"]');
+    const nextBtn = document.querySelector('button[onclick="nextImage()"]');
+    
+    if (!previewContainer || !selectedImages[currentImageIndex]) return;
+
+    const file = selectedImages[currentImageIndex];
+    const reader = new FileReader();
+
+    reader.onload = function(e) {
+        previewContainer.src = e.target.result;
+        previewContainer.style.opacity = '0';
+        setTimeout(() => {
+            previewContainer.style.opacity = '1';
+        }, 50);
+
+        // Update counter
+        if (counter) {
+            counter.textContent = `${currentImageIndex + 1}/${selectedImages.length}`;
+        }
+
+        // Update buttons
+        if (prevBtn) {
+            prevBtn.disabled = currentImageIndex === 0;
+            prevBtn.style.opacity = currentImageIndex === 0 ? '0.5' : '1';
+        }
+        
+        if (nextBtn) {
+            nextBtn.disabled = currentImageIndex === selectedImages.length - 1;
+            nextBtn.style.opacity = currentImageIndex === selectedImages.length - 1 ? '0.5' : '1';
+        }
+
+        // Update file info
+        const infoDiv = document.querySelector('.preview-info');
+        if (infoDiv) {
+            const fileInfo = infoDiv.querySelector('p:first-child');
+            const sizeInfo = infoDiv.querySelector('p:nth-child(2)');
+            const typeInfo = infoDiv.querySelector('p:nth-child(3)');
+            
+            if (fileInfo) fileInfo.textContent = `File: ${file.name}`;
+            if (sizeInfo) sizeInfo.textContent = `Size: ${(file.size / 1024 / 1024).toFixed(2)} MB`;
+            if (typeInfo) typeInfo.textContent = `Type: ${file.type}`;
+        }
     };
 
     reader.readAsDataURL(file);
@@ -668,9 +773,11 @@ function cancelImageUpload() {
     document.getElementById('cameraInput').value = '';
     document.getElementById('galleryInput').value = '';
 
-    imagePreviewUrl = null;
-    currentFileForUpload = null;
+    selectedImages = [];
+    currentImageIndex = 0;
+    uploadQueue = [];
     uploadInProgress = false;
+    isUploadingMultiple = false;
 
     const preview = document.getElementById('imagePreviewOverlay');
     if (preview) {
@@ -678,16 +785,16 @@ function cancelImageUpload() {
         setTimeout(() => {
             preview.remove();
             console.log('✅ Preview removed');
-        }, 300);
+        }, 150);
     }
 }
 
 function sendImagePreview() {
     console.log('sendImagePreview called');
-    if (!currentFileForUpload) {
-        console.log('No image to send');
+    if (!selectedImages || selectedImages.length === 0) {
+        console.log('No images to send');
         if (typeof showToast === 'function') {
-            showToast('No image selected', '⚠️');
+            showToast('No images selected', '⚠️');
         }
         return;
     }
@@ -723,19 +830,19 @@ async function uploadImageFromPreview() {
         return;
     }
 
-    if (!currentFileForUpload || !currentFileForUpload.name || !currentFileForUpload.type) {
-        console.error('No valid file to upload');
+    if (!selectedImages || selectedImages.length === 0) {
+        console.error('No images to upload');
         if (typeof showToast === 'function') {
-            showToast('No image selected or file is invalid', '⚠️');
+            showToast('No images selected', '⚠️');
         }
         cancelImageUpload();
         return;
     }
 
-    console.log('Starting upload process for:', currentFileForUpload.name);
+    console.log(`Starting upload process for ${selectedImages.length} images`);
+    
     uploadInProgress = true;
-
-    const fileToUpload = currentFileForUpload;
+    isUploadingMultiple = selectedImages.length > 1;
 
     const preview = document.getElementById('imagePreviewOverlay');
     if (preview) {
@@ -743,24 +850,74 @@ async function uploadImageFromPreview() {
         setTimeout(() => {
             preview.remove();
             console.log('✅ Preview removed');
-        }, 300);
+        }, 150);
     }
 
     if (typeof showLoading === 'function') {
-        showLoading(true, 'Uploading image...');
+        showLoading(true, isUploadingMultiple ? 
+            `Uploading 1/${selectedImages.length} images...` : 
+            'Uploading image...');
     }
 
     try {
-        await uploadImageToImgBB(fileToUpload);
+        if (isUploadingMultiple) {
+            await uploadMultipleImagesSequentially();
+        } else {
+            await uploadImageToImgBB(selectedImages[0]);
+        }
     } catch (error) {
         console.error('Upload failed:', error);
         if (typeof showToast === 'function') {
-            showToast('Failed to upload image', '❌');
+            showToast('Failed to upload images', '❌');
         }
     } finally {
         uploadInProgress = false;
+        isUploadingMultiple = false;
         if (typeof showLoading === 'function') {
             showLoading(false);
+        }
+    }
+}
+
+async function uploadMultipleImagesSequentially() {
+    console.log(`Uploading ${selectedImages.length} images sequentially`);
+
+    const totalImages = selectedImages.length;
+    let uploadedCount = 0;
+    let failedCount = 0;
+
+    for (let i = 0; i < selectedImages.length; i++) {
+        try {
+            // Update loading text
+            if (typeof showLoading === 'function') {
+                showLoading(true, `Uploading ${i + 1}/${totalImages} images...`);
+            }
+
+            console.log(`Uploading image ${i + 1}/${totalImages}:`, selectedImages[i].name);
+            
+            await uploadImageToImgBB(selectedImages[i]);
+            uploadedCount++;
+            
+            console.log(`✅ Image ${i + 1} uploaded successfully`);
+            
+        } catch (error) {
+            console.error(`❌ Failed to upload image ${i + 1}:`, error);
+            failedCount++;
+            
+            // Continue with next image even if one fails
+            continue;
+        }
+    }
+
+    // Show summary
+    if (uploadedCount > 0) {
+        let message = `Successfully sent ${uploadedCount} image${uploadedCount > 1 ? 's' : ''}`;
+        if (failedCount > 0) {
+            message += `, ${failedCount} failed`;
+        }
+        
+        if (typeof showToast === 'function') {
+            showToast(message, uploadedCount > 0 ? '✅' : '⚠️', 3000);
         }
     }
 }
@@ -817,7 +974,7 @@ async function uploadImageToImgBB(file) {
         formData.append('key', IMGBB_API_KEY);
         formData.append('image', processedFile);
         formData.append('name', `relaytalk_${Date.now()}_${file.name.replace(/\s+/g, '_')}`);
-        
+
         // ⚠️ IMPORTANT: NO expiration parameter = NO AUTO DELETE
         // DO NOT ADD: formData.append('expiration', '600');
 
@@ -884,17 +1041,17 @@ async function uploadImageToImgBB(file) {
         if (error.name === 'AbortError') {
             console.error('Upload timeout');
             if (typeof showToast === 'function') {
-                showToast('Upload timed out. Please check your connection.', '⚠️', 4000);
+                showToast('Upload timed out. Please check your connection.', '⚠️', 3000);
             }
         } else if (error.message.includes('CORS') || error.message.includes('cross-origin')) {
             console.error('CORS error detected.');
             if (typeof showToast === 'function') {
-                showToast('Browser security restriction. Please try again.', '⚠️', 4000);
+                showToast('Browser security restriction. Please try again.', '⚠️', 3000);
             }
         } else if (error.message.includes('network')) {
             console.error('Network error detected.');
             if (typeof showToast === 'function') {
-                showToast('Network error. Please check your connection.', '⚠️', 4000);
+                showToast('Network error. Please check your connection.', '⚠️', 3000);
             }
         }
 
@@ -931,7 +1088,7 @@ async function compressImage(file, maxSize = 1024 * 1024) {
 
                 let width = img.width;
                 let height = img.height;
-                
+
                 const MAX_DIMENSION = isMobileChrome() || isIOSChrome() ? 1200 : 1600;
 
                 if (width > height && width > MAX_DIMENSION) {
@@ -997,6 +1154,7 @@ async function compressImage(file, maxSize = 1024 * 1024) {
 // ====================
 // SEND IMAGE MESSAGE
 // ====================
+
 async function sendImageMessage(imageUrl, thumbnailUrl) {
     console.log('Sending image message to Supabase');
 
@@ -1074,8 +1232,6 @@ async function sendImageMessage(imageUrl, thumbnailUrl) {
         document.getElementById('cameraInput').value = '';
         document.getElementById('galleryInput').value = '';
 
-        currentFileForUpload = null;
-
         if (window.isTyping !== undefined) {
             window.isTyping = false;
         }
@@ -1089,10 +1245,6 @@ async function sendImageMessage(imageUrl, thumbnailUrl) {
         }
 
         console.log('✅ Image message process complete');
-
-        if (typeof showToast === 'function') {
-            showToast('Image sent successfully!', '✅', 2000);
-        }
 
     } catch (error) {
         console.error('Send image failed:', error);
@@ -1157,7 +1309,7 @@ function handleImageLoad(imgElement) {
     console.log('Image loaded successfully');
     imgElement.style.opacity = '1';
     imgElement.classList.add('loaded');
-    
+
     if (isMobileChrome() || isIOSChrome()) {
         imgElement.style.transform = 'translateZ(0)';
     }
@@ -1165,28 +1317,28 @@ function handleImageLoad(imgElement) {
 
 function handleImageError(imgElement, originalUrl) {
     console.error('Failed to load image:', originalUrl);
-    
+
     let fixedUrl = fixImgBBUrls(originalUrl);
-    
+
     if (fixedUrl !== originalUrl) {
         console.log('Retrying with fixed URL:', fixedUrl);
         imgElement.src = fixedUrl;
         return;
     }
-    
+
     fixedUrl = ensureHttpsUrl(originalUrl);
     if (fixedUrl !== originalUrl) {
         console.log('Retrying with HTTPS URL:', fixedUrl);
         imgElement.src = fixedUrl;
         return;
     }
-    
+
     imgElement.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 24 24"><path fill="%23ccc" d="M21,19V5C21,3.9 20.1,3 19,3H5C3.9,3 3,3.9 3,5V19C3,20.1 3.9,21 5,21H19C20.1,21 21,20.1 21,19M8.5,13.5L11,16.5L14.5,12L19,18H5L8.5,13.5Z"/></svg>';
     imgElement.style.opacity = '1';
     imgElement.classList.add('loaded');
-    
+
     if (typeof showToast === 'function') {
-        showToast('Failed to load image', '⚠️', 2000);
+        showToast('Failed to load image', '⚠️', 1500);
     }
 }
 
@@ -1233,7 +1385,7 @@ function viewImageFullscreen(imageUrl) {
     setTimeout(() => {
         const viewer = document.getElementById('imageViewerOverlay');
         if (viewer) viewer.style.opacity = '1';
-        
+
         if (isMobileChrome() || isIOSChrome()) {
             viewer.addEventListener('touchmove', function(e) {
                 e.preventDefault();
@@ -1266,30 +1418,74 @@ function closeImageViewer() {
     const viewer = document.getElementById('imageViewerOverlay');
     if (viewer) {
         viewer.style.opacity = '0';
-        setTimeout(() => viewer.remove(), 300);
+        setTimeout(() => viewer.remove(), 150);
     }
 }
 
 function downloadImage(imageUrl) {
     let downloadUrl = ensureHttpsUrl(imageUrl);
-
+    
+    // Extract filename from URL or create a timestamped one
+    let filename = 'relaytalk-image-' + Date.now() + '.jpg';
+    
+    // Try to get filename from URL
+    try {
+        const urlParts = downloadUrl.split('/');
+        const lastPart = urlParts[urlParts.length - 1];
+        if (lastPart && lastPart.includes('.') && lastPart.length < 100) {
+            filename = lastPart.split('?')[0]; // Remove query parameters
+        }
+    } catch (e) {
+        console.log('Using default filename');
+    }
+    
+    // Create a temporary anchor element
     const link = document.createElement('a');
     link.href = downloadUrl;
-    link.download = 'relaytalk-image-' + Date.now() + '.jpg';
+    link.download = filename;
     link.target = '_blank';
     link.style.display = 'none';
+    
+    // Add to document and trigger click
     document.body.appendChild(link);
+    
+    // Force download by using click and then revoke URL
     link.click();
+    
+    // Clean up
     setTimeout(() => {
         document.body.removeChild(link);
+        // Try to revoke object URL if it's a blob
+        if (downloadUrl.startsWith('blob:')) {
+            URL.revokeObjectURL(downloadUrl);
+        }
     }, 100);
 
     if (typeof showToast === 'function') {
-        showToast('Download started', '📥', 2000);
+        showToast('Download started', '📥', 1500);
     }
 }
 
 async function shareImage(imageUrl) {
+    // First try to download the image and share as file
+    try {
+        const response = await fetch(imageUrl);
+        const blob = await response.blob();
+        const file = new File([blob], 'relaytalk-image.jpg', { type: blob.type });
+
+        if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+            await navigator.share({
+                files: [file],
+                title: 'Image from RelayTalk',
+                text: 'Check out this image shared on RelayTalk!'
+            });
+            return;
+        }
+    } catch (error) {
+        console.log('File sharing not supported, falling back to URL sharing');
+    }
+
+    // Fallback to URL sharing
     if (navigator.share) {
         try {
             await navigator.share({
@@ -1311,14 +1507,14 @@ function copyToClipboard(text) {
     navigator.clipboard.writeText(text)
         .then(() => {
             if (typeof showToast === 'function') {
-                showToast('Image URL copied!', '📋', 2000);
+                showToast('Image URL copied!', '📋', 1500);
             }
         })
         .catch(() => {
             if (typeof showToast === 'function') {
-                showToast('Cannot copy URL', '⚠️', 2000);
+                showToast('Cannot copy URL', '⚠️', 1500);
             }
         });
 }
 
-console.log('✅ Image handler functions exported - NO AUTO DELETE 🎉💯');
+console.log('✅ Image handler functions exported - MULTI-IMAGE SUPPORT 🎉💯');
