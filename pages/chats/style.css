@@ -143,10 +143,10 @@ textarea,
     display: none;
     flex-direction: column;
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
-    animation: fadeIn 0.3s ease;
+    animation: fadeIn 0.2s ease;
     min-width: 300px;
     max-width: 90%;
-    transition: opacity 0.3s ease;
+    transition: opacity 0.2s ease;
     opacity: 0;
     touch-action: manipulation;
 }
@@ -166,7 +166,7 @@ textarea,
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.2s ease;
+    transition: all 0.15s ease;
     border: 2px solid transparent;
     touch-action: manipulation;
 }
@@ -212,7 +212,7 @@ textarea,
     border-radius: 20px;
     cursor: pointer;
     font-size: 0.9rem;
-    transition: all 0.3s ease;
+    transition: all 0.2s ease;
     touch-action: manipulation;
 }
 
@@ -233,7 +233,7 @@ textarea,
     align-items: center;
     justify-content: center;
     font-size: 1.2rem;
-    transition: all 0.3s ease;
+    transition: all 0.2s ease;
     touch-action: manipulation;
 }
 
@@ -260,7 +260,7 @@ textarea,
     cursor: pointer;
     background: rgba(0, 0, 0, 0.2);
     margin-bottom: 8px;
-    transition: all 0.3s ease;
+    transition: all 0.2s ease;
     transform: translate3d(0, 0, 0) !important;
     will-change: transform !important;
     touch-action: manipulation !important;
@@ -287,7 +287,7 @@ textarea,
     backface-visibility: hidden !important;
     will-change: transform !important;
     opacity: 0 !important;
-    transition: opacity 0.3s ease !important;
+    transition: opacity 0.2s ease !important;
     -webkit-user-drag: none !important;
     -webkit-touch-callout: none !important;
 }
@@ -334,7 +334,7 @@ textarea,
     align-items: flex-end;
     padding: 15px;
     opacity: 0;
-    transition: opacity 0.3s ease;
+    transition: opacity 0.2s ease;
 }
 
 .message-image-container:hover .image-overlay {
@@ -385,7 +385,7 @@ textarea,
     align-items: center;
     justify-content: center;
     z-index: 4001 !important;
-    transition: all 0.3s ease;
+    transition: all 0.2s ease;
     touch-action: manipulation !important;
     -webkit-tap-highlight-color: transparent !important;
 }
@@ -440,7 +440,7 @@ textarea,
     cursor: pointer !important;
     font-size: 0.95rem !important;
     font-weight: 500;
-    transition: all 0.3s ease;
+    transition: all 0.2s ease;
     display: flex;
     align-items: center;
     gap: 8px;
@@ -515,7 +515,7 @@ textarea,
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.3s ease;
+    transition: all 0.2s ease;
     touch-action: manipulation !important;
 }
 
@@ -542,7 +542,7 @@ textarea,
     display: flex;
     align-items: center;
     gap: 15px;
-    transition: all 0.3s ease;
+    transition: all 0.2s ease;
     text-align: left;
     touch-action: manipulation !important;
     -webkit-tap-highlight-color: transparent !important;
@@ -561,7 +561,7 @@ textarea,
 }
 
 /* ==================== */
-/* IMAGE PREVIEW */
+/* IMAGE PREVIEW - MULTI-IMAGE SUPPORT */
 /* ==================== */
 .image-preview-overlay {
     position: fixed !important;
@@ -619,7 +619,7 @@ textarea,
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.3s ease;
+    transition: all 0.2s ease;
     touch-action: manipulation !important;
 }
 
@@ -634,17 +634,40 @@ textarea,
     overflow: hidden;
     background: rgba(0, 0, 0, 0.2);
     touch-action: manipulation !important;
+    max-height: 400px;
+    min-height: 250px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .preview-image {
     width: 100% !important;
     height: auto !important;
     display: block !important;
-    max-height: 300px !important;
+    max-height: 100% !important;
     object-fit: contain !important;
     -webkit-backface-visibility: hidden !important;
     -webkit-transform: translateZ(0) !important;
     transform: translateZ(0) !important;
+}
+
+.preview-counter {
+    position: absolute;
+    top: 15px;
+    left: 15px;
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    z-index: 2;
+}
+
+.preview-image-wrapper {
+    position: relative;
+    width: 100%;
 }
 
 .preview-actions {
@@ -661,7 +684,7 @@ textarea,
     font-size: 1rem !important;
     font-weight: 600;
     cursor: pointer !important;
-    transition: all 0.3s ease;
+    transition: all 0.2s ease;
     touch-action: manipulation !important;
     -webkit-tap-highlight-color: transparent !important;
 }
@@ -697,6 +720,21 @@ textarea,
     color: #a0a0c0;
     font-size: 0.9rem;
     margin: 5px 0;
+}
+
+.preview-progress {
+    margin: 15px 0;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    overflow: hidden;
+    height: 6px;
+}
+
+.preview-progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #667eea, #764ba2);
+    width: 0%;
+    transition: width 0.3s ease;
 }
 
 /* ==================== */
@@ -736,7 +774,7 @@ textarea,
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.2s ease;
+    transition: all 0.15s ease;
     touch-action: manipulation !important;
     -webkit-tap-highlight-color: transparent !important;
 }
@@ -814,7 +852,7 @@ textarea,
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.3s ease;
+    transition: all 0.2s ease;
     touch-action: manipulation !important;
     -webkit-tap-highlight-color: transparent !important;
 }
@@ -865,7 +903,7 @@ textarea,
     align-items: center;
     justify-content: center;
     cursor: pointer !important;
-    transition: all 0.3s ease;
+    transition: all 0.2s ease;
     flex-shrink: 0;
     touch-action: manipulation !important;
     -webkit-tap-highlight-color: transparent !important;
@@ -880,7 +918,7 @@ textarea,
     width: 22px;
     height: 22px;
     fill: #a0a0c0;
-    transition: fill 0.3s ease;
+    transition: fill 0.2s ease;
 }
 
 .attach-btn:hover .attach-icon {
@@ -901,7 +939,7 @@ textarea,
     min-height: 50px !important;
     max-height: 130px !important;
     overflow-y: auto;
-    transition: all 0.3s ease;
+    transition: all 0.2s ease;
     touch-action: manipulation !important;
     -webkit-appearance: none !important;
     -webkit-tap-highlight-color: transparent !important;
@@ -912,7 +950,7 @@ textarea,
     .message-input {
         font-size: 16px !important;
     }
-    
+
     body.chrome-mobile .message-input {
         font-size: 16px !important;
     }
@@ -936,7 +974,7 @@ textarea,
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    transition: all 0.3s ease;
+    transition: all 0.2s ease;
     touch-action: manipulation !important;
     -webkit-tap-highlight-color: transparent !important;
 }
@@ -1003,7 +1041,7 @@ textarea,
     border-radius: 22px;
     word-wrap: break-word;
     line-height: 1.4;
-    animation: fadeIn 0.3s ease;
+    animation: fadeIn 0.15s ease;
     transform: translate3d(0, 0, 0) !important;
     backface-visibility: hidden !important;
     -webkit-backface-visibility: hidden !important;
@@ -1171,6 +1209,18 @@ textarea,
     z-index: 2000 !important;
     backdrop-filter: blur(10px) !important;
     -webkit-backdrop-filter: blur(10px) !important;
+    animation: modalFadeIn 0.15s ease;
+}
+
+@keyframes modalFadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
 }
 
 .modal-content {
@@ -1182,6 +1232,18 @@ textarea,
     max-width: 400px !important;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4) !important;
     margin: var(--safe-area-top) var(--safe-area-right) var(--safe-area-bottom) var(--safe-area-left) !important;
+    animation: modalSlideUp 0.2s ease;
+}
+
+@keyframes modalSlideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .modal-header {
@@ -1211,10 +1273,9 @@ textarea,
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.3s ease;
+    transition: all 0.15s ease;
     touch-action: manipulation !important;
 }
-
 .modal-close:hover {
     background: rgba(255, 255, 255, 0.2) !important;
     transform: rotate(90deg) !important;
@@ -1282,7 +1343,7 @@ textarea,
     color: white !important;
     font-size: 1rem !important;
     cursor: pointer !important;
-    transition: all 0.3s ease;
+    transition: all 0.2s ease;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1316,7 +1377,7 @@ textarea,
     font-size: 1rem !important;
     font-weight: 600;
     cursor: pointer !important;
-    transition: all 0.3s ease;
+    transition: all 0.15s ease;
     touch-action: manipulation !important;
     -webkit-tap-highlight-color: transparent !important;
 }
@@ -1335,7 +1396,7 @@ textarea,
     font-size: 1rem !important;
     font-weight: 600;
     cursor: pointer !important;
-    transition: all 0.3s ease;
+    transition: all 0.15s ease;
     touch-action: manipulation !important;
     -webkit-tap-highlight-color: transparent !important;
 }
@@ -1392,12 +1453,12 @@ textarea,
 }
 
 .message-image-container {
-    animation: chromeImageFadeIn 0.2s ease forwards !important;
+    animation: chromeImageFadeIn 0.15s ease forwards !important;
 }
 
 /* CHROME MOBILE IMAGE LOADING ANIMATION */
 body.chrome-mobile .message-image {
-    animation: chromeMobileImageLoad 0.5s ease forwards !important;
+    animation: chromeMobileImageLoad 0.3s ease forwards !important;
 }
 
 @keyframes chromeMobileImageLoad {
@@ -1414,6 +1475,7 @@ body.chrome-mobile .message-image {
 /* ==================== */
 /* RESPONSIVE DESIGN - CHROME MOBILE FIRST */
 /* ==================== */
+
 @media (max-width: 768px) {
     .color-picker-overlay {
         bottom: 120px;
@@ -1491,7 +1553,7 @@ body.chrome-mobile .message-image {
     body.chrome-mobile .message-image-container {
         max-width: 250px !important;
     }
-    
+
     body.chrome-mobile .message-image {
         max-height: 350px !important;
     }
@@ -1538,12 +1600,12 @@ body.chrome-mobile .message-image {
         height: 60px !important;
         padding-top: max(12px, var(--safe-area-top)) !important;
     }
-    
+
     body.chrome-mobile .main-content {
         top: 60px !important;
         top: calc(60px + var(--safe-area-top)) !important;
     }
-    
+
     body.chrome-mobile .message-input-wrapper {
         padding: 10px 12px calc(12px + var(--safe-area-bottom)) !important;
     }
@@ -1618,22 +1680,4 @@ body {
         height: 100vh !important;
         height: calc(var(--vh, 1vh) * 100) !important;
     }
-}
-
-/* ==================== */
-/* CHROME MOBILE DNS FIX INDICATOR */
-/* ==================== */
-body.chrome-mobile::before {
-    content: "📱 Chrome Mobile Optimized";
-    position: fixed;
-    top: 10px;
-    right: 10px;
-    background: rgba(0, 0, 0, 0.5);
-    color: white;
-    padding: 5px 10px;
-    border-radius: 10px;
-    font-size: 0.7rem;
-    z-index: 9999;
-    opacity: 0.3;
-    pointer-events: none;
 }
