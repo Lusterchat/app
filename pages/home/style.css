@@ -5,14 +5,74 @@
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* Remove default focus outline */
+*:focus {
+    outline: none;
 }
 
 body {
-    background: linear-gradient(135deg, #0a0a1a 0%, #1a1a2e 100%);
-    color: white;
+    background: linear-gradient(135deg, #f8fbff 0%, #e6f0ff 100%);
+    color: #333333;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     min-height: 100vh;
     padding-bottom: 80px;
+}
+
+/* Make all buttons and interactive elements unselectable */
+button,
+.btn-primary,
+.btn-secondary,
+.search-btn,
+.back-btn,
+.nav-btn,
+.view-all-btn,
+.send-request-btn,
+.accept-btn,
+.decline-btn,
+.btn-success,
+.btn-danger,
+.btn-small,
+.feature-card,
+.action-card,
+.friend-card {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    cursor: pointer;
+}
+
+/* Remove default button styling */
+button {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+}
+
+/* For iOS/Safari */
+button,
+input[type="button"],
+input[type="submit"],
+input[type="reset"] {
+    -webkit-appearance: none;
+}
+
+/* Remove Firefox dotted outline */
+button::-moz-focus-inner {
+    border: 0;
+}
+
+/* But allow text selection in input fields and textareas */
+input,
+textarea,
+[contenteditable="true"] {
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+    user-select: text;
 }
 
 /* Loading Indicator */
@@ -22,12 +82,12 @@ body {
     left: 0;
     width: 100%;
     height: 100%;
-    background: linear-gradient(135deg, #0a0a1a 0%, #1a1a2e 100%);
+    background: linear-gradient(135deg, #f8fbff 0%, #e6f0ff 100%);
     display: flex;
     justify-content: center;
     align-items: center;
     font-size: 1.5rem;
-    color: #667eea;
+    color: #007acc;
     z-index: 9999;
     transition: opacity 0.3s ease;
 }
@@ -52,9 +112,9 @@ body {
     justify-content: space-between;
     align-items: center;
     padding: 20px;
-    background: rgba(26, 26, 46, 0.9);
+    background: rgba(255, 255, 255, 0.95);
     backdrop-filter: blur(20px);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    border-bottom: 1px solid rgba(0, 122, 204, 0.2);
     position: sticky;
     top: 0;
     z-index: 100;
@@ -62,9 +122,9 @@ body {
 
 /* Buttons */
 .search-btn {
-    background: rgba(102, 126, 234, 0.15);
-    border: 1px solid rgba(102, 126, 234, 0.3);
-    color: #667eea;
+    background: rgba(0, 122, 204, 0.15);
+    border: 1px solid rgba(0, 122, 204, 0.3);
+    color: #007acc;
     padding: 10px 20px;
     border-radius: 25px;
     font-size: 1rem;
@@ -77,15 +137,15 @@ body {
 }
 
 .search-btn:hover {
-    background: rgba(102, 126, 234, 0.25);
+    background: rgba(0, 122, 204, 0.25);
     transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(102, 126, 234, 0.2);
+    box-shadow: 0 5px 15px rgba(0, 122, 204, 0.2);
 }
 
 .back-btn {
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    color: white;
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(0, 122, 204, 0.2);
+    color: #007acc;
     padding: 10px 20px;
     border-radius: 25px;
     font-size: 1rem;
@@ -97,15 +157,16 @@ body {
 }
 
 .back-btn:hover {
-    background: rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 1);
     transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0, 122, 204, 0.2);
 }
 
 /* Logo */
 .logo-top {
     font-size: 1.8rem;
     font-weight: 700;
-    background: linear-gradient(45deg, #667eea, #764ba2);
+    background: linear-gradient(45deg, #007acc, #00b4d8);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -115,7 +176,7 @@ body {
 .page-title {
     font-size: 1.8rem;
     font-weight: 700;
-    background: linear-gradient(45deg, #667eea, #764ba2);
+    background: linear-gradient(45deg, #007acc, #00b4d8);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -133,10 +194,10 @@ body {
     text-align: center;
     margin: 30px 0 40px;
     padding: 30px;
-    background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+    background: linear-gradient(135deg, rgba(0, 122, 204, 0.1) 0%, rgba(0, 180, 216, 0.1) 100%);
     border-radius: 25px;
-    border: 1px solid rgba(102, 126, 234, 0.2);
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(0, 122, 204, 0.2);
+    box-shadow: 0 10px 30px rgba(0, 122, 204, 0.15);
     animation: fadeIn 0.6s ease;
 }
 
@@ -150,6 +211,7 @@ body {
     margin-bottom: 15px;
     display: inline-block;
     animation: bounce 2s infinite;
+    color: #007acc;
 }
 
 @keyframes bounce {
@@ -160,16 +222,24 @@ body {
 .welcome-title {
     font-size: 2rem;
     margin-bottom: 10px;
-    background: linear-gradient(45deg, #667eea, #764ba2);
+    background: linear-gradient(45deg, #007acc, #00b4d8);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
 }
 
 .welcome-subtitle {
-    color: #a0a0c0;
+    color: #666666;
     font-size: 1.1rem;
     margin-bottom: 20px;
+    line-height: 1.4;
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
 }
 
 /* Quick Actions */
@@ -181,36 +251,49 @@ body {
 }
 
 .action-card {
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid rgba(0, 122, 204, 0.2);
     border-radius: 20px;
     padding: 25px;
     text-align: center;
     cursor: pointer;
     transition: all 0.2s ease;
+    box-shadow: 0 5px 15px rgba(0, 122, 204, 0.1);
 }
 
 .action-card:hover {
-    background: rgba(102, 126, 234, 0.1);
+    background: rgba(255, 255, 255, 1);
     transform: translateY(-5px);
-    border-color: rgba(102, 126, 234, 0.3);
+    border-color: rgba(0, 122, 204, 0.3);
+    box-shadow: 0 10px 25px rgba(0, 122, 204, 0.15);
 }
 
 .action-icon {
     font-size: 2.5rem;
     margin-bottom: 15px;
-    color: #667eea;
+    color: #007acc;
 }
 
 .action-title {
     font-size: 1.2rem;
     margin-bottom: 8px;
     font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: #005a9e;
 }
 
 .action-desc {
-    color: #a0a0c0;
+    color: #555555;
     font-size: 0.9rem;
+    line-height: 1.4;
+    max-height: 2.8em;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    word-break: break-word;
 }
 
 /* Section Headers */
@@ -223,21 +306,24 @@ body {
 
 .section-title {
     font-size: 1.5rem;
-    color: white;
+    color: #005a9e;
     display: flex;
     align-items: center;
     gap: 10px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .section-title-icon {
     font-size: 1.5rem;
-    color: #667eea;
+    color: #007acc;
 }
 
 .view-all-btn {
-    background: rgba(102, 126, 234, 0.1);
-    color: #667eea;
-    border: 1px solid rgba(102, 126, 234, 0.3);
+    background: rgba(0, 122, 204, 0.1);
+    color: #007acc;
+    border: 1px solid rgba(0, 122, 204, 0.3);
     padding: 8px 16px;
     border-radius: 15px;
     font-size: 0.9rem;
@@ -246,8 +332,9 @@ body {
 }
 
 .view-all-btn:hover {
-    background: rgba(102, 126, 234, 0.2);
+    background: rgba(0, 122, 204, 0.2);
     transform: translateY(-2px);
+    box-shadow: 0 3px 10px rgba(0, 122, 204, 0.2);
 }
 
 /* Friends Grid */
@@ -259,20 +346,25 @@ body {
 
 /* Friend Card */
 .friend-card {
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid rgba(0, 122, 204, 0.2);
     border-radius: 20px;
     padding: 20px;
     cursor: pointer;
     transition: all 0.2s ease;
     position: relative;
     overflow: hidden;
+    min-height: 120px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    box-shadow: 0 5px 15px rgba(0, 122, 204, 0.1);
 }
 
 .friend-card:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 1);
     transform: translateY(-5px);
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 10px 25px rgba(0, 122, 204, 0.15);
 }
 
 .friend-card:hover::before {
@@ -282,7 +374,7 @@ body {
     left: 0;
     right: 0;
     height: 3px;
-    background: linear-gradient(90deg, #667eea, #764ba2);
+    background: linear-gradient(90deg, #007acc, #00b4d8);
 }
 
 .friend-card-header {
@@ -290,12 +382,13 @@ body {
     align-items: center;
     gap: 15px;
     margin-bottom: 15px;
+    min-width: 0;
 }
 
 .friend-avatar {
     width: 60px;
     height: 60px;
-    background: linear-gradient(45deg, #667eea, #764ba2);
+    background: linear-gradient(45deg, #007acc, #00b4d8);
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -303,6 +396,7 @@ body {
     font-size: 1.3rem;
     font-weight: bold;
     position: relative;
+    color: white;
 }
 
 .status-indicator {
@@ -312,7 +406,7 @@ body {
     width: 14px;
     height: 14px;
     border-radius: 50%;
-    border: 2px solid #1a1a2e;
+    border: 2px solid #ffffff;
 }
 
 .status-online {
@@ -320,21 +414,27 @@ body {
 }
 
 .status-offline {
-    background: #6c757d;
+    background: #888888;
 }
 
 .friend-info {
     flex: 1;
+    min-width: 0;
 }
 
 .friend-name {
     font-size: 1.2rem;
     font-weight: 600;
     margin-bottom: 5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: #005a9e;
+    max-width: 180px;
 }
 
 .friend-username {
-    color: #a0a0c0;
+    color: #666666;
     font-size: 0.9rem;
 }
 
@@ -343,11 +443,15 @@ body {
     align-items: center;
     gap: 8px;
     font-size: 0.9rem;
-    color: #a0a0c0;
+    color: #555555;
     padding: 8px 12px;
-    background: rgba(255, 255, 255, 0.05);
+    background: rgba(255, 255, 255, 0.9);
     border-radius: 10px;
     margin-top: 10px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    border: 1px solid rgba(0, 122, 204, 0.2);
 }
 
 /* Online Counter */
@@ -361,6 +465,9 @@ body {
     border-radius: 20px;
     font-size: 0.85rem;
     margin-left: 15px;
+    flex-shrink: 0;
+    white-space: nowrap;
+    border: 1px solid rgba(40, 167, 69, 0.2);
 }
 
 /* Bottom Navigation */
@@ -369,19 +476,20 @@ body {
     bottom: 0;
     left: 0;
     right: 0;
-    background: rgba(26, 26, 46, 0.95);
+    background: rgba(255, 255, 255, 0.95);
     backdrop-filter: blur(20px);
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    border-top: 1px solid rgba(0, 122, 204, 0.2);
     display: flex;
     justify-content: space-around;
     padding: 15px 0;
     z-index: 100;
+    box-shadow: 0 -2px 20px rgba(0, 122, 204, 0.1);
 }
 
 .nav-btn {
     background: none;
     border: none;
-    color: #a0a0c0;
+    color: #888888;
     font-size: 0.9rem;
     cursor: pointer;
     display: flex;
@@ -395,12 +503,13 @@ body {
 }
 
 .nav-btn.active {
-    color: #667eea;
-    background: rgba(102, 126, 234, 0.1);
+    color: #007acc;
+    background: rgba(0, 122, 204, 0.1);
+    border: 1px solid rgba(0, 122, 204, 0.2);
 }
 
 .nav-btn:hover {
-    color: white;
+    color: #007acc;
     transform: translateY(-3px);
 }
 
@@ -423,31 +532,34 @@ body {
     justify-content: center;
     font-weight: bold;
     padding: 0 5px;
+    border: 2px solid #ffffff;
 }
 
 /* Empty States */
 .empty-state {
     text-align: center;
     padding: 60px 20px;
-    color: #a0a0c0;
+    color: #888888;
 }
 
 .empty-icon {
     font-size: 4rem;
     margin-bottom: 20px;
     opacity: 0.3;
+    color: #007acc;
 }
 
 .empty-title {
     font-size: 1.3rem;
     margin-bottom: 10px;
-    color: white;
+    color: #005a9e;
 }
 
 .empty-desc {
     font-size: 0.95rem;
     max-width: 300px;
     margin: 0 auto;
+    color: #666666;
 }
 
 /* Modals */
@@ -457,7 +569,7 @@ body {
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(10, 10, 26, 0.95);
+    background: rgba(248, 251, 255, 0.95);
     display: none;
     justify-content: center;
     align-items: center;
@@ -467,15 +579,15 @@ body {
 }
 
 .modal-content {
-    background: rgba(26, 26, 46, 0.95);
-    border: 1px solid rgba(102, 126, 234, 0.2);
+    background: rgba(255, 255, 255, 0.98);
+    border: 1px solid rgba(0, 122, 204, 0.2);
     border-radius: 25px;
     padding: 30px;
     width: 90%;
     max-width: 500px;
     max-height: 80vh;
     overflow-y: auto;
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 20px 50px rgba(0, 122, 204, 0.2);
     animation: modalSlideIn 0.4s ease;
 }
 
@@ -490,21 +602,21 @@ body {
     align-items: center;
     margin-bottom: 25px;
     padding-bottom: 15px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    border-bottom: 1px solid rgba(0, 122, 204, 0.2);
 }
 
 .modal-title {
     font-size: 1.5rem;
-    color: white;
+    color: #005a9e;
     display: flex;
     align-items: center;
     gap: 10px;
 }
 
 .modal-close {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.9);
     border: none;
-    color: #a0a0c0;
+    color: #888888;
     font-size: 1.5rem;
     cursor: pointer;
     padding: 5px;
@@ -515,11 +627,12 @@ body {
     align-items: center;
     justify-content: center;
     transition: all 0.2s;
+    border: 1px solid rgba(0, 122, 204, 0.2);
 }
 
 .modal-close:hover {
-    background: rgba(255, 255, 255, 0.2);
-    color: white;
+    background: rgba(0, 122, 204, 0.1);
+    color: #007acc;
 }
 
 /* Search Input */
@@ -531,18 +644,18 @@ body {
 .search-input {
     width: 100%;
     padding: 16px 20px 16px 50px;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(0, 122, 204, 0.3);
     border-radius: 15px;
-    color: white;
+    color: #333333;
     font-size: 1rem;
     transition: all 0.2s;
 }
 
 .search-input:focus {
     outline: none;
-    border-color: rgba(102, 126, 234, 0.5);
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    border-color: rgba(0, 122, 204, 0.5);
+    box-shadow: 0 0 0 3px rgba(0, 122, 204, 0.1);
 }
 
 .search-icon {
@@ -550,13 +663,13 @@ body {
     left: 20px;
     top: 50%;
     transform: translateY(-50%);
-    color: #667eea;
+    color: #007acc;
     font-size: 1.1rem;
 }
 
 /* Search Results */
 .search-result {
-    background: rgba(255, 255, 255, 0.05);
+    background: rgba(255, 255, 255, 0.9);
     border-radius: 15px;
     padding: 18px;
     margin-bottom: 12px;
@@ -565,13 +678,14 @@ body {
     justify-content: space-between;
     gap: 15px;
     transition: all 0.2s;
-    border: 1px solid transparent;
+    border: 1px solid rgba(0, 122, 204, 0.2);
 }
 
 .search-result:hover {
-    background: rgba(255, 255, 255, 0.1);
-    border-color: rgba(102, 126, 234, 0.2);
+    background: rgba(255, 255, 255, 1);
+    border-color: rgba(0, 122, 204, 0.3);
     transform: translateX(5px);
+    box-shadow: 0 5px 15px rgba(0, 122, 204, 0.1);
 }
 
 .search-user-info {
@@ -584,34 +698,45 @@ body {
 .search-avatar {
     width: 45px;
     height: 45px;
-    background: linear-gradient(45deg, #667eea, #764ba2);
+    background: linear-gradient(45deg, #007acc, #00b4d8);
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     font-weight: bold;
     font-size: 1.1rem;
+    color: white;
 }
 
 .search-user-details {
     flex: 1;
+    min-width: 0;
 }
 
 .search-name {
     font-weight: 600;
     margin-bottom: 4px;
     font-size: 1.05rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 200px;
+    color: #005a9e;
 }
 
 .search-username {
-    color: #a0a0c0;
+    color: #666666;
     font-size: 0.85rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 200px;
 }
 
 .send-request-btn {
-    background: rgba(102, 126, 234, 0.2);
-    color: #667eea;
-    border: 1px solid rgba(102, 126, 234, 0.3);
+    background: rgba(0, 122, 204, 0.2);
+    color: #007acc;
+    border: 1px solid rgba(0, 122, 204, 0.3);
     padding: 8px 16px;
     border-radius: 10px;
     cursor: pointer;
@@ -622,8 +747,9 @@ body {
 }
 
 .send-request-btn:hover {
-    background: rgba(102, 126, 234, 0.3);
+    background: rgba(0, 122, 204, 0.3);
     transform: translateY(-2px);
+    box-shadow: 0 3px 10px rgba(0, 122, 204, 0.2);
 }
 
 .send-request-btn.sent {
@@ -634,22 +760,24 @@ body {
 
 /* Notifications */
 .notification-item {
-    background: rgba(255, 255, 255, 0.05);
+    background: rgba(255, 255, 255, 0.9);
     border-radius: 15px;
     padding: 18px;
     margin-bottom: 12px;
-    border-left: 4px solid #667eea;
+    border-left: 4px solid #007acc;
     transition: all 0.2s;
+    border: 1px solid rgba(0, 122, 204, 0.2);
 }
 
 .notification-item.unread {
-    background: rgba(102, 126, 234, 0.1);
-    border-left-color: #764ba2;
+    background: rgba(0, 122, 204, 0.1);
+    border-left-color: #00b4d8;
 }
 
 .notification-item:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 1);
     transform: translateX(5px);
+    box-shadow: 0 5px 15px rgba(0, 122, 204, 0.1);
 }
 
 .notification-content {
@@ -661,13 +789,14 @@ body {
 .notification-avatar {
     width: 40px;
     height: 40px;
-    background: linear-gradient(45deg, #667eea, #764ba2);
+    background: linear-gradient(45deg, #007acc, #00b4d8);
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     font-weight: bold;
     font-size: 1rem;
+    color: white;
 }
 
 .notification-text {
@@ -677,10 +806,11 @@ body {
 .notification-title {
     font-weight: 600;
     margin-bottom: 5px;
+    color: #005a9e;
 }
 
 .notification-time {
-    color: #a0a0c0;
+    color: #666666;
     font-size: 0.8rem;
     display: flex;
     align-items: center;
@@ -700,35 +830,72 @@ body {
 }
 
 .accept-btn, .decline-btn {
-    padding: 8px 16px;
-    border-radius: 10px;
+    padding: 10px 20px;
+    border-radius: 12px;
     border: none;
     font-size: 0.9rem;
     cursor: pointer;
     transition: all 0.2s;
-    font-weight: 500;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    -webkit-tap-highlight-color: transparent;
+    flex: 1;
+    min-width: 90px;
 }
 
 .accept-btn {
-    background: rgba(40, 167, 69, 0.2);
-    color: #28a745;
-    border: 1px solid rgba(40, 167, 69, 0.3);
+    background: linear-gradient(45deg, #28a745, #20c997);
+    color: white;
 }
 
 .accept-btn:hover {
-    background: rgba(40, 167, 69, 0.3);
+    background: linear-gradient(45deg, #218838, #1ba87e);
     transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(40, 167, 69, 0.3);
+}
+
+.accept-btn:active {
+    transform: scale(0.95);
 }
 
 .decline-btn {
-    background: rgba(220, 53, 69, 0.2);
-    color: #dc3545;
-    border: 1px solid rgba(220, 53, 69, 0.3);
+    background: linear-gradient(45deg, #dc3545, #e83e8c);
+    color: white;
 }
 
 .decline-btn:hover {
-    background: rgba(220, 53, 69, 0.3);
+    background: linear-gradient(45deg, #c82333, #d63384);
     transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(220, 53, 69, 0.3);
+}
+
+.decline-btn:active {
+    transform: scale(0.95);
+}
+
+/* Add icons to buttons */
+.accept-btn::before {
+    content: "✓";
+    font-weight: bold;
+    font-size: 1.1rem;
+}
+
+.decline-btn::before {
+    content: "✗";
+    font-weight: bold;
+    font-size: 1.1rem;
+}
+
+/* Button loading states */
+.accept-btn:disabled, .decline-btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    transform: none !important;
+    box-shadow: none !important;
 }
 
 /* Responsive */
@@ -758,6 +925,40 @@ body {
 
     .view-all-btn {
         align-self: flex-start;
+    }
+
+    /* Adjust text widths for mobile */
+    
+    .friend-name {
+        max-width: 150px;
+        font-size: 1.1rem;
+    }
+
+    .friend-status {
+        font-size: 0.85rem;
+        padding: 6px 10px;
+    }
+
+    .search-name, .search-username {
+        max-width: 150px;
+    }
+
+    .welcome-title {
+        font-size: 1.6rem;
+    }
+
+    .section-title {
+        font-size: 1.3rem;
+    }
+
+    /* Stack buttons on small screens */
+    .notification-actions {
+        flex-direction: column;
+        width: 100%;
+    }
+
+    .accept-btn, .decline-btn {
+        width: 100%;
     }
 }
 
@@ -803,14 +1004,44 @@ body {
         height: 16px;
         font-size: 0.6rem;
     }
+
+    .friend-name {
+        max-width: 120px;
+        font-size: 1rem;
+    }
+
+    .friend-status {
+        font-size: 0.8rem;
+        padding: 5px 8px;
+    }
+
+    .search-name, .search-username {
+        max-width: 120px;
+    }
+
+    .welcome-title {
+        font-size: 1.4rem;
+    }
+
+    .section-title {
+        font-size: 1.2rem;
+        flex-wrap: wrap;
+    }
+
+    .online-counter {
+        margin-left: 10px;
+        font-size: 0.8rem;
+        padding: 4px 10px;
+    }
+
+    .action-title {
+        font-size: 1.1rem;
+    }
+
+    .action-desc {
+        font-size: 0.85rem;
+    }
 }
-
-
-
-
-
-
-
 
 /* Toast Notification System */
 .toast-container {
@@ -825,13 +1056,13 @@ body {
 }
 
 .toast {
-    background: rgba(26, 26, 46, 0.95);
+    background: rgba(255, 255, 255, 0.95);
     backdrop-filter: blur(20px);
-    border: 1px solid rgba(102, 126, 234, 0.3);
+    border: 1px solid rgba(0, 122, 204, 0.3);
     border-radius: 15px;
     padding: 18px 20px;
-    color: white;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    color: #333333;
+    box-shadow: 0 10px 30px rgba(0, 122, 204, 0.15);
     animation: toastSlideIn 0.3s ease forwards;
     display: flex;
     align-items: flex-start;
@@ -894,18 +1125,19 @@ body {
     display: flex;
     align-items: center;
     gap: 8px;
+    color: #005a9e;
 }
 
 .toast-message {
     font-size: 0.9rem;
-    color: #d0d0e0;
+    color: #555555;
     line-height: 1.4;
 }
 
 .toast-close {
     background: none;
     border: none;
-    color: #a0a0c0;
+    color: #888888;
     font-size: 1.2rem;
     cursor: pointer;
     padding: 0;
@@ -920,14 +1152,14 @@ body {
 }
 
 .toast-close:hover {
-    background: rgba(255, 255, 255, 0.1);
-    color: white;
+    background: rgba(0, 122, 204, 0.1);
+    color: #007acc;
 }
 
 /* Toast Types */
 .toast-success {
     border-left: 4px solid #28a745;
-    background: rgba(26, 26, 46, 0.98);
+    background: rgba(255, 255, 255, 0.98);
     border-color: rgba(40, 167, 69, 0.5);
 }
 
@@ -937,7 +1169,7 @@ body {
 
 .toast-error {
     border-left: 4px solid #dc3545;
-    background: rgba(26, 26, 46, 0.98);
+    background: rgba(255, 255, 255, 0.98);
     border-color: rgba(220, 53, 69, 0.5);
 }
 
@@ -947,7 +1179,7 @@ body {
 
 .toast-warning {
     border-left: 4px solid #ffc107;
-    background: rgba(26, 26, 46, 0.98);
+    background: rgba(255, 255, 255, 0.98);
     border-color: rgba(255, 193, 7, 0.5);
 }
 
@@ -956,13 +1188,13 @@ body {
 }
 
 .toast-info {
-    border-left: 4px solid #667eea;
-    background: rgba(26, 26, 46, 0.98);
-    border-color: rgba(102, 126, 234, 0.5);
+    border-left: 4px solid #007acc;
+    background: rgba(255, 255, 255, 0.98);
+    border-color: rgba(0, 122, 204, 0.5);
 }
 
 .toast-info .toast-icon {
-    color: #667eea;
+    color: #007acc;
 }
 
 /* Progress bar for toast */
@@ -972,14 +1204,14 @@ body {
     left: 0;
     right: 0;
     height: 3px;
-    background: rgba(255, 255, 255, 0.2);
+    background: rgba(0, 122, 204, 0.2);
     border-radius: 0 0 15px 15px;
     overflow: hidden;
 }
 
 .toast-progress-bar {
     height: 100%;
-    background: linear-gradient(90deg, #667eea, #764ba2);
+    background: linear-gradient(90deg, #007acc, #00b4d8);
     animation: progressBar 5s linear forwards;
 }
 
@@ -1002,449 +1234,18 @@ body {
     }
 }
 
-
-/* ==================== HOME PAGE TEXT OVERFLOW FIXES ==================== */
-
-/* Friend card in home page */
-.friend-info {
-    flex: 1;
-    min-width: 0; /* This allows text truncation */
-}
-
-/* Friend name - single line with ellipsis */
-.friend-name {
-    font-size: 1.2rem;
-    font-weight: 600;
-    margin-bottom: 5px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    color: white;
-    max-width: 180px; /* Limit width */
-}
-
-/* Friend status - single line */
-.friend-status {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 0.9rem;
-    color: #a0a0c0;
-    padding: 8px 12px;
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 10px;
-    margin-top: 10px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
 /* Status dot stays visible */
 .status-dot {
     width: 8px;
     height: 8px;
     border-radius: 50%;
-    flex-shrink: 0; /* Don't shrink */
-}
-
-/* For search results in home page */
-.search-user-details {
-    flex: 1;
-    min-width: 0; /* Allow truncation */
-}
-
-.search-name {
-    font-weight: 600;
-    margin-bottom: 4px;
-    font-size: 1.05rem;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 200px;
-}
-
-.search-username {
-    color: #a0a0c0;
-    font-size: 0.85rem;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 200px;
-}
-
-/* Action cards in home page */
-.action-title {
-    font-size: 1.2rem;
-    margin-bottom: 8px;
-    font-weight: 600;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.action-desc {
-    color: #a0a0c0;
-    font-size: 0.9rem;
-    line-height: 1.4;
-    max-height: 2.8em; /* 2 lines max */
-    overflow: hidden;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    word-break: break-word;
-}
-
-/* Welcome section */
-.welcome-title {
-    font-size: 2rem;
-    margin-bottom: 10px;
-    background: linear-gradient(45deg, #667eea, #764ba2);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 100%;
-}
-
-.welcome-subtitle {
-    color: #a0a0c0;
-    font-size: 1.1rem;
-    margin-bottom: 20px;
-    line-height: 1.4;
-    max-width: 600px;
-    margin-left: auto;
-    margin-right: auto;
-}
-
-/* Section titles */
-.section-title {
-    font-size: 1.5rem;
-    color: white;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-/* Online counter */
-.online-counter {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 5px 12px;
-    background: rgba(40, 167, 69, 0.1);
-    color: #28a745;
-    border-radius: 20px;
-    font-size: 0.85rem;
-    margin-left: 15px;
-    flex-shrink: 0; /* Don't shrink */
-    white-space: nowrap;
-}
-
-/* ==================== NOTIFICATION BUTTONS IN HOME PAGE ==================== */
-
-/* Make sure notification buttons in home page are also styled */
-.notification-actions {
-    display: flex;
-    gap: 8px;
-}
-
-/* Accept Button - Beautiful green */
-.accept-btn {
-    background: linear-gradient(45deg, #28a745, #20c997);
-    color: white;
-    border: none;
-    padding: 10px 20px;
-    border-radius: 12px;
-    font-size: 0.9rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    justify-content: center;
-    box-shadow: 0 4px 12px rgba(40, 167, 69, 0.2);
-    -webkit-tap-highlight-color: transparent;
-    flex: 1;
-    min-width: 90px; /* Minimum width */
-}
-
-.accept-btn:hover {
-    background: linear-gradient(45deg, #218838, #1ba87e);
-    transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(40, 167, 69, 0.3);
-}
-
-.accept-btn:active {
-    transform: scale(0.95);
-}
-
-/* Decline Button - Beautiful red */
-.decline-btn {
-    background: linear-gradient(45deg, #dc3545, #e83e8c);
-    color: white;
-    border: none;
-    padding: 10px 20px;
-    border-radius: 12px;
-    font-size: 0.9rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    justify-content: center;
-    box-shadow: 0 4px 12px rgba(220, 53, 69, 0.2);
-    -webkit-tap-highlight-color: transparent;
-    flex: 1;
-    min-width: 90px; /* Minimum width */
-}
-
-.decline-btn:hover {
-    background: linear-gradient(45deg, #c82333, #d63384);
-    transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(220, 53, 69, 0.3);
-}
-
-.decline-btn:active {
-    transform: scale(0.95);
-}
-
-/* Add icons to buttons */
-.accept-btn::before {
-    content: "✓";
-    font-weight: bold;
-    font-size: 1.1rem;
-}
-
-.decline-btn::before {
-    content: "✗";
-    font-weight: bold;
-    font-size: 1.1rem;
-}
-
-/* Button loading states */
-.accept-btn:disabled, .decline-btn:disabled {
-    opacity: 0.7;
-    cursor: not-allowed;
-    transform: none !important;
-    box-shadow: none !important;
-}
-
-/* ==================== RESPONSIVE FOR HOME PAGE ==================== */
-
-@media (max-width: 768px) {
-    /* Adjust text widths for mobile */
-    .friend-name {
-        max-width: 150px;
-        font-size: 1.1rem;
-    }
-    
-    .friend-status {
-        font-size: 0.85rem;
-        padding: 6px 10px;
-    }
-        .search-name, .search-username {
-        max-width: 150px;
-    }
-    
-    .welcome-title {
-        font-size: 1.6rem;
-    }
-    
-    .section-title {
-        font-size: 1.3rem;
-    }
-    
-    /* Stack buttons on small screens */
-    .notification-actions {
-        flex-direction: column;
-        width: 100%;
-    }
-    
-    .accept-btn, .decline-btn {
-        width: 100%;
-    }
-}
-
-@media (max-width: 480px) {
-    .friend-name {
-        max-width: 120px;
-        font-size: 1rem;
-    }
-    
-    .friend-status {
-        font-size: 0.8rem;
-        padding: 5px 8px;
-    }
-    
-    .search-name, .search-username {
-        max-width: 120px;
-    }
-    
-    .welcome-title {
-        font-size: 1.4rem;
-    }
-    
-    .section-title {
-        font-size: 1.2rem;
-        flex-wrap: wrap;
-    }
-    
-    .online-counter {
-        margin-left: 10px;
-        font-size: 0.8rem;
-        padding: 4px 10px;
-    }
-    
-    .action-title {
-        font-size: 1.1rem;
-    }
-    
-    .action-desc {
-        font-size: 0.85rem;
-    }
-}
-
-/* ==================== GRID FIXES ==================== */
-
-/* Make sure friend cards don't overflow grid */
-.friends-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-    gap: 20px;
-}
-
-.friend-card {
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 20px;
-    padding: 20px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    position: relative;
-    overflow: hidden;
-    min-height: 120px; /* Minimum height */
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-}
-
-/* Ensure content stays within card */
-.friend-card-header {
-    display: flex;
-    align-items: center;
-    gap: 15px;
-    margin-bottom: 15px;
-    min-width: 0; /* Important for nested text truncation */
-}
-
-/* Avatar stays fixed size */
-.friend-avatar {
-    width: 60px;
-    height: 60px;
-    background: linear-gradient(45deg, #667eea, #764ba2);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.3rem;
-    font-weight: bold;
-    position: relative;
-    flex-shrink: 0; /* Don't shrink */
-}
-
-/* ==================== BUTTON UNSELECTABLE & NO BLUE HIGHLIGHT ==================== */
-/* Add this at the VERY END of your style.css file */
-
-/* Remove blue tap highlight on ALL elements (especially mobile) */
-* {
-    -webkit-tap-highlight-color: transparent;
-}
-
-/* Make all buttons and button-like elements unselectable */
-button,
-.btn-primary,
-.btn-secondary,
-.search-btn,
-.back-btn,
-.nav-btn,
-.view-all-btn,
-.send-request-btn,
-.accept-btn,
-.decline-btn,
-.btn-success,
-.btn-danger,
-.btn-small,
-.feature-card,
-.action-card,
-.friend-card {
-    -webkit-user-select: none;
-    -moz-user-select: none;
-    -ms-user-select: none;
-    user-select: none;
-    cursor: pointer;
-}
-
-/* Remove focus outline (blue glow) from buttons */
-button:focus,
-.btn-primary:focus,
-.btn-secondary:focus,
-.search-btn:focus,
-.back-btn:focus,
-.nav-btn:focus,
-.view-all-btn:focus,
-.send-request-btn:focus,
-.accept-btn:focus,
-.decline-btn:focus,
-.btn-success:focus,
-.btn-danger:focus,
-.btn-small:focus,
-.feature-card:focus,
-.action-card:focus,
-.friend-card:focus {
-    outline: none;
-    box-shadow: none;
-}
-
-/* Remove default button styling */
-button {
-    -webkit-appearance: none;
-    -moz-appearance: none;
-    appearance: none;
-}
-
-/* For iOS/Safari */
-button,
-input[type="button"],
-input[type="submit"],
-input[type="reset"] {
-    -webkit-appearance: none;
-}
-/* Remove Firefox dotted outline */
-button::-moz-focus-inner {
-    border: 0;
-}
-
-/* But allow text selection in input fields and textareas */
-input,
-textarea,
-[contenteditable="true"] {
-    -webkit-user-select: text;
-    -moz-user-select: text;
-    -ms-user-select: text;
-    user-select: text;
+    flex-shrink: 0;
 }
 
 /* Keep accessibility - subtle focus for keyboard users */
 button:focus-visible,
 .btn-primary:focus-visible,
 .btn-secondary:focus-visible {
-    outline: 2px solid rgba(102, 126, 234, 0.5);
+    outline: 2px solid rgba(0, 122, 204, 0.5);
     outline-offset: 2px;
 }
