@@ -3,10 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>RelayTalk · Friends</title>
-
-    <!-- Supabase CDN - required for supabase.js to work -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <title>Friends · RelayTalk</title>
 
     <!-- Styles -->
     <link rel="stylesheet" href="../style.css">
@@ -17,7 +14,7 @@
     <!-- Loading Screen -->
     <div class="loading-indicator" id="loadingIndicator">
         <div class="loading-spinner"></div>
-        <div style="color: #64748b; font-size: 0.95rem;">Loading friends...</div>
+        <div>Loading friends...</div>
     </div>
 
     <!-- Header -->
@@ -54,16 +51,7 @@
     </div>
 
     <!-- Friends List -->
-    <main class="friends-list" id="friendsList">
-        <div class="empty-state">
-            <div class="empty-icon">👥</div>
-            <h3>No friends yet</h3>
-            <p>Add friends to start chatting</p>
-            <button class="add-friends-btn" onclick="openSearch()">
-                <i class="fas fa-user-plus"></i> Add Friends
-            </button>
-        </div>
-    </main>
+    <main class="friends-list" id="friendsList"></main>
 
     <!-- Bottom Navigation -->
     <nav class="bottom-nav">
@@ -89,7 +77,7 @@
     <div class="modal-overlay" id="searchModal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2><i class="fas fa-user-plus" style="color: #007acc;"></i> Add Friends</h2>
+                <h2><i class="fas fa-user-plus" style="color:#007acc;"></i> Add Friends</h2>
                 <button class="modal-close" onclick="closeModal()">×</button>
             </div>
             <div class="modal-body">
@@ -101,12 +89,7 @@
                            autocomplete="off"
                            oninput="searchUsers()">
                 </div>
-                <div id="searchResults" class="search-results">
-                    <div class="empty-search">
-                        <i class="fas fa-search"></i>
-                        <p>Search for friends to add</p>
-                    </div>
-                </div>
+                <div id="searchResults" class="search-results"></div>
             </div>
         </div>
     </div>
@@ -114,54 +97,8 @@
     <!-- Toast Container -->
     <div id="toastContainer" class="toast-container"></div>
 
-    <!-- Your existing Supabase config -->
+    <!-- Scripts - MODULE TYPE -->
     <script type="module" src="../../utils/supabase.js"></script>
-    
-    <!-- Friends script -->
-    <script src="friends.js"></script>
-
-    <!-- Navigation Functions -->
-    <script>
-        window.goToHome = function() {
-            window.location.href = '../../home/index.html';
-        };
-
-        window.openSearch = function() {
-            document.getElementById('searchModal').style.display = 'flex';
-            setTimeout(() => {
-                document.getElementById('userSearchInput')?.focus();
-            }, 100);
-        };
-
-        window.closeModal = function() {
-            document.getElementById('searchModal').style.display = 'none';
-        };
-
-        window.logout = async function() {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session) {
-                await supabase.auth.signOut();
-            }
-            localStorage.clear();
-            sessionStorage.clear();
-            window.location.href = '../../index.html';
-        };
-
-        // Close modal on outside click
-        document.addEventListener('click', function(e) {
-            const modal = document.getElementById('searchModal');
-            if (modal && modal.style.display === 'flex') {
-                if (!modal.querySelector('.modal-content')?.contains(e.target) && 
-                    !e.target.closest('.header-btn')) {
-                    window.closeModal();
-                }
-            }
-        });
-
-        // Debug - remove after testing
-        setTimeout(() => {
-            console.log('Supabase:', window.supabase ? '✅' : '❌');
-        }, 1000);
-    </script>
+    <script type="module" src="friends.js"></script>
 </body>
 </html>
