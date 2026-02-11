@@ -1,16 +1,24 @@
-// friends.js - WITH IMPORT SYNTAX
+// friends.js - WITH PROPER WAIT FOR SUPABASE
 
-import { supabase } from '../../../utils/supabase.js';
+import { initializeSupabase, supabase as supabaseClient } from '../../../utils/supabase.js';
 
+let supabase = null;
 let currentUser = null;
 let allFriends = [];
 let filteredFriends = [];
 
-// Initialize
+// Initialize with Supabase wait
 async function initFriendsPage() {
     console.log('Loading friends...');
     
     try {
+        // ✅ WAIT for Supabase to initialize
+        supabase = await initializeSupabase();
+        
+        if (!supabase || !supabase.auth) {
+            throw new Error('Supabase not initialized');
+        }
+
         // Check authentication
         const { data: { session }, error } = await supabase.auth.getSession();
         
@@ -22,6 +30,8 @@ async function initFriendsPage() {
         }
         
         currentUser = session.user;
+        console.log('✅ Logged in as:', currentUser.email);
+        
         await loadFriends();
         
         const loader = document.getElementById('loadingIndicator');
@@ -29,14 +39,14 @@ async function initFriendsPage() {
         
     } catch (error) {
         console.error('Init error:', error);
-        showError('Failed to load friends');
+        showError('Failed to load friends: ' + error.message);
     }
 }
 
 // Load friends
 async function loadFriends() {
     try {
-        if (!currentUser) return;
+        if (!currentUser || !supabase) return;
         
         // Get friends
         const { data: friendsData, error: friendsError } = await supabase
@@ -190,6 +200,11 @@ window.openChat = function(friendId, friendName) {
 
 // Search users
 window.searchUsers = async function() {
+    if (!supabase || !currentUser) {
+        console.log('Waiting for Supabase...');
+        return;
+    }
+    
     const input = document.getElementById('userSearchInput');
     const container = document.getElementById('searchResults');
     if (!input || !container) return;
@@ -331,7 +346,9 @@ window.closeModal = () => {
     document.getElementById('searchModal').style.display = 'none';
 };
 window.logout = async () => {
-    await supabase.auth.signOut();
+    if (supabase) {
+        await supabase.auth.signOut();
+    }
     localStorage.clear();
     sessionStorage.clear();
     window.location.href = '../../index.html';
