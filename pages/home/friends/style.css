@@ -1,463 +1,192 @@
-/* friends/style.css - INSTAGRAM STYLE */
+/* Add these styles to the existing friends/style.css */
 
-/* Top Header */
-.friends-top-header {
-    background: linear-gradient(45deg, #007acc, #00b4d8);
-    color: white;
-    padding: 15px 0;
-    position: sticky;
-    top: 0;
-    z-index: 100;
-    box-shadow: 0 2px 10px rgba(0, 122, 204, 0.2);
-}
-
-.header-content {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 20px;
-}
-
-.back-btn {
-    background: rgba(255, 255, 255, 0.2);
-    border: none;
-    color: white;
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    font-size: 18px;
-    transition: background 0.3s;
-}
-
-.back-btn:hover {
-    background: rgba(255, 255, 255, 0.3);
-}
-
-.header-title {
+/* Add Friends Section */
+.add-friends-section {
     text-align: center;
-    flex: 1;
+    padding: 30px 20px;
+    margin-top: 20px;
 }
 
-.header-title h1 {
-    font-size: 22px;
-    font-weight: 700;
-    margin: 0;
-    color: white;
-    letter-spacing: 0.5px;
-}
-
-.header-subtitle {
-    font-size: 13px;
-    opacity: 0.9;
-    margin: 2px 0 0 0;
-    font-weight: 400;
-}
-
-.total-friends-header {
-    font-size: 14px;
-    font-weight: 600;
-    background: rgba(255, 255, 255, 0.15);
-    padding: 6px 12px;
-    border-radius: 20px;
-    backdrop-filter: blur(10px);
-}
-
-/* Main Content */
-.friends-main-content {
-    padding: 20px 0 100px 0;
-    background: #f8fbff;
-    min-height: calc(100vh - 70px);
-}
-
-/* Instagram Style Grid */
-.friends-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-    gap: 20px;
-    padding: 20px;
-    max-width: 1200px;
-    margin: 0 auto;
-}
-
-@media (max-width: 768px) {
-    .friends-grid {
-        grid-template-columns: repeat(3, 1fr);
-        gap: 15px;
-        padding: 15px;
-    }
-}
-
-@media (max-width: 480px) {
-    .friends-grid {
-        grid-template-columns: repeat(3, 1fr);
-        gap: 12px;
-        padding: 12px;
-    }
-}
-
-/* Friend Card - Instagram Style */
-.friend-card {
-    background: white;
-    border-radius: 12px;
-    padding: 15px 10px;
-    text-align: center;
-    box-shadow: 0 3px 10px rgba(0, 122, 204, 0.08);
-    border: 1px solid rgba(0, 122, 204, 0.08);
-    transition: all 0.3s ease;
-    cursor: pointer;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-}
-
-.friend-card:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 6px 15px rgba(0, 122, 204, 0.12);
-    border-color: rgba(0, 122, 204, 0.15);
-}
-
-.friend-avatar {
-    position: relative;
-    margin-bottom: 12px;
-}
-
-.avatar-circle {
-    width: 70px;
-    height: 70px;
-    border-radius: 50%;
-    background: linear-gradient(45deg, #007acc, #00b4d8);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-size: 26px;
-    font-weight: 700;
-    margin: 0 auto;
-    box-shadow: 0 4px 10px rgba(0, 122, 204, 0.2);
-}
-
-.online-dot {
-    position: absolute;
-    bottom: 5px;
-    right: 10px;
-    width: 14px;
-    height: 14px;
-    background: #28a745;
-    border-radius: 50%;
-    border: 2px solid white;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.friend-name {
-    font-size: 15px;
-    font-weight: 600;
-    color: #005a9e;
-    margin-bottom: 4px;
-    line-height: 1.2;
-    max-width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.friend-status {
-    font-size: 12px;
-    font-weight: 500;
-    padding: 3px 8px;
-    border-radius: 10px;
-    display: inline-block;
-}
-
-.friend-status.online {
-    background: rgba(40, 167, 69, 0.15);
-    color: #28a745;
-}
-
-.friend-status.offline {
-    background: rgba(136, 136, 136, 0.1);
-    color: #888888;
-}
-
-/* Empty State */
-.empty-state {
-    grid-column: 1 / -1;
-    text-align: center;
-    padding: 50px 20px;
-}
-
-.empty-icon {
-    font-size: 60px;
-    margin-bottom: 20px;
-    opacity: 0.4;
-    color: #007acc;
-}
-
-.empty-title {
-    font-size: 18px;
-    color: #005a9e;
-    margin: 0 0 8px 0;
-    font-weight: 600;
-}
-
-.empty-desc {
-    font-size: 14px;
-    color: #666666;
-    margin-bottom: 20px;
-    line-height: 1.4;
-}
-
-/* Add Friends Button in Grid */
-.add-friends-btn-grid {
+.add-friends-btn {
     background: linear-gradient(45deg, #007acc, #00b4d8);
     color: white;
     border: none;
-    padding: 12px 24px;
+    padding: 15px 30px;
     border-radius: 25px;
-    font-size: 15px;
+    font-size: 16px;
     font-weight: 600;
     cursor: pointer;
     display: inline-flex;
     align-items: center;
-    gap: 8px;
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 12px rgba(0, 122, 204, 0.2);
-}
-
-.add-friends-btn-grid:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(0, 122, 204, 0.3);
-}
-
-/* Search Modal Styling */
-.search-container {
-    background: #f8fbff;
-    border: 1px solid rgba(0, 122, 204, 0.15);
-    border-radius: 25px;
-    padding: 12px 20px;
-    margin: 20px;
-    display: flex;
-    align-items: center;
     gap: 10px;
-}
-
-.search-icon {
-    color: #007acc;
-    font-size: 16px;
-}
-
-.search-input {
-    flex: 1;
-    border: none;
-    background: transparent;
-    font-size: 15px;
-    color: #005a9e;
-    outline: none;
-}
-
-.search-input::placeholder {
-    color: #888888;
-}
-
-/* Search Results */
-#searchResults {
-    max-height: 400px;
-    overflow-y: auto;
-    padding: 0 20px 20px;
-}
-
-.search-user {
-    display: flex;
-    align-items: center;
-    padding: 12px 0;
-    border-bottom: 1px solid rgba(0, 122, 204, 0.08);
-    gap: 15px;
-}
-
-.search-user:last-child {
-    border-bottom: none;
-}
-
-.search-avatar {
-    width: 45px;
-    height: 45px;
-    border-radius: 50%;
-    background: linear-gradient(45deg, #007acc, #00b4d8);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-size: 18px;
-    font-weight: 600;
-    flex-shrink: 0;
-}
-
-.search-name {
-    flex: 1;
-    font-size: 16px;
-    color: #005a9e;
-    font-weight: 500;
-}
-
-.add-btn {
-    background: #007acc;
-    color: white;
-    border: none;
-    padding: 8px 16px;
-    border-radius: 15px;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
     transition: all 0.3s ease;
-    min-width: 60px;
+    box-shadow: 0 4px 15px rgba(0, 122, 204, 0.2);
+    -webkit-user-select: none;
+    user-select: none;
 }
 
-.add-btn:hover {
-    background: #005a9e;
+.add-friends-btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(0, 122, 204, 0.3);
 }
 
-.add-btn.sent {
-    background: rgba(40, 167, 69, 0.15);
-    color: #28a745;
-    cursor: default;
-}
-
-/* Notifications */
-.notification-item {
-    display: flex;
-    align-items: center;
-    padding: 15px 20px;
-    border-bottom: 1px solid rgba(0, 122, 204, 0.08);
-    gap: 15px;
-}
-
-.notification-item:last-child {
-    border-bottom: none;
-}
-
-.notif-avatar {
-    width: 45px;
-    height: 45px;
-    border-radius: 50%;
-    background: linear-gradient(45deg, #007acc, #00b4d8);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-size: 18px;
-    font-weight: 600;
-    flex-shrink: 0;
-}
-
-.notif-content {
-    flex: 1;
-}
-
-.notif-content strong {
-    color: #005a9e;
-    font-weight: 600;
-    display: block;
-    margin-bottom: 3px;
-}
-
-.notif-time {
-    display: block;
-    font-size: 12px;
-    color: #888888;
-}
-
-.notif-actions {
-    display: flex;
-    gap: 8px;
-    flex-shrink: 0;
-}
-
-.accept-btn, .decline-btn {
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    border: none;
-    font-size: 16px;
-    font-weight: bold;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.accept-btn {
-    background: rgba(40, 167, 69, 0.15);
-    color: #28a745;
-}
-
-.accept-btn:hover {
-    background: rgba(40, 167, 69, 0.25);
-    transform: scale(1.1);
-}
-
-.decline-btn {
-    background: rgba(220, 53, 69, 0.15);
-    color: #dc3545;
-}
-
-.decline-btn:hover {
-    background: rgba(220, 53, 69, 0.25);
-    transform: scale(1.1);
-}
-
-/* Toast */
+/* Toast Styles (for the toast notifications) */
 .toast {
-    background: white;
-    border-left: 4px solid #007acc;
-    box-shadow: 0 4px 15px rgba(0, 122, 204, 0.15);
-    padding: 12px 16px;
-    border-radius: 8px;
-    margin: 10px;
-    max-width: 300px;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(0, 122, 204, 0.3);
+    border-radius: 12px;
+    padding: 15px;
+    color: #005a9e;
+    box-shadow: 0 5px 20px rgba(0, 122, 204, 0.2);
+    animation: toastSlideIn 0.3s ease;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    animation: slideIn 0.3s ease;
+    gap: 10px;
+    margin-bottom: 10px;
+    max-width: 350px;
 }
 
-.toast-success {
-    border-left-color: #28a745;
+.toast-icon {
+    font-size: 20px;
+    flex-shrink: 0;
 }
 
-.toast-error {
-    border-left-color: #dc3545;
+.toast-content {
+    flex: 1;
+}
+
+.toast-title {
+    font-weight: 600;
+    font-size: 14px;
+    margin-bottom: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.toast-time {
+    font-size: 12px;
+    color: #888888;
+    font-weight: normal;
+}
+
+.toast-message {
+    font-size: 13px;
+    color: #666666;
+    line-height: 1.4;
 }
 
 .toast-close {
     background: none;
     border: none;
     color: #888888;
-    font-size: 20px;
+    font-size: 18px;
     cursor: pointer;
     padding: 0;
-    margin-left: 10px;
-}
-
-/* Loading */
-.loading-spinner {
-    width: 40px;
-    height: 40px;
-    border: 3px solid rgba(0, 122, 204, 0.1);
-    border-top-color: #007acc;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     border-radius: 50%;
-    animation: spin 1s linear infinite;
-    margin: 0 auto 15px;
+    flex-shrink: 0;
 }
 
-@keyframes spin {
-    to { transform: rotate(360deg); }
+.toast-close:hover {
+    background: rgba(0, 122, 204, 0.1);
 }
 
-@keyframes slideIn {
+/* Toast types */
+.toast-success {
+    border-left: 4px solid #28a745;
+}
+
+.toast-error {
+    border-left: 4px solid #dc3545;
+}
+
+.toast-warning {
+    border-left: 4px solid #ffc107;
+}
+
+.toast-info {
+    border-left: 4px solid #007acc;
+}
+
+/* Notification states */
+.no-notifications {
+    text-align: center;
+    padding: 40px 20px;
+    color: #666666;
+}
+
+.no-notifications i {
+    font-size: 48px;
+    color: #007acc;
+    margin-bottom: 15px;
+    opacity: 0.5;
+}
+
+.no-notifications h3 {
+    font-size: 18px;
+    color: #005a9e;
+    margin-bottom: 10px;
+    font-weight: 600;
+}
+
+.no-notifications p {
+    font-size: 14px;
+    color: #666666;
+}
+
+/* Search results states */
+.loading, .error, .no-results {
+    text-align: center;
+    padding: 40px 20px;
+    color: #666666;
+    font-size: 14px;
+}
+
+.error {
+    color: #dc3545;
+}
+
+/* Modal overlay click to close */
+.modal-overlay {
+    cursor: pointer;
+}
+
+.modal-content {
+    cursor: default;
+}
+
+/* Make sure buttons are properly styled */
+button {
+    outline: none !important;
+}
+
+/* Fix for notification badge positioning */
+.nav-btn {
+    position: relative;
+}
+
+/* Responsive adjustments */
+@media (max-width: 480px) {
+    .add-friends-btn {
+        padding: 12px 24px;
+        font-size: 14px;
+    }
+    
+    .toast {
+        max-width: 300px;
+        margin: 5px;
+    }
+}
+
+/* Animation for toast */
+@keyframes toastSlideIn {
     from {
         transform: translateX(100%);
         opacity: 0;
@@ -465,39 +194,5 @@
     to {
         transform: translateX(0);
         opacity: 1;
-    }
-}
-
-/* Bottom Nav Adjustments */
-.bottom-nav {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    background: white;
-    border-top: 1px solid rgba(0, 122, 204, 0.1);
-    z-index: 1000;
-}
-
-/* Responsive Adjustments */
-@media (max-width: 360px) {
-    .friends-grid {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 10px;
-        padding: 10px;
-    }
-    
-    .avatar-circle {
-        width: 60px;
-        height: 60px;
-        font-size: 22px;
-    }
-    
-    .header-content {
-        padding: 0 15px;
-    }
-    
-    .header-title h1 {
-        font-size: 20px;
     }
 }
