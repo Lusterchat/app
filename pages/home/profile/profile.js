@@ -2,8 +2,8 @@
 
 import { initializeSupabase, supabase as supabaseClient } from '../../../utils/supabase.js';
 
-// IMGBB API Key - GET YOUR OWN FROM https://api.imgbb.com
-const IMGBB_API_KEY = '82e49b432e2ee14921f7d0cd81ba5551'; // 🔴 REPLACE WITH YOUR KEY
+// IMGBB API Key
+const IMGBB_API_KEY = '82e49b432e2ee14921f7d0cd81ba5551';
 
 let supabase = null;
 let currentUser = null;
@@ -19,8 +19,9 @@ async function initProfilePage() {
         const { data: { session }, error } = await supabase.auth.getSession();
         if (error) throw error;
         
+        // 🔴 FIX 1: Redirect to login if not authenticated
         if (!session) {
-            window.location.href = '../../index.html';
+            window.location.href = '../../../pages/login/index.html';
             return;
         }
         
@@ -35,6 +36,11 @@ async function initProfilePage() {
     } catch (error) {
         console.error('Init error:', error);
         showToast('error', 'Failed to load profile');
+        
+        // Redirect on error
+        setTimeout(() => {
+            window.location.href = '../../../pages/login/index.html';
+        }, 2000);
     }
 }
 
@@ -68,7 +74,7 @@ function renderProfile(profile) {
         document.getElementById('displayBio').textContent = profile.bio;
     }
     
-    // Set avatar
+    // 🔴 FIX 2: Default avatar style matches chats/friends page
     const avatarContainer = document.getElementById('profileAvatar');
     const initialDiv = document.getElementById('avatarInitial');
     const img = document.getElementById('avatarImage');
@@ -79,7 +85,7 @@ function renderProfile(profile) {
         img.style.display = 'block';
         initialDiv.style.display = 'none';
     } else {
-        // Show initials
+        // Show initials - EXACT same style as friends/chats page
         img.style.display = 'none';
         initialDiv.style.display = 'flex';
         initialDiv.textContent = profile.username ? profile.username.charAt(0).toUpperCase() : '?';
@@ -184,9 +190,8 @@ window.handleImageSelect = async function(event) {
         if (error) throw error;
         
         // 3. Update UI
-        const avatarContainer = document.getElementById('profileAvatar');
-        const initialDiv = document.getElementById('avatarInitial');
         const img = document.getElementById('avatarImage');
+        const initialDiv = document.getElementById('avatarInitial');
         
         img.src = imageUrl;
         img.style.display = 'block';
@@ -263,15 +268,65 @@ function showToast(type, message) {
     }, 3000);
 }
 
-// Navigation
-window.goToHome = () => window.location.href = 'home/index.html';
-window.goToFriends = () => window.location.href = '../friends/index.html';
-window.logout = async () => {
-    await supabase.auth.signOut();
-    localStorage.clear();
-    sessionStorage.clear();
-    window.location.href = '../../index.html';
+// 🔴 FIX 3: COMPLETE LOGOUT - CLEARS EVERYTHING
+window.logout = async function() {
+    try {
+        // Show loading
+        document.getElementById('uploadLoading').style.display = 'flex';
+        document.querySelector('.loading-text').textContent = 'Logging out...';
+        
+        // 1. Sign out from Supabase
+        if (supabase) {
+            await supabase.auth.signOut();
+        }
+        
+        // 2. Clear ALL browser storage
+        localStorage.clear();
+        sessionStorage.clear();
+        
+        // 3. Clear cookies
+        document.cookie.split(";").forEach(function(c) {
+            document.cookie = c.replace(/^ +/, "")
+                .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+        });
+        
+        // 4. Clear IndexedDB (if any)
+        try {
+            const databases = await indexedDB.databases?.() || [];
+            databases.forEach(db => {
+                if (db.name) indexedDB.deleteDatabase(db.name);
+            });
+        } catch (e) {
+            console.log('No IndexedDB to clear');
+        }
+        
+        // 5. Clear cache storage
+        if ('caches' in window) {
+            try {
+                const keys = await caches.keys();
+                await Promise.all(keys.map(key => caches.delete(key)));
+            } catch (e) {
+                console.log('No cache to clear');
+            }
+        }
+        
+        // 6. Redirect to login page
+        window.location.href = '../../../pages/login/index.html';
+        
+    } catch (error) {
+        console.error('Logout error:', error);
+        showToast('error', 'Logout failed');
+        
+        // Force redirect anyway
+        setTimeout(() => {
+            window.location.href = '../../../pages/login/index.html';
+        }, 1000);
+    }
 };
+
+// Navigation
+window.goToHome = () => window.location.href = '../../home/index.html';
+window.goToFriends = () => window.location.href = '../friends/index.html';
 
 // Initialize
 document.addEventListener('DOMContentLoaded', initProfilePage);
