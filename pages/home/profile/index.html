@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Profile · RelayTalk</title>
+    
+    <!-- Styles -->
+    <link rel="stylesheet" href="../style.css">
+    <link rel="stylesheet" href="profile.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingIndicator">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Loading profile...</div>
+    </div>
+    
+    <!-- Upload Loading -->
+    <div class="loading-overlay" id="uploadLoading">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Uploading...</div>
+    </div>
+    
+    <!-- Header -->
+    <header class="profile-header">
+        <div class="header-content">
+            <button class="back-btn" onclick="goToHome()">
+                <i class="fas fa-arrow-left"></i>
+            </button>
+            <h1 class="header-title">Profile</h1>
+        </div>
+    </header>
+    
+    <!-- Main Content -->
+    <main class="profile-main">
+        <div class="profile-card">
+            <!-- Avatar Section -->
+            <div class="avatar-section">
+                <div class="profile-avatar" id="profileAvatar">
+                    <img id="avatarImage" src="" alt="Profile" style="display: none;">
+                    <div id="avatarInitial" class="avatar-initial">?</div>
+                </div>
+                <button class="change-photo-btn" onclick="openImagePicker()">
+                    <i class="fas fa-camera"></i>
+                </button>
+            </div>
+            
+            <!-- User Info -->
+            <div class="user-info">
+                <h2 class="user-name" id="displayName">User</h2>
+                <div class="user-username" id="displayUsername">@username</div>
+                <p class="user-bio" id="displayBio">No bio yet</p>
+            </div>
+            
+            <!-- Stats -->
+            <div class="profile-stats">
+                <div class="stat-item">
+                    <div class="stat-value" id="friendsCount">0</div>
+                    <div class="stat-label">Friends</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="messagesCount">0</div>
+                    <div class="stat-label">Messages</div>
+                </div>
+            </div>
+            
+            <!-- Actions -->
+            <div class="profile-actions">
+                <button class="action-btn" onclick="openImagePicker()">
+                    <i class="fas fa-camera"></i>
+                    Change Photo
+                </button>
+                <button class="action-btn" onclick="goToFriends()">
+                    <i class="fas fa-users"></i>
+                    Find Friends
+                </button>
+                <button class="action-btn logout" onclick="logout()">
+                    <i class="fas fa-sign-out-alt"></i>
+                    Logout
+                </button>
+            </div>
+        </div>
+    </main>
+    
+    <!-- Image Picker Modal -->
+    <div class="modal-overlay" id="imagePickerModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-camera" style="color: #007acc;"></i> Change Photo</h3>
+                <button class="modal-close" onclick="closeModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <!-- Camera input -->
+                <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display: none;" onchange="handleImageSelect(event)">
+                <div class="image-picker-option" onclick="uploadFromCamera()">
+                    <i class="fas fa-camera"></i>
+                    <span>Take Photo</span>
+                </div>
+                
+                <!-- Gallery input -->
+                <input type="file" id="galleryInput" accept="image/*" style="display: none;" onchange="handleImageSelect(event)">
+                <div class="image-picker-option" onclick="uploadFromGallery()">
+                    <i class="fas fa-image"></i>
+                    <span>Choose from Gallery</span>
+                </div>
+                
+                <!-- Remove photo -->
+                <div class="image-picker-option" onclick="removeAvatar()" style="border-color: rgba(220,53,69,0.2);">
+                    <i class="fas fa-trash" style="color: #dc3545;"></i>
+                    <span style="color: #dc3545;">Remove Current Photo</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Toast Container -->
+    <div id="toastContainer" class="toast-container"></div>
+    
+    <!-- Bottom Navigation -->
+    <nav class="bottom-nav">
+        <a href="../../home/index.html" class="nav-item">
+            <i class="fas fa-home"></i>
+            <span>Home</span>
+        </a>
+        <a href="../friends/index.html" class="nav-item">
+            <i class="fas fa-users"></i>
+            <span>Friends</span>
+        </a>
+        <a href="#" class="nav-item active">
+            <i class="fas fa-user"></i>
+            <span>Profile</span>
+        </a>
+    </nav>
+    
+    <!-- Scripts -->
+    <script type="module" src="../../../utils/supabase.js"></script>
+    <script type="module" src="profile.js"></script>
+</body>
+</html>
