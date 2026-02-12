@@ -63,7 +63,7 @@ body {
 .profile-main {
     max-width: 600px;
     margin: 0 auto;
-    padding: 30px 20px;
+    padding: 30px 20px 80px;
 }
 
 /* Profile Card */
@@ -88,7 +88,7 @@ body {
     width: 120px;
     height: 120px;
     border-radius: 50%;
-    background: linear-gradient(45deg, #007acc, #00b4d8) !important;
+    background: linear-gradient(45deg, #007acc, #00b4d8);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -116,7 +116,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(45deg, #007acc, #00b4d8) !important;
+    background: linear-gradient(45deg, #007acc, #00b4d8);
     color: white;
     font-size: 2.5rem;
     font-weight: 600;
@@ -180,16 +180,7 @@ body {
 .user-username {
     font-size: 1.1rem;
     color: #666666;
-    margin-bottom: 15px;
-}
-
-.user-bio {
-    font-size: 1rem;
-    color: #555555;
-    line-height: 1.6;
-    max-width: 400px;
-    margin: 0 auto;
-    padding: 0 20px;
+    margin-bottom: 0;
 }
 
 /* Stats Section */
@@ -520,57 +511,46 @@ body {
 /* Responsive */
 @media (max-width: 480px) {
     .profile-main {
-        padding: 20px 15px;
+        padding: 20px 15px 80px;
     }
-    
+
     .avatar-section {
         width: 100px;
         height: 100px;
     }
-    
+
     .profile-avatar {
         width: 100px;
         height: 100px;
+        font-size: 2.5rem;
     }
-    
+
     .avatar-initial {
         font-size: 2rem;
     }
-    
+
     .user-name {
         font-size: 1.5rem;
     }
-    
+
     .profile-stats {
         gap: 30px;
     }
-    
+
     .stat-value {
         font-size: 1.5rem;
     }
-    
+
     .change-photo-btn {
         width: 32px;
         height: 32px;
         font-size: 0.9rem;
+        bottom: 5px;
+        right: 5px;
     }
 }
-/* Force avatar to match chats page exactly */
-.friend-avatar, 
-.chat-user-avatar,
-.profile-avatar {
-    background: linear-gradient(45deg, #007acc, #00b4d8) !important;
-    color: white !important;
-    font-weight: 600 !important;
-    text-transform: uppercase !important;
-    box-shadow: 0 4px 10px rgba(0, 122, 204, 0.2) !important;
-}
 
-/* Ensure initial letter is centered */
-.avatar-initial {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    width: 100%;
-    height: 100%;
+/* Remove bio section completely */
+.user-bio {
+    display: none;
 }
