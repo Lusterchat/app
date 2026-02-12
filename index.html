@@ -24,8 +24,6 @@
     <meta property="og:description" content="RelayTalk - Connect with friends instantly. Secure, private messaging.">
     <meta property="og:url" content="https://relaytalk.vercel.app/">
     <meta property="og:image" content="https://relaytalk.vercel.app/relayad.png">
-    <meta property="og:image:width" content="1200">
-    <meta property="og:image:height" content="630">
     
     <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image">
@@ -41,29 +39,29 @@
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#007ACC">
     
-    <!-- Preload critical assets -->
-    <link rel="preload" href="/style.css" as="style">
-    <link rel="preload" href="/opening.css" as="style">
-    <link rel="preload" href="/utils/auth.js" as="script">
+    <!-- CRITICAL FIX: IMMEDIATE REDIRECT CHECK -->
+    <script>
+        // Run IMMEDIATELY - before anything else
+        (function() {
+            try {
+                // Check localStorage AND sessionStorage
+                const hasSession = localStorage.getItem('supabase.auth.token') || 
+                                  sessionStorage.getItem('supabase.auth.token');
+                
+                if (hasSession) {
+                    console.log('✅ User has session - redirecting to home');
+                    window.location.replace('/pages/home/index.html?v=' + Date.now());
+                    return;
+                }
+            } catch (e) {
+                console.log('Session check error:', e);
+            }
+        })();
+    </script>
     
     <!-- Stylesheets -->
     <link rel="stylesheet" href="/style.css">
     <link rel="stylesheet" href="/opening.css">
-    
-    <!-- CRITICAL FIX: FAST AUTH CHECK - NO DELAY -->
-    <script>
-        // IMMEDIATE REDIRECT CHECK - Runs before anything else
-        (function() {
-            // Check if user is logged in via localStorage
-            const hasSession = localStorage.getItem('supabase.auth.token') || sessionStorage.getItem('supabase.auth.token');
-            
-            if (hasSession) {
-                console.log('✅ User has session - redirecting to home');
-                window.location.replace('/pages/home/index.html?v=' + Date.now());
-                return;
-            }
-        })();
-    </script>
 </head>
 <body>
     <!-- Opening Animation -->
@@ -105,7 +103,6 @@
 
     <!-- FAST NAVIGATION FUNCTIONS -->
     <script>
-        // Direct navigation - no delays
         window.goToLogin = function() { 
             window.location.href = '/pages/login/index.html';
         };
@@ -114,35 +111,36 @@
             window.location.href = '/pages/auth/index.html';
         };
 
-        // FALLBACK: Check auth after page load (covers async cases)
-        document.addEventListener('DOMContentLoaded', function() {
-            // If we're still here after 100ms, check auth properly
-            setTimeout(async () => {
-                try {
-                    const module = await import('/utils/auth.js');
-                    const { success } = await module.auth.getCurrentUser();
-                    if (success) {
-                        window.location.replace('/pages/home/index.html');
-                    }
-                } catch (e) {
-                    console.log('Auth check fallback:', e);
-                }
+        // FALLBACK: Check auth properly after load
+        document.addEventListener('DOMContentLoaded', async function() {
+            try {
+                // Try to import auth and check properly
+                const module = await import('/utils/auth.js');
+                const { success } = await module.auth.getCurrentUser();
                 
-                // Show content
-                const openingScreen = document.getElementById('openingScreen');
-                const mainContent = document.getElementById('mainContent');
-                
-                if (openingScreen) {
-                    openingScreen.style.opacity = '0';
-                    setTimeout(() => {
-                        openingScreen.style.display = 'none';
-                    }, 400);
+                if (success) {
+                    console.log('✅ User authenticated - redirecting to home');
+                    window.location.replace('/pages/home/index.html');
+                    return;
                 }
-                
-                if (mainContent) {
-                    mainContent.style.opacity = '1';
-                }
-            }, 100);
+            } catch (e) {
+                console.log('Auth import error:', e);
+            }
+            
+            // Show content if not redirected
+            const openingScreen = document.getElementById('openingScreen');
+            const mainContent = document.getElementById('mainContent');
+            
+            if (openingScreen) {
+                openingScreen.style.opacity = '0';
+                setTimeout(() => {
+                    openingScreen.style.display = 'none';
+                }, 400);
+            }
+            
+            if (mainContent) {
+                mainContent.style.opacity = '1';
+            }
         });
     </script>
 
