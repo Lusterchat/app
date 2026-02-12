@@ -7,6 +7,7 @@
     <!-- TITLE -->
     <title>RelayTalk | Login to Your Account</title>
     <meta name="description" content="Login to RelayTalk - Secure, private messaging platform. Sign in to access your chats and connect with friends.">
+    <meta name="keywords" content="RelayTalk login, secure messaging, private chat, sign in">
     <meta name="robots" content="index, follow">
     
     <!-- Canonical -->
@@ -19,9 +20,12 @@
     <meta property="og:title" content="RelayTalk | Login to Your Account">
     <meta property="og:description" content="Login to RelayTalk - Secure, private messaging platform.">
     <meta property="og:image" content="https://relaytalk.vercel.app/relayad.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
     
     <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:site" content="@RelayTalk">
     <meta name="twitter:title" content="RelayTalk | Login to Your Account">
     <meta name="twitter:description" content="Login to RelayTalk - Secure, private messaging platform.">
     <meta name="twitter:image" content="https://relaytalk.vercel.app/relayad.png">
@@ -41,21 +45,46 @@
     <link rel="stylesheet" href="../../style.css">
     <link rel="stylesheet" href="style.css">
     
-    <!-- CRITICAL: REDIRECT IF ALREADY LOGGED IN - FAST -->
+    <!-- ✅ IMMEDIATE REDIRECT CHECK - ONLY IF LOGGED IN -->
     <script>
         (function() {
-            const hasSession = localStorage.getItem('supabase.auth.token') || sessionStorage.getItem('supabase.auth.token');
-            if (hasSession) {
-                console.log('✅ Already logged in - redirecting to home');
-                window.location.replace('/pages/home/index.html');
+            try {
+                const hasSession = localStorage.getItem('supabase.auth.token') || 
+                                  sessionStorage.getItem('supabase.auth.token');
+                
+                // ONLY redirect if ALREADY LOGGED IN
+                if (hasSession) {
+                    console.log('✅ Already logged in - redirecting to home');
+                    window.location.replace('/pages/home/index.html');
+                    return;
+                }
+                // NEVER redirect if not logged in - stay on login page
+            } catch (e) {
+                console.log('Session check error:', e);
             }
         })();
+    </script>
+    
+    <!-- Structured Data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebPage",
+      "name": "RelayTalk Login",
+      "description": "Login page for RelayTalk secure messaging application",
+      "url": "https://relaytalk.vercel.app/pages/login/",
+      "publisher": {
+        "@type": "Organization",
+        "name": "RelayTalk",
+        "logo": "https://relaytalk.vercel.app/relay.png"
+      }
+    }
     </script>
 </head>
 <body>
     <!-- Header -->
     <div class="login-header">
-        <a href="../../index.html" class="login-header-logo">
+        <a href="/" class="login-header-logo">
             <span>✨ RelayTalk</span>
         </a>
     </div>
@@ -73,11 +102,11 @@
             <div class="form-group">
                 <label class="form-label" for="loginUsername">
                     <span class="form-label-icon">👤</span>
-                    Username
+                    Username or Email
                 </label>
                 <input type="text" id="loginUsername" class="form-input" 
-                       placeholder="Enter your username" required
-                       minlength="3" maxlength="20">
+                       placeholder="Enter your username or email" required
+                       minlength="3" maxlength="50" autocomplete="username">
                 <div class="error-message" id="usernameError"></div>
             </div>
 
@@ -90,7 +119,7 @@
                 <div class="password-input">
                     <input type="password" id="loginPassword" class="form-input" 
                            placeholder="Enter your password" required
-                           minlength="6">
+                           minlength="6" autocomplete="current-password">
                     <button type="button" class="password-toggle" id="passwordToggle" aria-label="Show password">👁️</button>
                 </div>
                 <div class="error-message" id="passwordError"></div>
@@ -110,8 +139,8 @@
             </button>
         </form>
 
-        <!-- Success Message -->
-        <div class="success-message" id="successMessage"></div>
+        <!-- Success Message (hidden by default) -->
+        <div class="success-message" id="successMessage" style="display: none;"></div>
 
         <!-- Divider -->
         <div class="divider">or</div>
@@ -130,10 +159,10 @@
     </div>
 
     <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.38.4/dist/umd/supabase.min.js"></script>
     <script type="module" src="script.js"></script>
-    <script src="/utils/sw-manager.js"></script>
     
-    <!-- FALLBACK: Double-check auth after load -->
+    <!-- ✅ FALLBACK: Double-check auth after load -->
     <script type="module">
         import { auth } from '/utils/auth.js';
         
@@ -141,9 +170,12 @@
             try {
                 const { success } = await auth.getCurrentUser();
                 if (success) {
+                    console.log('✅ Already logged in - redirecting to home');
                     window.location.replace('/pages/home/index.html');
                 }
-            } catch (e) {}
+            } catch (e) {
+                console.log('Auth check error:', e);
+            }
         }
         
         // Run after 300ms as fallback
