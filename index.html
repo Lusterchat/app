@@ -7,131 +7,85 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
 
-    <title>RelayTalk</title>
+    <title>RelayTalk - Connect with Friends Instantly</title>
 
     <!-- Basic SEO -->
-    <meta name="description" content="RelayTalk - Connect with friends instantly">
-    <meta name="keywords" content="RelayTalk, messaging, chat, friends">
+    <meta name="description" content="RelayTalk - Connect with friends instantly. Secure, private messaging platform.">
+    <meta name="keywords" content="RelayTalk, messaging, chat, friends, secure messaging">
+    <meta name="robots" content="index, follow">
 
-    <!-- Open Graph - UPDATED for Vercel & relayad.png -->
-    <meta property="og:type" content="website">
-    <meta property="og:site_name" content="RelayTalk">
-    <meta property="og:title" content="RelayTalk">
-    <meta property="og:description" content="RelayTalk - Connect with friends instantly">
-    <meta property="og:url" content="https://relaytalk.vercel.app/">
-    <meta property="og:image" content="https://relaytalk.vercel.app/relayad.png">
-    <meta property="og:image:width" content="1200">
-    <meta property="og:image:height" content="630">
-    <meta property="og:image:alt" content="RelayTalk - Connect with friends instantly">
-    <meta property="og:locale" content="en_US">
-
-    <!-- Twitter - UPDATED for Vercel & relayad.png -->
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:site" content="@RelayTalk">
-    <meta name="twitter:title" content="RelayTalk">
-    <meta name="twitter:description" content="RelayTalk - Connect with friends instantly">
-    <meta name="twitter:image" content="https://relaytalk.vercel.app/relayad.png">
-    <meta name="twitter:creator" content="@RelayTalk">
-    <meta name="twitter:image:alt" content="RelayTalk - Connect with friends instantly">
-
-    <!-- Canonical - UPDATED for Vercel -->
+    <!-- Canonical - ROOT PAGE -->
     <link rel="canonical" href="https://relaytalk.vercel.app/">
 
-    <!-- Favicon -->
+    <!-- Open Graph -->
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="RelayTalk">
+    <meta property="og:title" content="RelayTalk - Connect with Friends Instantly">
+    <meta property="og:description" content="RelayTalk - Connect with friends instantly. Secure, private messaging.">
+    <meta property="og:url" content="https://relaytalk.vercel.app/">
+    <meta property="og:image" content="https://relaytalk.vercel.app/relayad.png">
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:site" content="@RelayTalk">
+    <meta name="twitter:title" content="RelayTalk - Connect with Friends Instantly">
+    <meta name="twitter:description" content="RelayTalk - Connect with friends instantly. Secure, private messaging.">
+    <meta name="twitter:image" content="https://relaytalk.vercel.app/relayad.png">
+
+    <!-- Favicon / Icons -->
     <link rel="icon" href="/favicon.ico" type="image/x-icon">
     <link rel="icon" href="/relay.png" type="image/png" sizes="192x192">
-    <link rel="icon" href="/relay.png" type="image/png" sizes="512x512">
     <link rel="apple-touch-icon" href="/relay.png">
-
-    <!-- PWA -->
     <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#0a0a1a">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="RelayTalk">
-    <meta name="application-name" content="RelayTalk">
+    <meta name="theme-color" content="#007ACC">
 
-    <!-- Structured Data - UPDATED for Vercel -->
-    <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "WebSite",
-      "name": "RelayTalk",
-      "url": "https://relaytalk.vercel.app/",
-      "description": "RelayTalk - Connect with friends instantly",
-      "image": "https://relaytalk.vercel.app/relayad.png",
-      "potentialAction": {
-        "@type": "SearchAction",
-        "target": "https://relaytalk.vercel.app/search?q={search_term_string}",
-        "query-input": "required name=search_term_string"
-      }
-    }
+    <!-- ✅ FIXED: ONLY redirect if LOGGED IN - using more reliable check -->
+    <script>
+        (function() {
+            try {
+                // Check for Supabase session token
+                let hasSession = false;
+                
+                // Check localStorage
+                const localToken = localStorage.getItem('supabase.auth.token');
+                // Check sessionStorage
+                const sessionToken = sessionStorage.getItem('supabase.auth.token');
+                
+                hasSession = !!(localToken || sessionToken);
+                
+                // Additional check: if we have persisted session in localStorage
+                if (!hasSession) {
+                    try {
+                        const persistedSession = localStorage.getItem('supabase.auth.token');
+                        if (persistedSession && persistedSession.includes('access_token')) {
+                            hasSession = true;
+                        }
+                    } catch (e) {}
+                }
+
+                // ✅ ONLY redirect if LOGGED IN
+                if (hasSession) {
+                    console.log('✅ User has session - redirecting to home');
+                    window.location.replace('/pages/home/index.html?v=' + Date.now());
+                }
+                // ❌ NEVER redirect if not logged in - stay on root page
+            } catch (e) {
+                console.log('Session check error:', e);
+            }
+        })();
     </script>
 
     <!-- Stylesheets -->
     <link rel="stylesheet" href="/style.css">
     <link rel="stylesheet" href="/opening.css">
-
-    <!-- Service Worker -->
-    <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', function() {
-                navigator.serviceWorker.getRegistrations()
-                    .then(registrations => {
-                        return Promise.all(registrations.map(r => r.unregister()));
-                    })
-                    .then(() => {
-                        return navigator.serviceWorker.register('/service-worker.js', {
-                            scope: '/',
-                            updateViaCache: 'none'
-                        });
-                    })
-                    .then(registration => {
-                        if (registration.active) {
-                            setTimeout(() => {
-                                if (navigator.onLine && registration.active) {
-                                    registration.active.postMessage({ 
-                                        type: 'AUTO_CACHE_GAME' 
-                                    });
-                                }
-                            }, 2000);
-                        }
-                        registration.update();
-                    })
-                    .catch(error => {
-                        console.log('Service Worker error:', error);
-                    });
-            });
-        }
-
-        if (window.location.search.indexOf('fresh') !== -1) {
-            localStorage.clear();
-            sessionStorage.clear();
-        }
-    </script>
-
-    <style>
-        @keyframes fadeIn { 
-            from { opacity: 0; transform: translateY(20px); } 
-            to { opacity: 1; transform: translateY(0); } 
-        }
-        .standalone-mode .bottom-nav { 
-            padding-bottom: env(safe-area-inset-bottom); 
-        }
-        @media (display-mode: standalone) {
-            .install-prompt { display: none !important; }
-        }
-        @media print {
-            .no-print { display: none !important; }
-        }
-    </style>
 </head>
 <body>
+    <!-- Opening Animation -->
     <div class="opening-screen" id="openingScreen">
         <div class="luster-text">✨Relay</div>
     </div>
 
+    <!-- Main Content -->
     <div class="main-content" id="mainContent">
         <div class="welcome-container">
             <div class="logo">✨</div>
@@ -164,65 +118,66 @@
     </div>
 
     <script>
-        function goToLogin() { 
-            window.location.href = '/pages/login/index.html?v=' + Date.now();
-        }
+        window.goToLogin = function() { 
+            window.location.href = '/pages/login/index.html';
+        };
 
-        function goToSignup() { 
-            window.location.href = '/pages/auth/index.html?v=' + Date.now();
-        }
+        window.goToSignup = function() { 
+            window.location.href = '/pages/auth/index.html';
+        };
 
-        window.goToLogin = goToLogin;
-        window.goToSignup = goToSignup;
+        // ✅ FIXED: Only redirect if LOGGED IN - and wait for opening animation
+        document.addEventListener('DOMContentLoaded', async function() {
+            // Always show content first
+            const openingScreen = document.getElementById('openingScreen');
+            const mainContent = document.getElementById('mainContent');
 
-        document.addEventListener('DOMContentLoaded', function() {
-            const links = document.querySelectorAll('a[href^="/"]');
-            links.forEach(link => {
-                const href = link.getAttribute('href');
-                if (href && !href.includes('?')) {
-                    link.setAttribute('href', href + '?v=' + Date.now());
-                }
-            });
-        });
-    </script>
-
-    <script type="module">
-        import { auth } from '/utils/auth.js';
-
-        async function checkUserAndRedirect() {
-            try {
-                const { success, user } = await auth.getCurrentUser();
-                if (success && user) {
-                    window.location.href = '/pages/home/index.html?v=' + Date.now();
-                    return;
-                }
-            } catch (error) { 
-                console.error("Auth error:", error);
+            if (openingScreen) {
+                openingScreen.style.opacity = '0';
+                setTimeout(() => {
+                    openingScreen.style.display = 'none';
+                }, 400);
             }
 
-            setTimeout(() => {
-                const openingScreen = document.getElementById('openingScreen');
-                const mainContent = document.getElementById('mainContent');
+            if (mainContent) {
+                mainContent.style.opacity = '1';
+            }
 
-                if (openingScreen) {
-                    openingScreen.style.transition = 'opacity 0.5s ease';
-                    openingScreen.style.opacity = '0';
-                    setTimeout(() => {
-                        openingScreen.style.display = 'none';
-                    }, 500);
+            // THEN check auth, but only redirect if logged in
+            try {
+                // Check if we have a session first to avoid unnecessary imports
+                let hasSession = false;
+                const localToken = localStorage.getItem('supabase.auth.token');
+                const sessionToken = sessionStorage.getItem('supabase.auth.token');
+                hasSession = !!(localToken || sessionToken);
+                
+                if (!hasSession) {
+                    console.log('No session detected - staying on main page');
+                    return; // ✅ CRITICAL: DON'T redirect if no session
                 }
+                
+                // Only try to import if we have a session
+                try {
+                    const module = await import('/utils/auth.js');
+                    const { success } = await module.auth.getCurrentUser();
 
-                if (mainContent) {
-                    mainContent.style.display = 'block';
-                    setTimeout(() => {
-                        mainContent.style.opacity = '1';
-                        mainContent.style.transition = 'opacity 0.5s ease';
-                    }, 100);
+                    // ✅ ONLY redirect if actually logged in
+                    if (success) {
+                        console.log('✅ User authenticated - redirecting to home');
+                        window.location.replace('/pages/home/index.html');
+                    }
+                    // ❌ NEVER redirect if not logged in - stay on root page
+                } catch (e) {
+                    console.log('Auth import error:', e);
+                    // Even if import fails, if we have session, try to redirect anyway
+                    if (hasSession) {
+                        window.location.replace('/pages/home/index.html');
+                    }
                 }
-            }, 1000);
-        }
-
-        document.addEventListener('DOMContentLoaded', checkUserAndRedirect);
+            } catch (e) {
+                console.log('Auth check error:', e);
+            }
+        });
     </script>
 
     <script src="/utils/sw-manager.js"></script>

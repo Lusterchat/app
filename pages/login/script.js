@@ -4,24 +4,24 @@ console.log('✨ Login Page Loaded');
 // Wait for Supabase
 async function ensureSupabase() {
     console.log('⏳ Ensuring Supabase is loaded...');
-    
+
     if (window.supabase) {
         console.log('✅ Supabase already loaded');
         return true;
     }
-    
+
     try {
         // Load Supabase module
         const modulePath = '../../utils/supabase.js';
         await import(modulePath);
-        
+
         // Wait for initialization
         let attempts = 0;
         while (!window.supabase && attempts < 20) {
             await new Promise(resolve => setTimeout(resolve, 150));
             attempts++;
         }
-        
+
         if (window.supabase) {
             console.log('✅ Supabase loaded successfully');
             return true;
@@ -29,7 +29,7 @@ async function ensureSupabase() {
             console.error('❌ Supabase failed to load');
             return false;
         }
-        
+
     } catch (error) {
         console.error('❌ Error loading Supabase:', error);
         return false;
@@ -42,36 +42,36 @@ async function loginUser(username, password) {
         if (!window.supabase?.auth) {
             throw new Error('Authentication service not ready');
         }
-        
+
         const email = `${username}@luster.test`;
         console.log('Logging in with:', email);
-        
+
         const { data, error } = await window.supabase.auth.signInWithPassword({
             email: email,
             password: password
         });
-        
+
         if (error) {
             console.error('Login error:', error.message);
-            
+
             if (error.message.includes('Invalid login credentials')) {
                 throw new Error('Invalid username or password');
             }
-            
+
             throw new Error('Login failed. Please try again.');
         }
-        
+
         console.log('✅ Login successful!');
         console.log('User:', data.user.email);
-        
+
         // Verify session is saved
         await window.supabase.auth.getSession();
-        
+
         return {
             success: true,
             user: data.user
         };
-        
+
     } catch (error) {
         console.error('Login failed:', error);
         return {
@@ -85,14 +85,14 @@ async function loginUser(username, password) {
 async function checkExistingLogin() {
     try {
         if (!window.supabase?.auth) return false;
-        
+
         const { data } = await window.supabase.auth.getSession();
         const isLoggedIn = !!data?.session;
-        
+
         console.log('Existing login check:', isLoggedIn ? 'Logged in' : 'Not logged in');
-        
+
         return isLoggedIn;
-        
+
     } catch (error) {
         console.error('Login check error:', error);
         return false;
@@ -126,7 +126,7 @@ function showError(element, message) {
     if (!element) return;
     element.textContent = message;
     element.style.display = 'block';
-    
+
     // Add shake animation
     element.parentElement.classList.add('shake');
     setTimeout(() => {
@@ -143,7 +143,7 @@ function hideError(element) {
 // Validate form
 function validateForm() {
     let isValid = true;
-    
+
     // Username validation
     if (!loginUsername.value.trim()) {
         showError(usernameError, 'Please enter username');
@@ -154,7 +154,7 @@ function validateForm() {
     } else {
         hideError(usernameError);
     }
-    
+
     // Password validation
     if (!loginPassword.value) {
         showError(passwordError, 'Please enter password');
@@ -165,32 +165,32 @@ function validateForm() {
     } else {
         hideError(passwordError);
     }
-    
+
     return isValid;
 }
 
 // Handle form submission
 async function handleLogin(event) {
     event.preventDefault();
-    
+
     if (!validateForm()) return;
-    
+
     const username = loginUsername.value.trim();
     const password = loginPassword.value;
-    
+
     // Get login button
     const loginBtn = document.getElementById('loginBtn');
     if (!loginBtn) return;
-    
+
     // Show loading
     const originalText = loginBtn.textContent;
     loginBtn.textContent = 'Logging in...';
     loginBtn.disabled = true;
-    
+
     if (loadingOverlay) {
         loadingOverlay.style.display = 'flex';
     }
-    
+
     try {
         // Ensure Supabase is ready
         const supabaseReady = await ensureSupabase();
@@ -200,13 +200,13 @@ async function handleLogin(event) {
             if (loadingOverlay) loadingOverlay.style.display = 'none';
             return;
         }
-        
+
         // Attempt login
         const result = await loginUser(username, password);
-        
+
         if (result.success) {
             console.log('✅ Login successful, redirecting to home...');
-            
+
             // Show success message
             const successMessage = document.getElementById('successMessage');
             if (successMessage) {
@@ -222,18 +222,18 @@ async function handleLogin(event) {
                     </div>
                 `;
             }
-            
+
             // Redirect after delay
             setTimeout(() => {
                 window.location.href = '../home/index.html';
             }, 1500);
-            
+
         } else {
             showError(passwordError, result.message || 'Login failed');
             resetButton(loginBtn, originalText);
             if (loadingOverlay) loadingOverlay.style.display = 'none';
         }
-        
+
     } catch (error) {
         console.error('Login handler error:', error);
         showError(passwordError, 'Something went wrong. Please try again.');
@@ -251,15 +251,15 @@ function resetButton(button, originalText) {
 // Initialize login page
 async function initLoginPage() {
     console.log('Initializing login page...');
-    
+
     // Ensure Supabase is loaded
     await ensureSupabase();
-    
+
     // Check if already logged in
     const isLoggedIn = await checkExistingLogin();
     if (isLoggedIn) {
         console.log('✅ User already logged in, redirecting to home...');
-        
+
         // Show redirect message
         const successMessage = document.getElementById('successMessage');
         if (successMessage) {
@@ -272,39 +272,39 @@ async function initLoginPage() {
                 </div>
             `;
         }
-        
+
         // Redirect
         setTimeout(() => {
             window.location.href = '../home/index.html';
         }, 1000);
         return;
     }
-    
+
     console.log('User not logged in, showing login form');
-    
+
     // Setup event listeners
     if (loginForm) {
         loginForm.addEventListener('submit', handleLogin);
     }
-    
+
     // Clear errors on input
     if (loginUsername) {
         loginUsername.addEventListener('input', function() {
             if (this.value.trim()) hideError(usernameError);
         });
     }
-    
+
     if (loginPassword) {
         loginPassword.addEventListener('input', function() {
             if (this.value) hideError(passwordError);
         });
     }
-    
+
     // Auto-focus username field
     if (loginUsername) {
         setTimeout(() => loginUsername.focus(), 300);
     }
-    
+
     // Hide loading overlay if shown
     if (loadingOverlay) {
         loadingOverlay.style.display = 'none';
@@ -315,7 +315,7 @@ async function initLoginPage() {
 window.togglePassword = function() {
     const passwordInput = document.getElementById('loginPassword');
     const toggleBtn = document.querySelector('#passwordToggle');
-    
+
     if (passwordInput && toggleBtn) {
         if (passwordInput.type === 'password') {
             passwordInput.type = 'text';

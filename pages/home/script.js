@@ -1,10 +1,49 @@
-// home/script.js - WITH AVATAR SUPPORT
+// home/script.js - COMPLETE WITH AVATAR SUPPORT & NO REDIRECT LOOP
 
 import { auth } from '../../utils/auth.js'
 
 console.log("✨ Relay Home Page Loaded");
 
-// Toast Notification System
+// ============================================
+// ✅ IMMEDIATE REDIRECT CHECK - ONLY IF NOT LOGGED IN
+// ============================================
+(function() {
+    try {
+        // Check for Supabase session token
+        let hasSession = false;
+        
+        const localToken = localStorage.getItem('supabase.auth.token');
+        const sessionToken = sessionStorage.getItem('supabase.auth.token');
+        
+        hasSession = !!(localToken || sessionToken);
+        
+        // Additional check: if we have persisted session in localStorage
+        if (!hasSession) {
+            try {
+                const persistedSession = localStorage.getItem('supabase.auth.token');
+                if (persistedSession && persistedSession.includes('access_token')) {
+                    hasSession = true;
+                }
+            } catch (e) {}
+        }
+
+        // ✅ ONLY redirect if NO session (not logged in)
+        if (!hasSession) {
+            console.log('🚫 No session - redirecting to root');
+            window.location.replace('/');
+            return; // Stop execution
+        }
+        // ✅ NEVER redirect if logged in - stay on home page
+    } catch (e) {
+        console.log('Session check error:', e);
+        // If we can't check, assume not logged in and redirect
+        window.location.replace('/');
+    }
+})();
+
+// ============================================
+// TOAST NOTIFICATION SYSTEM
+// ============================================
 class ToastNotification {
     constructor() {
         this.container = document.getElementById('toastContainer');
@@ -88,10 +127,15 @@ window.showError = toast.error.bind(toast);
 window.showWarning = toast.warning.bind(toast);
 window.showInfo = toast.info.bind(toast);
 
+// ============================================
+// GLOBAL VARIABLES
+// ============================================
 let currentUser = null;
 let currentProfile = null;
 
-// Wait for Supabase to be ready
+// ============================================
+// SUPABASE WAIT FUNCTION
+// ============================================
 async function waitForSupabase() {
     console.log('⏳ Waiting for Supabase...');
 
@@ -123,9 +167,64 @@ async function waitForSupabase() {
     }
 }
 
-// Initialize home page
+// ============================================
+// INITIALIZE HOME PAGE
+// ============================================
 async function initHomePage() {
     console.log('🏠 Initializing home page...');
+
+    // Double-check authentication - but DON'T redirect if it fails
+    // The inline script already redirected if no session
+    try {
+        const { success, user } = await auth.getCurrentUser();
+        
+        if (!success || !user) {
+            console.log('⚠️ Auth check failed, but session exists - continuing anyway');
+            // Try to get user from localStorage
+            try {
+                const sessionStr = localStorage.getItem('supabase.auth.token');
+                if (sessionStr) {
+                    const session = JSON.parse(sessionStr);
+                    currentUser = { 
+                        id: session?.user?.id,
+                        email: session?.user?.email,
+                        user_metadata: session?.user?.user_metadata || {}
+                    };
+                    console.log('✅ Recovered user from localStorage');
+                }
+            } catch (e) {}
+            
+            if (!currentUser) {
+                console.log('❌ No user data available - redirecting');
+                window.location.replace('/');
+                return;
+            }
+        } else {
+            currentUser = user;
+            console.log('✅ User authenticated:', currentUser.email);
+        }
+    } catch (error) {
+        console.error('Auth check failed:', error);
+        // Don't redirect immediately - try to recover from localStorage
+        try {
+            const sessionStr = localStorage.getItem('supabase.auth.token');
+            if (sessionStr) {
+                const session = JSON.parse(sessionStr);
+                currentUser = { 
+                    id: session?.user?.id,
+                    email: session?.user?.email,
+                    user_metadata: session?.user?.user_metadata || {}
+                };
+                console.log('✅ Recovered user from localStorage after error');
+            } else {
+                window.location.replace('/');
+                return;
+            }
+        } catch (e) {
+            window.location.replace('/');
+            return;
+        }
+    }
 
     const loadingIndicator = document.getElementById('loadingIndicator');
     if (loadingIndicator) loadingIndicator.style.display = 'flex';
@@ -137,30 +236,6 @@ async function initHomePage() {
             if (loadingIndicator) loadingIndicator.style.display = 'none';
             return;
         }
-
-        console.log('🔐 Checking authentication...');
-        const authResult = await auth.getCurrentUser();
-
-        if (!authResult.success) {
-            console.log('User not authenticated:', authResult.message);
-            if (loadingIndicator) loadingIndicator.style.display = 'none';
-            
-            if (authResult.error === 'Not logged in' || authResult.error === 'No user found') {
-                toast.info("Login Required", "Please login to continue");
-            } else {
-                toast.error("Authentication Error", authResult.message || "Please login again");
-            }
-
-            setTimeout(() => {
-                console.log('Redirecting to login page...');
-                window.location.href = '../auth/index.html';
-            }, 1500);
-
-            return;
-        }
-
-        console.log('✅ User authenticated:', authResult.user.email);
-        currentUser = authResult.user;
 
         if (loadingIndicator) loadingIndicator.style.display = 'none';
 
@@ -182,21 +257,21 @@ async function initHomePage() {
         console.error('❌ Home page initialization failed:', error);
 
         if (loadingIndicator) loadingIndicator.style.display = 'none';
-
+        
+        // Don't redirect on initialization error - just show error
         toast.error("Initialization Error", "Failed to load page. Please refresh.");
-
-        setTimeout(() => {
-            window.location.href = '../auth/index.html';
-        }, 3000);
     }
 }
 
-// Load user profile
+// ============================================
+// LOAD USER PROFILE
+// ============================================
 async function loadUserProfile() {
     try {
         if (!currentUser || !window.supabase) {
             currentProfile = {
-                username: currentUser?.user_metadata?.username || 'User',
+                username: currentUser?.user_metadata?.username || 
+                         currentUser?.email?.split('@')[0] || 'User',
                 full_name: currentUser?.user_metadata?.full_name || 'User'
             };
             return;
@@ -220,7 +295,8 @@ async function loadUserProfile() {
             console.log('✅ Profile loaded:', profile.username);
         } else {
             currentProfile = {
-                username: currentUser.user_metadata?.username || currentUser.email?.split('@')[0] || 'User',
+                username: currentUser.user_metadata?.username || 
+                         currentUser.email?.split('@')[0] || 'User',
                 full_name: currentUser.user_metadata?.full_name || 'User'
             };
             console.log('⚠️ No profile found, using default:', currentProfile.username);
@@ -229,13 +305,16 @@ async function loadUserProfile() {
     } catch (error) {
         console.error('❌ Error loading profile:', error);
         currentProfile = {
-            username: currentUser?.user_metadata?.username || 'User',
+            username: currentUser?.user_metadata?.username || 
+                     currentUser?.email?.split('@')[0] || 'User',
             full_name: currentUser?.user_metadata?.full_name || 'User'
         };
     }
 }
 
-// Update welcome message
+// ============================================
+// UPDATE WELCOME MESSAGE
+// ============================================
 function updateWelcomeMessage() {
     if (!currentProfile) return;
 
@@ -246,7 +325,9 @@ function updateWelcomeMessage() {
     }
 }
 
-// 🔥 UPDATED: Load friends list WITH AVATAR URL
+// ============================================
+// LOAD FRIENDS LIST WITH AVATARS
+// ============================================
 async function loadFriends() {
     if (!currentUser || !window.supabase) {
         console.log('Cannot load friends: No user or Supabase');
@@ -281,7 +362,7 @@ async function loadFriends() {
             return;
         }
 
-        // 🔥 UPDATED: Get profiles WITH avatar_url
+        // Get profiles WITH avatar_url
         const friendIds = friends.map(f => f.friend_id);
         const { data: profiles, error: profilesError } = await window.supabase
             .from('profiles')
@@ -301,12 +382,12 @@ async function loadFriends() {
             profiles.forEach(profile => {
                 const isOnline = profile.status === 'online';
                 if (isOnline) onlineCount++;
-                
+
                 const lastSeen = profile.last_seen ? new Date(profile.last_seen) : new Date();
                 const timeAgo = getTimeAgo(lastSeen);
                 const firstLetter = profile.username ? profile.username.charAt(0).toUpperCase() : '?';
 
-                // 🔥 UPDATED: Show avatar image if exists, fallback to initial
+                // Show avatar image if exists, fallback to initials
                 html += `
                     <div class="friend-card" onclick="openChat('${profile.id}', '${profile.username}')">
                         <div class="friend-avatar" style="background: linear-gradient(45deg, #007acc, #00b4d8);">
@@ -331,13 +412,13 @@ async function loadFriends() {
         }
 
         container.innerHTML = html;
-        
+
         // Update online counter
         const onlineCounter = document.getElementById('onlineCounter');
         if (onlineCounter) {
             onlineCounter.textContent = `${onlineCount} Online`;
         }
-        
+
         console.log('✅ Friends list updated');
 
     } catch (error) {
@@ -346,6 +427,9 @@ async function loadFriends() {
     }
 }
 
+// ============================================
+// SHOW EMPTY FRIENDS STATE
+// ============================================
 function showEmptyFriends() {
     const container = document.getElementById('friendsList');
     if (!container) return;
@@ -360,13 +444,14 @@ function showEmptyFriends() {
             </button>
         </div>
     `;
-    
-    // Reset online counter
+
     const onlineCounter = document.getElementById('onlineCounter');
     if (onlineCounter) onlineCounter.textContent = '0 Online';
 }
 
-// Get time ago string
+// ============================================
+// GET TIME AGO STRING
+// ============================================
 function getTimeAgo(date) {
     const now = new Date();
     const past = new Date(date);
@@ -384,7 +469,9 @@ function getTimeAgo(date) {
     return past.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-// Open chat with friend
+// ============================================
+// OPEN CHAT WITH FRIEND
+// ============================================
 async function openChat(friendId, friendUsername = 'Friend') {
     console.log("Opening chat with:", friendId, friendUsername);
     const loadingToast = toast.info("Opening Chat", `Connecting with ${friendUsername}...`);
@@ -401,7 +488,9 @@ async function openChat(friendId, friendUsername = 'Friend') {
     window.location.href = `../chats/index.html?friendId=${friendId}`;
 }
 
-// 🔥 UPDATED: Search users WITH AVATAR URL
+// ============================================
+// LOAD SEARCH RESULTS WITH AVATARS
+// ============================================
 async function loadSearchResults() {
     const container = document.getElementById('searchResults');
     const searchInput = document.getElementById('searchInput');
@@ -463,7 +552,10 @@ async function loadSearchResults() {
     }
 }
 
-// 🔥 UPDATED: Display search results WITH AVATAR URL
+// ============================================
+// DISPLAY SEARCH RESULTS WITH AVATARS
+// ============================================
+
 async function displaySearchResults(users) {
     const container = document.getElementById('searchResults');
     if (!container) return;
@@ -525,8 +617,9 @@ async function displaySearchResults(users) {
     }
 }
 
-// Send friend request
-
+// ============================================
+// SEND FRIEND REQUEST
+// ============================================
 async function sendFriendRequest(toUserId, toUsername, button) {
     if (!currentUser || !window.supabase) {
         toast.error("Error", "Cannot send request");
@@ -596,7 +689,9 @@ async function sendFriendRequest(toUserId, toUsername, button) {
     }
 }
 
-// Load notifications
+// ============================================
+// LOAD NOTIFICATIONS WITH AVATARS
+// ============================================
 async function loadNotifications() {
     const container = document.getElementById('notificationsList');
 
@@ -675,6 +770,9 @@ async function loadNotifications() {
     }
 }
 
+// ============================================
+// SHOW EMPTY NOTIFICATIONS
+// ============================================
 function showEmptyNotifications(container) {
     container.innerHTML = `
         <div class="empty-state">
@@ -684,7 +782,9 @@ function showEmptyNotifications(container) {
     `;
 }
 
-// Accept friend request
+// ============================================
+// ACCEPT FRIEND REQUEST
+// ============================================
 async function acceptFriendRequest(requestId, senderId, senderName = 'User', button = null) {
     console.log("Accepting request:", requestId, "from:", senderId);
 
@@ -744,7 +844,9 @@ async function acceptFriendRequest(requestId, senderId, senderName = 'User', but
     }
 }
 
-// Decline friend request
+// ============================================
+// DECLINE FRIEND REQUEST
+// ============================================
 async function declineFriendRequest(requestId, button = null) {
     if (!currentUser || !window.supabase) {
         toast.error("Error", "Cannot decline request");
@@ -785,7 +887,9 @@ async function declineFriendRequest(requestId, button = null) {
     }
 }
 
-// Update notifications badge
+// ============================================
+// UPDATE NOTIFICATIONS BADGE
+// ============================================
 async function updateNotificationsBadge() {
     try {
         if (!currentUser || !window.supabase) {
@@ -819,6 +923,9 @@ async function updateNotificationsBadge() {
     }
 }
 
+// ============================================
+// UPDATE BADGE DISPLAY
+// ============================================
 function updateBadgeDisplay(count) {
     const badge = document.getElementById('notificationBadge');
     if (badge) {
@@ -838,12 +945,17 @@ function updateBadgeDisplay(count) {
     }
 }
 
+// ============================================
+// HIDE NOTIFICATION BADGE
+// ============================================
 function hideNotificationBadge() {
     const badge = document.getElementById('notificationBadge');
     if (badge) badge.style.display = 'none';
 }
 
-// Set up event listeners
+// ============================================
+// SETUP EVENT LISTENERS
+// ============================================
 function setupEventListeners() {
     console.log("Setting up event listeners...");
 
@@ -853,9 +965,13 @@ function setupEventListeners() {
             try {
                 const loadingToast = toast.info("Logging Out", "Please wait...");
                 await auth.signOut();
+                localStorage.clear();
+                sessionStorage.clear();
+
                 if (loadingToast && loadingToast.parentNode) loadingToast.remove();
                 toast.success("Logged Out", "See you soon! 👋");
-                setTimeout(() => window.location.href = '../auth/index.html', 1000);
+
+                setTimeout(() => window.location.href = '/', 1000);
             } catch (error) {
                 console.error("Error logging out:", error);
                 toast.error("Logout Failed", "Please try again");
@@ -866,9 +982,42 @@ function setupEventListeners() {
     console.log("✅ Event listeners setup complete");
 }
 
-// Navigation functions
+// ============================================
+// LOGOUT FUNCTION
+// ============================================
+window.logout = async function() {
+    try {
+        const loadingToast = toast.info("Logging Out", "Please wait...");
+
+        if (window.supabase) {
+            await window.supabase.auth.signOut();
+        }
+
+        localStorage.clear();
+        sessionStorage.clear();
+
+        document.cookie.split(";").forEach(function(c) {
+            document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+        });
+
+        if (loadingToast && loadingToast.parentNode) loadingToast.remove();
+        toast.success("Logged Out", "See you soon! 👋");
+
+        setTimeout(() => {
+            window.location.href = '/';
+        }, 1000);
+
+    } catch (error) {
+        console.error("Error logging out:", error);
+        toast.error("Logout Failed", "Please try again");
+    }
+};
+
+// ============================================
+// NAVIGATION FUNCTIONS
+// ============================================
 function goToHome() {
-    console.log("Already on home page");
+    window.location.href = '/pages/home/index.html';
 }
 
 function openSettings() {
@@ -876,12 +1025,12 @@ function openSettings() {
 }
 
 function viewFriendsPage() {
-    const currentPath = window.location.pathname;
-    if (currentPath.includes('friends')) return;
     window.location.href = 'friends/index.html';
 }
 
-// Make functions available globally
+// ============================================
+// GLOBAL FUNCTIONS FOR HTML
+// ============================================
 window.openSearch = function() {
     console.log("Opening search modal");
     const modal = document.getElementById('searchModal');
@@ -914,6 +1063,7 @@ window.closeModal = function() {
     if (notificationsModal) notificationsModal.style.display = 'none';
 };
 
+// Export functions globally
 window.openChat = openChat;
 window.sendFriendRequest = sendFriendRequest;
 window.acceptFriendRequest = acceptFriendRequest;
@@ -921,6 +1071,9 @@ window.declineFriendRequest = declineFriendRequest;
 window.goToHome = goToHome;
 window.openSettings = openSettings;
 window.viewFriendsPage = viewFriendsPage;
+window.logout = window.logout;
 
-// Initialize when page loads
+// ============================================
+// INITIALIZE
+// ============================================
 document.addEventListener('DOMContentLoaded', initHomePage);
