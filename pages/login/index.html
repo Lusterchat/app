@@ -6,29 +6,12 @@
     
     <!-- TITLE -->
     <title>RelayTalk | Login to Your Account</title>
-    <meta name="description" content="Login to RelayTalk - Secure, private messaging platform. Sign in to access your chats and connect with friends.">
-    <meta name="keywords" content="RelayTalk login, secure messaging, private chat, sign in">
-    <meta name="robots" content="index, follow">
+    <meta name="description" content="Login to RelayTalk - Secure, private messaging platform.">
     
     <!-- Canonical -->
     <link rel="canonical" href="https://relaytalk.vercel.app/pages/login/">
-    <meta property="og:url" content="https://relaytalk.vercel.app/pages/login/">
     
-    <!-- Open Graph -->
-    <meta property="og:type" content="website">
-    <meta property="og:site_name" content="RelayTalk">
-    <meta property="og:title" content="RelayTalk | Login to Your Account">
-    <meta property="og:description" content="Login to RelayTalk - Secure, private messaging platform.">
-    <meta property="og:image" content="https://relaytalk.vercel.app/relayad.png">
-    <meta property="og:image:width" content="1200">
-    <meta property="og:image:height" content="630">
-    
-    <!-- Twitter -->
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:site" content="@RelayTalk">
-    <meta name="twitter:title" content="RelayTalk | Login to Your Account">
-    <meta name="twitter:description" content="Login to RelayTalk - Secure, private messaging platform.">
-    <meta name="twitter:image" content="https://relaytalk.vercel.app/relayad.png">
+    <!-- Open Graph / Twitter (keep your existing tags) -->
     
     <!-- Icons / PWA -->
     <link rel="icon" href="/favicon.ico">
@@ -36,8 +19,6 @@
     <link rel="apple-touch-icon" href="/relay.png">
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#007ACC">
-    
-    <!-- ✅ REMOVED PRELOAD - CAUSING WARNINGS -->
     
     <!-- Styles -->
     <link rel="stylesheet" href="../../style.css">
@@ -49,8 +30,6 @@
             try {
                 const hasSession = localStorage.getItem('supabase.auth.token') || 
                                   sessionStorage.getItem('supabase.auth.token');
-                
-                // ONLY redirect if ALREADY LOGGED IN
                 if (hasSession) {
                     console.log('✅ Already logged in - redirecting to home');
                     window.location.replace('/pages/home/index.html');
@@ -101,7 +80,7 @@
                     <input type="password" id="loginPassword" class="form-input" 
                            placeholder="Enter your password" required
                            minlength="6">
-                    <button type="button" class="password-toggle" id="passwordToggle" aria-label="Show password">👁️</button>
+                    <button type="button" class="password-toggle" id="passwordToggle">👁️</button>
                 </div>
                 <div class="error-message" id="passwordError"></div>
             </div>
@@ -114,19 +93,11 @@
                 </div>
             </div>
 
-            <!-- Submit Button -->
-            <button type="submit" class="login-btn" id="loginBtn">
-                Sign In
-            </button>
+            <button type="submit" class="login-btn" id="loginBtn">Sign In</button>
         </form>
 
-        <!-- Success Message -->
         <div class="success-message" id="successMessage"></div>
-
-        <!-- Divider -->
         <div class="divider">or</div>
-
-        <!-- Sign up link -->
         <div class="signup-link">
             Don't have an account?
             <a href="../auth/index.html">Create Free Account</a>
@@ -139,8 +110,21 @@
         <p class="loading-text">Signing you in...</p>
     </div>
 
-    <!-- Scripts - ORDER MATTERS -->
+    <!-- ✅ FIX: Load Supabase FIRST, THEN wait for it, THEN load your script -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.38.4/dist/umd/supabase.min.js"></script>
-    <script src="script.js" type="module"></script>
+    
+    <script>
+        // ✅ Wait for Supabase to be ready before loading your script
+        window.addEventListener('load', function() {
+            // Small delay to ensure Supabase is fully initialized
+            setTimeout(() => {
+                const script = document.createElement('script');
+                script.src = 'script.js';
+                script.type = 'module';
+                document.body.appendChild(script);
+                console.log('✅ Login script loaded after Supabase');
+            }, 100);
+        });
+    </script>
 </body>
 </html>
