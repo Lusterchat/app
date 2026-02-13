@@ -1,7 +1,7 @@
 // friends.js - WITH AVATAR SUPPORT + CALL FEATURE
 
 import { initializeSupabase, supabase as supabaseClient } from '../../../utils/supabase.js';
-import { createCallRoom } from '../../../utils/daily.js';  // ✅ ADD THIS
+import { createCallRoom } from '../../../utils/daily.js';
 
 let supabase = null;
 let currentUser = null;
@@ -79,7 +79,7 @@ async function loadFriends() {
     }
 }
 
-// 🔥 UPDATED: Render friends list WITH AVATAR URL AND CALL BUTTON
+// 🔥 UPDATED: Render friends list WITH SHORT GREEN CALL BUTTON (no gradient)
 function renderFriendsList() {
     const container = document.getElementById('friendsList');
     if (!container) return;
@@ -97,27 +97,27 @@ function renderFriendsList() {
         const lastSeen = friend.last_seen ? formatLastSeen(friend.last_seen) : 'Never';
 
         html += `
-            <div class="friend-item" style="display: flex; align-items: center; gap: 15px; padding: 15px; background: white; border-radius: 12px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border: 1px solid #f0f0f0;">
+            <div class="friend-item" style="display: flex; align-items: center; gap: 12px; padding: 12px; background: white; border-radius: 12px; margin-bottom: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border: 1px solid #f0f0f0;">
                 
                 <!-- Avatar (click to chat) -->
-                <div class="friend-avatar" onclick="openChat('${friend.id}', '${friend.username}')" style="cursor: pointer; width: 55px; height: 55px; background: linear-gradient(45deg, #007acc, #00b4d8); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; font-weight: 600; color: white; position: relative;">
+                <div class="friend-avatar" onclick="openChat('${friend.id}', '${friend.username}')" style="cursor: pointer; width: 50px; height: 50px; background: linear-gradient(45deg, #007acc, #00b4d8); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; font-weight: 600; color: white; position: relative;">
                     ${friend.avatar_url 
                         ? `<img src="${friend.avatar_url}" alt="${friend.username}" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">`
-                        : `<span style="color:white; font-size:1.3rem; font-weight:600;">${initial}</span>`
+                        : `<span style="color:white; font-size:1.2rem; font-weight:600;">${initial}</span>`
                     }
-                    <span style="position: absolute; bottom: 5px; right: 5px; width: 14px; height: 14px; border-radius: 50%; border: 2px solid white; ${online ? 'background: #28a745;' : 'background: #888888;'}"></span>
+                    <span style="position: absolute; bottom: 3px; right: 3px; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white; ${online ? 'background: #28a745;' : 'background: #888888;'}"></span>
                 </div>
                 
                 <!-- Friend Info (click to chat) -->
                 <div onclick="openChat('${friend.id}', '${friend.username}')" style="flex: 1; cursor: pointer;">
-                    <div style="font-size: 1.1rem; font-weight: 600; color: #1e293b; margin-bottom: 5px;">${friend.username || 'User'}</div>
-                    <div style="font-size: 0.85rem; color: #64748b;">
+                    <div style="font-size: 1rem; font-weight: 600; color: #1e293b; margin-bottom: 4px;">${friend.username || 'User'}</div>
+                    <div style="font-size: 0.8rem; color: #64748b;">
                         ${online ? 'Online' : `Last seen ${lastSeen}`}
                     </div>
                 </div>
                 
-                <!-- ✅ NEW: Call Button -->
-                <button class="call-friend-btn" onclick="startCall('${friend.id}', '${friend.username}')" style="background: #28a745; border: none; color: white; width: 45px; height: 45px; border-radius: 50%; font-size: 1.2rem; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3); transition: all 0.2s;">
+                <!-- ✅ SHORT GREEN CALL BUTTON (NO GRADIENT) -->
+                <button class="call-friend-btn" onclick="startCall('${friend.id}', '${friend.username}')" style="background: #22c55e; border: none; color: white; width: 40px; height: 40px; border-radius: 50%; font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 5px rgba(34, 197, 94, 0.3);">
                     <i class="fas fa-phone"></i>
                 </button>
             </div>
@@ -127,7 +127,7 @@ function renderFriendsList() {
     container.innerHTML = html;
 }
 
-// ✅ NEW: Start a call
+// ✅ FIXED: Start a call with error handling
 window.startCall = async function(friendId, friendName) {
     try {
         console.log('📞 Calling:', friendName);
@@ -138,31 +138,37 @@ window.startCall = async function(friendId, friendName) {
         // 1. Create Daily.co room
         const roomResult = await createCallRoom();
         
-        if (!roomResult.success) {
-            showToast('error', 'Failed to create call');
+        if (!roomResult || !roomResult.success) {
+            showToast('error', 'Failed to create call room');
             return;
         }
 
         console.log('✅ Room created:', roomResult.url);
 
-        // 2. Save to Supabase calls table
-        const { error } = await supabase
-            .from('calls')
-            .insert({
-                caller_id: currentUser.id,
-                receiver_id: friendId,
-                room_url: roomResult.url,
-                status: 'ringing',
-                created_at: new Date().toISOString()
-            });
+        // 2. Check if calls table exists
+        try {
+            const { error } = await supabase
+                .from('calls')
+                .insert({
+                    caller_id: currentUser.id,
+                    receiver_id: friendId,
+                    room_url: roomResult.url,
+                    status: 'ringing',
+                    created_at: new Date().toISOString()
+                });
 
-        if (error) {
-            console.error('Database error:', error);
-            showToast('error', 'Failed to start call');
+            if (error) {
+                console.error('Database error:', error);
+                showToast('error', 'Call table not ready. Create it first!');
+                return;
+            }
+        } catch (dbError) {
+            console.error('Database error:', dbError);
+            showToast('error', 'Database error. Create calls table first!');
             return;
         }
 
-        // 3. Navigate to call page (caller)
+        // 3. Navigate to call page
         window.location.href = `/pages/call/index.html?room=${encodeURIComponent(roomResult.url)}`;
         
     } catch (error) {
