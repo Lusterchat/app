@@ -1,5 +1,6 @@
+// pages/call/script.js - Using special call-auth
+import { getCallUser, hasValidSession } from '/utils/call-auth.js';
 import { createCallRoom } from '/utils/daily.js';
-import { initializeSupabase } from '/utils/supabase.js';
 
 // Get URL parameters
 const urlParams = new URLSearchParams(window.location.search);
@@ -8,7 +9,6 @@ const friendName = urlParams.get('friend') || 'Friend';
 
 let callFrame = null;
 let currentRoom = null;
-let supabaseInstance = null;
 
 // Initialize call page
 async function initCallPage() {
@@ -19,13 +19,16 @@ async function initCallPage() {
     document.getElementById('callContainer').style.display = 'none';
     document.getElementById('callError').style.display = 'none';
 
-    // Initialize Supabase first (this will set window.supabase)
+    // Check auth but NEVER redirect
     try {
-        supabaseInstance = await initializeSupabase();
-        console.log('✅ Supabase initialized');
+        const authResult = await getCallUser();
+        if (authResult.success) {
+            console.log('✅ Call page: User authenticated:', authResult.user.email);
+        } else {
+            console.log('ℹ️ Call page: Continuing without authentication');
+        }
     } catch (error) {
-        console.log('⚠️ Supabase init warning:', error);
-        // Continue anyway - call might still work
+        console.log('ℹ️ Call page: Auth check failed, continuing anyway');
     }
 
     // Load Daily.co script
@@ -50,15 +53,18 @@ async function initCallPage() {
 function loadDailyScript() {
     return new Promise((resolve) => {
         if (window.DailyIframe) {
+            console.log('✅ Daily.co already loaded');
             resolve(true);
             return;
         }
 
+        console.log('📥 Loading Daily.co script...');
         const script = document.createElement('script');
         script.src = 'https://unpkg.com/@daily-co/daily-js@0.24.0/dist/daily.js';
         script.async = true;
 
         script.onload = () => {
+            console.log('✅ Daily.co script loaded');
             // Wait for DailyIframe
             let attempts = 0;
             const checkDaily = setInterval(() => {
@@ -68,6 +74,7 @@ function loadDailyScript() {
                 }
                 if (attempts++ > 20) {
                     clearInterval(checkDaily);
+                    console.error('❌ DailyIframe not available');
                     resolve(false);
                 }
             }, 100);
@@ -127,7 +134,6 @@ async function joinCall(url) {
 
         console.log('🔌 Joining call...');
         
-        // Join the call
         callFrame.join({
             url: url,
             startVideoOff: true,
@@ -142,62 +148,40 @@ async function joinCall(url) {
             document.getElementById('callError').style.display = 'none';
         });
 
-        // 🔥 CRITICAL: NO AUTO REDIRECT - Just show ended message
-        callFrame.on('left-meeting', (event) => {
-            console.log('👋 Call ended - showing end screen (NO REDIRECT)', event);
+        // 🔥 CRITICAL: NO AUTO REDIRECT
+        callFrame.on('left-meeting', () => {
+            console.log('👋 Call ended - showing end screen');
             showCallEnded();
         });
 
-        // Handle errors
         callFrame.on('error', (error) => {
             console.error('❌ Call error:', error);
-            showError('Connection failed: ' + (error.errorMsg || 'Unknown error'));
-        });
-
-        // Handle participant left
-        callFrame.on('participant-left', (event) => {
-            console.log('👤 Participant left:', event);
-            // If other participant left, show message but don't redirect
-            if (event && event.participant && event.participant.user_name) {
-                showToast('info', `${event.participant.user_name} left the call`);
-            }
-        });
-
-        // Handle participant joined
-        callFrame.on('participant-joined', (event) => {
-            console.log('👤 Participant joined:', event);
-            if (event && event.participant && event.participant.user_name) {
-                showToast('success', `${event.participant.user_name} joined the call`);
-            }
+            showError('Connection failed');
         });
 
         setupCallControls();
 
     } catch (error) {
         console.error('❌ Failed to join call:', error);
-        showError('Failed to join call: ' + error.message);
+        showError('Failed to join call');
     }
 }
 
-// 🔥 SHOW CALL ENDED - NO AUTO REDIRECT, EVER!
+// 🔥 SHOW CALL ENDED - NO AUTO REDIRECT
 function showCallEnded() {
-    console.log('📱 Showing call ended screen (NO AUTO REDIRECT)');
+    console.log('📱 Showing call ended screen');
     
-    // Hide all other screens
     document.getElementById('callContainer').style.display = 'none';
     document.getElementById('callLoading').style.display = 'none';
-    
-    // Show error/end screen
     document.getElementById('callError').style.display = 'flex';
     document.getElementById('errorMessage').textContent = 'Call ended';
     
-    // Update the button to ONLY redirect on MANUAL click
     const closeBtn = document.querySelector('.back-btn');
     if (closeBtn) {
         closeBtn.textContent = 'Close';
         closeBtn.onclick = () => {
-            console.log('👆 User manually clicked close - redirecting to friends');
-            window.location.href = '/pages/home/friends/index.html';  // ONLY on manual click
+            console.log('👆 User manually clicked close');
+            window.location.href = '/pages/home/friends/index.html';
         };
     }
 }
@@ -227,15 +211,12 @@ function setupCallControls() {
         });
     }
 
-    // 🔥 END BUTTON - NO AUTO REDIRECT
     if (endBtn) {
         endBtn.addEventListener('click', () => {
             console.log('👆 User clicked end call button');
             if (callFrame) {
-                // Just leave the call - this will trigger 'left-meeting' event
                 callFrame.leave();
             } else {
-                // If no callFrame, just show ended screen
                 showCallEnded();
             }
         });
@@ -246,65 +227,19 @@ function setupCallControls() {
 function showError(message) {
     console.error('❌ Error:', message);
     
-    // Hide all other screens
     document.getElementById('callLoading').style.display = 'none';
     document.getElementById('callContainer').style.display = 'none';
-    
-    // Show error screen
     document.getElementById('callError').style.display = 'flex';
     document.getElementById('errorMessage').textContent = message;
     
-    // Update close button for error state - ONLY redirect on manual click
     const closeBtn = document.querySelector('.back-btn');
     if (closeBtn) {
         closeBtn.onclick = () => {
             console.log('👆 User manually clicked close from error');
-            window.location.href = '/pages/home/friends/index.html';  // ONLY on manual click
+            window.location.href = '/pages/home/friends/index.html';
         };
     }
 }
 
-// Simple toast for messages
-function showToast(type, message) {
-    // Create temporary toast if needed
-    const toast = document.createElement('div');
-    toast.style.cssText = `
-        position: fixed;
-        top: 20px;
-        left: 50%;
-        transform: translateX(-50%);
-        background: ${type === 'success' ? '#22c55e' : '#3b82f6'};
-        color: white;
-        padding: 10px 20px;
-        border-radius: 20px;
-        font-size: 0.9rem;
-        z-index: 2000;
-        animation: slideDown 0.3s ease;
-    `;
-    toast.textContent = message;
-    document.body.appendChild(toast);
-    
-    setTimeout(() => {
-        toast.style.opacity = '0';
-        setTimeout(() => toast.remove(), 300);
-    }, 3000);
-}
-
-// Add animation style
-const style = document.createElement('style');
-style.textContent = `
-    @keyframes slideDown {
-        from {
-            transform: translate(-50%, -20px);
-            opacity: 0;
-        }
-        to {
-            transform: translate(-50%, 0);
-            opacity: 1;
-        }
-    }
-`;
-document.head.appendChild(style);
-
-// Initialize when DOM is ready
+// Initialize
 document.addEventListener('DOMContentLoaded', initCallPage);
