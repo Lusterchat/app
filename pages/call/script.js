@@ -22,8 +22,13 @@ async function initCallPage() {
     // Show loading
     document.getElementById('callLoading').style.display = 'flex';
 
-    // Load Daily.co script
-    await loadDailyScript();
+    // Load Daily.co script with better error handling
+    const scriptLoaded = await loadDailyScript();
+    
+    if (!scriptLoaded) {
+        showError('Failed to load call service. Please check your internet connection.');
+        return;
+    }
 
     if (roomUrl) {
         // Joining existing call
@@ -34,13 +39,33 @@ async function initCallPage() {
     }
 }
 
-// Load Daily.co iframe library
+// Load Daily.co iframe library - FIXED VERSION
 function loadDailyScript() {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
+        // Check if already loaded
+        if (window.DailyIframe) {
+            console.log('✅ Daily already loaded');
+            resolve(true);
+            return;
+        }
+
         const script = document.createElement('script');
-        script.src = 'https://unpkg.com/@daily-co/daily-js';
-        script.onload = resolve;
-        script.onerror = reject;
+        script.src = 'https://unpkg.com/@daily-co/daily-js@0.24.0/dist/daily.js'; // Fixed version
+        script.async = true;
+        
+        script.onload = () => {
+            console.log('✅ Daily script loaded');
+            // Wait a tiny bit for DailyIframe to be available
+            setTimeout(() => {
+                resolve(!!window.DailyIframe);
+            }, 100);
+        };
+        
+        script.onerror = (e) => {
+            console.error('❌ Failed to load Daily script:', e);
+            resolve(false);
+        };
+        
         document.head.appendChild(script);
     });
 }
@@ -71,6 +96,12 @@ async function startNewCall() {
 // Join an existing call
 async function joinCall(url) {
     try {
+        // Double check DailyIframe exists
+        if (!window.DailyIframe) {
+            showError('Call service not available');
+            return;
+        }
+
         const iframe = document.getElementById('dailyFrame');
         
         callFrame = window.DailyIframe.createFrame(iframe, {
@@ -95,23 +126,27 @@ async function joinCall(url) {
         });
 
         callFrame.on('joined-meeting', () => {
+            console.log('✅ Joined call successfully');
             document.getElementById('callLoading').style.display = 'none';
             document.getElementById('callContainer').style.display = 'block';
         });
 
         callFrame.on('left-meeting', () => {
-            window.close();
+            console.log('👋 Left call');
+            window.location.href = '/pages/friends/index.html';
         });
 
         callFrame.on('error', (e) => {
-            showError(e.errorMessage);
+            console.error('Call error:', e);
+            showError('Call connection failed');
         });
 
         // Setup controls
         setupCallControls();
         
     } catch (error) {
-        showError(error.message);
+        console.error('Join error:', error);
+        showError('Failed to join call: ' + error.message);
     }
 }
 
@@ -120,39 +155,54 @@ function setupCallControls() {
     let isMuted = false;
     let isVideoOff = true;
 
-    document.getElementById('muteBtn').addEventListener('click', () => {
-        isMuted = !isMuted;
-        callFrame.setLocalAudio(isMuted);
-        document.getElementById('muteBtn').innerHTML = isMuted 
-            ? '<i class="fas fa-microphone-slash"></i>' 
-            : '<i class="fas fa-microphone"></i>';
-    });
+    const muteBtn = document.getElementById('muteBtn');
+    const videoBtn = document.getElementById('videoBtn');
+    const endBtn = document.getElementById('endCallBtn');
 
-    document.getElementById('videoBtn').addEventListener('click', () => {
-        isVideoOff = !isVideoOff;
-        callFrame.setLocalVideo(isVideoOff);
-        document.getElementById('videoBtn').innerHTML = isVideoOff 
-            ? '<i class="fas fa-video"></i>' 
-            : '<i class="fas fa-video-slash"></i>';
-    });
+    if (muteBtn) {
+        muteBtn.addEventListener('click', () => {
+            isMuted = !isMuted;
+            callFrame.setLocalAudio(!isMuted);
+            muteBtn.innerHTML = isMuted 
+                ? '<i class="fas fa-microphone-slash"></i>' 
+                : '<i class="fas fa-microphone"></i>';
+        });
+    }
 
-    document.getElementById('endCallBtn').addEventListener('click', () => {
-        callFrame.leave();
-        window.location.href = '/pages/friends/index.html';
-    });
+    if (videoBtn) {
+        videoBtn.addEventListener('click', () => {
+            isVideoOff = !isVideoOff;
+            callFrame.setLocalVideo(!isVideoOff);
+            videoBtn.innerHTML = isVideoOff 
+                ? '<i class="fas fa-video"></i>' 
+                : '<i class="fas fa-video-slash"></i>';
+        });
+    }
+
+    if (endBtn) {
+        endBtn.addEventListener('click', () => {
+            if (callFrame) {
+                callFrame.leave();
+            }
+            window.location.href = '/pages/friends/index.html';
+        });
+    }
 }
 
 // Update call record in Supabase
 async function updateCallRecord(roomUrl, status) {
-    // Will implement after friends page update
+    // Will implement later
     console.log('Call status:', status, roomUrl);
 }
 
-// Show error
+// Show error - KEEPS USER ON CALL PAGE
 function showError(message) {
     document.getElementById('callLoading').style.display = 'none';
     document.getElementById('callError').style.display = 'flex';
     document.getElementById('errorMessage').textContent = message;
+    
+    // DON'T redirect - let user see error and click Close
+    console.error('Call error:', message);
 }
 
 // Initialize
