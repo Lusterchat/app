@@ -1,4 +1,5 @@
 // friends.js - WITH FULL REAL-TIME INCOMING CALL SUPPORT
+// WORKS WITH EXISTING AUTH SYSTEM
 
 import { initializeSupabase } from '../../../utils/supabase.js';
 import { createCallRoom } from '../../../utils/daily.js';
@@ -17,17 +18,20 @@ async function initFriendsPage() {
     console.log('📱 Loading friends page...');
 
     try {
+        // Initialize Supabase
         supabaseInstance = await initializeSupabase();
 
         if (!supabaseInstance || !supabaseInstance.auth) {
             throw new Error('Supabase not initialized');
         }
 
+        // Get current session
         const { data: { session }, error } = await supabaseInstance.auth.getSession();
 
         if (error) throw error;
 
         if (!session) {
+            console.log('No session found, redirecting to login');
             window.location.href = '../../../pages/login/index.html';
             return;
         }
@@ -47,6 +51,7 @@ async function initFriendsPage() {
         // Check for any missed calls that are still ringing
         await checkForMissedCalls();
 
+        // Hide loading indicator
         const loader = document.getElementById('loadingIndicator');
         if (loader) loader.classList.add('hidden');
 
@@ -56,29 +61,35 @@ async function initFriendsPage() {
     }
 }
 
-// Create ringtone
+// Create ringtone using Web Audio API
 function createRingtone() {
     try {
-        // Create a simple beep sound using Web Audio API
         const AudioContext = window.AudioContext || window.webkitAudioContext;
         if (AudioContext) {
             const audioCtx = new AudioContext();
+            
+            // Create oscillator and gain node
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            
+            oscillator.type = 'sine';
+            oscillator.frequency.setValueAtTime(440, audioCtx.currentTime); // 440 Hz = A note
+            
+            gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            
+            oscillator.start();
+            
+            // Ringtone pattern: beep, pause, beep, pause
             callRingtone = {
                 play: () => {
-                    const oscillator = audioCtx.createOscillator();
-                    const gainNode = audioCtx.createGain();
+                    // Resume audio context if suspended
+                    if (audioCtx.state === 'suspended') {
+                        audioCtx.resume();
+                    }
                     
-                    oscillator.type = 'sine';
-                    oscillator.frequency.setValueAtTime(440, audioCtx.currentTime); // 440 Hz = A note
-                    
-                    gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
-                    
-                    oscillator.connect(gainNode);
-                    gainNode.connect(audioCtx.destination);
-                    
-                    oscillator.start();
-                    
-                    // Pattern: beep, pause, beep, pause
                     let count = 0;
                     ringtoneInterval = setInterval(() => {
                         if (count % 2 === 0) {
@@ -91,32 +102,24 @@ function createRingtone() {
                         // Stop after 30 seconds
                         if (count > 60) {
                             clearInterval(ringtoneInterval);
-                            oscillator.stop();
+                            gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
                         }
                     }, 500);
-                    
-                    // Store for cleanup
-                    callRingtone.oscillator = oscillator;
-                    callRingtone.gainNode = gainNode;
                 },
                 pause: () => {
                     if (ringtoneInterval) {
                         clearInterval(ringtoneInterval);
                         ringtoneInterval = null;
                     }
-                    if (callRingtone?.gainNode) {
-                        callRingtone.gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
-                    }
-                    if (callRingtone?.oscillator) {
-                        try {
-                            callRingtone.oscillator.stop();
-                        } catch (e) {}
-                    }
+                    gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
                 }
             };
         } else {
-            // Fallback to empty object if Web Audio not supported
-            callRingtone = { play: () => {}, pause: () => {} };
+            // Fallback if Web Audio not supported
+            callRingtone = { 
+                play: () => console.log('Ringtone would play'), 
+                pause: () => console.log('Ringtone would stop') 
+            };
         }
     } catch (e) {
         console.log('Ringtone creation failed:', e);
@@ -129,10 +132,18 @@ async function checkForMissedCalls() {
     const existingCall = await checkExistingCalls();
     if (existingCall) {
         console.log('📞 Found existing ringing call:', existingCall);
+        
+        // Get caller info
+        const { data: caller } = await supabaseInstance
+            .from('profiles')
+            .select('username, avatar_url')
+            .eq('id', existingCall.caller_id)
+            .single();
+        
         handleIncomingCall({
             ...existingCall,
-            caller_name: existingCall.caller?.username || 'Unknown',
-            caller_avatar: existingCall.caller?.avatar_url
+            caller_name: caller?.username || 'Unknown',
+            caller_avatar: caller?.avatar_url
         });
     }
 }
@@ -357,6 +368,8 @@ window.startCall = async function(friendId, friendName) {
             return;
         }
 
+        console.log('✅ Room created:', roomResult.url);
+
         // Save to Supabase calls table
         const { data, error } = await supabaseInstance
             .from('calls')
@@ -372,16 +385,25 @@ window.startCall = async function(friendId, friendName) {
 
         if (error) {
             console.error('Database error:', error);
-            showToast('error', 'Failed to initiate call');
+            if (error.code === '42P01') {
+                showToast('error', 'Calls table not created in Supabase');
+            } else {
+                showToast('error', 'Failed to initiate call: ' + error.message);
+            }
             return;
         }
 
-        console.log('✅ Call saved:', data);
+        console.log('✅ Call saved to database:', data);
         
-        // Navigate to call page after a short delay
-        setTimeout(() => {
-            window.location.href = `/pages/call/index.html?room=${encodeURIComponent(roomResult.url)}&friend=${encodeURIComponent(friendName)}`;
-        }, 500);
+        // Store call data in sessionStorage for pre-loading
+        sessionStorage.setItem('preload_call', JSON.stringify({
+            roomUrl: roomResult.url,
+            friendName: friendName,
+            timestamp: Date.now()
+        }));
+        
+        // Navigate to call page
+        window.location.href = `/pages/call/index.html?room=${encodeURIComponent(roomResult.url)}&friend=${encodeURIComponent(friendName)}`;
 
     } catch (error) {
         console.error('❌ Call error:', error);
@@ -472,6 +494,7 @@ window.openChat = function(friendId, friendName) {
 };
 
 // Search users
+
 window.searchUsers = async function() {
     if (!supabaseInstance || !currentUser) {
         console.log('Waiting for Supabase...');
@@ -555,7 +578,6 @@ window.searchUsers = async function() {
     }
 };
 
-// Send friend request
 // Send friend request
 window.sendFriendRequest = async function(userId, username, btn) {
     try {
