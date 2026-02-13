@@ -1,16 +1,20 @@
-// friends.js - WITH AVATAR SUPPORT + CALL FEATURE
+// friends.js - WITH FULL REAL-TIME INCOMING CALL SUPPORT
 
 import { initializeSupabase } from '../../../utils/supabase.js';
 import { createCallRoom } from '../../../utils/daily.js';
+import { initRealtime, updateCallStatus, checkExistingCalls, cleanupRealtime } from '../../../utils/realtime.js';
 
 let supabaseInstance = null;
 let currentUser = null;
 let allFriends = [];
 let filteredFriends = [];
+let currentIncomingCall = null;
+let callRingtone = null;
+let ringtoneInterval = null;
 
 // Initialize with Supabase wait
 async function initFriendsPage() {
-    console.log('Loading friends...');
+    console.log('📱 Loading friends page...');
 
     try {
         supabaseInstance = await initializeSupabase();
@@ -31,18 +35,219 @@ async function initFriendsPage() {
         currentUser = session.user;
         console.log('✅ Logged in as:', currentUser.email);
 
+        // Load friends
         await loadFriends();
+
+        // Create ringtone
+        createRingtone();
+
+        // Initialize real-time call listener
+        await initRealtime(handleIncomingCall);
+        
+        // Check for any missed calls that are still ringing
+        await checkForMissedCalls();
 
         const loader = document.getElementById('loadingIndicator');
         if (loader) loader.classList.add('hidden');
 
     } catch (error) {
-        console.error('Init error:', error);
+        console.error('❌ Init error:', error);
         showError('Failed to load friends: ' + error.message);
     }
 }
 
-// Load friends WITH AVATAR URL
+// Create ringtone
+function createRingtone() {
+    try {
+        // Create a simple beep sound using Web Audio API
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (AudioContext) {
+            const audioCtx = new AudioContext();
+            callRingtone = {
+                play: () => {
+                    const oscillator = audioCtx.createOscillator();
+                    const gainNode = audioCtx.createGain();
+                    
+                    oscillator.type = 'sine';
+                    oscillator.frequency.setValueAtTime(440, audioCtx.currentTime); // 440 Hz = A note
+                    
+                    gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(audioCtx.destination);
+                    
+                    oscillator.start();
+                    
+                    // Pattern: beep, pause, beep, pause
+                    let count = 0;
+                    ringtoneInterval = setInterval(() => {
+                        if (count % 2 === 0) {
+                            gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                        } else {
+                            gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+                        }
+                        count++;
+                        
+                        // Stop after 30 seconds
+                        if (count > 60) {
+                            clearInterval(ringtoneInterval);
+                            oscillator.stop();
+                        }
+                    }, 500);
+                    
+                    // Store for cleanup
+                    callRingtone.oscillator = oscillator;
+                    callRingtone.gainNode = gainNode;
+                },
+                pause: () => {
+                    if (ringtoneInterval) {
+                        clearInterval(ringtoneInterval);
+                        ringtoneInterval = null;
+                    }
+                    if (callRingtone?.gainNode) {
+                        callRingtone.gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+                    }
+                    if (callRingtone?.oscillator) {
+                        try {
+                            callRingtone.oscillator.stop();
+                        } catch (e) {}
+                    }
+                }
+            };
+        } else {
+            // Fallback to empty object if Web Audio not supported
+            callRingtone = { play: () => {}, pause: () => {} };
+        }
+    } catch (e) {
+        console.log('Ringtone creation failed:', e);
+        callRingtone = { play: () => {}, pause: () => {} };
+    }
+}
+
+// Check for missed calls
+async function checkForMissedCalls() {
+    const existingCall = await checkExistingCalls();
+    if (existingCall) {
+        console.log('📞 Found existing ringing call:', existingCall);
+        handleIncomingCall({
+            ...existingCall,
+            caller_name: existingCall.caller?.username || 'Unknown',
+            caller_avatar: existingCall.caller?.avatar_url
+        });
+    }
+}
+
+// Handle incoming call
+async function handleIncomingCall(callData) {
+    console.log('📞 INCOMING CALL:', callData);
+    
+    // Don't show if we're already in a call
+    if (currentIncomingCall) {
+        console.log('Already have an incoming call, ignoring');
+        return;
+    }
+    
+    // Store current call
+    currentIncomingCall = callData;
+    
+    // Play ringtone
+    if (callRingtone) {
+        try {
+            callRingtone.play();
+        } catch (e) {
+            console.log('Could not play ringtone:', e);
+        }
+    }
+    
+    // Show modal
+    const modal = document.getElementById('incomingCallModal');
+    const callerNameEl = document.getElementById('callerName');
+    const callerAvatarEl = document.getElementById('callerAvatar');
+    
+    if (modal && callerNameEl) {
+        callerNameEl.textContent = callData.caller_name || 'Unknown';
+        
+        // Update avatar if available
+        if (callData.caller_avatar && callerAvatarEl) {
+            callerAvatarEl.innerHTML = `<img src="${callData.caller_avatar}" alt="caller" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">`;
+        } else {
+            callerAvatarEl.innerHTML = '<i class="fas fa-user"></i>';
+        }
+        
+        modal.style.display = 'flex';
+        
+        // Auto-decline after 30 seconds
+        setTimeout(() => {
+            if (modal.style.display === 'flex' && currentIncomingCall) {
+                declineCall(true); // true = missed
+            }
+        }, 30000);
+    }
+}
+
+// Accept incoming call
+window.acceptCall = async function() {
+    if (!currentIncomingCall) return;
+    
+    try {
+        console.log('✅ Accepting call:', currentIncomingCall);
+        
+        // Stop ringtone
+        if (callRingtone) {
+            callRingtone.pause();
+        }
+        
+        // Update call status
+        await updateCallStatus(currentIncomingCall.id, 'accepted');
+        
+        // Hide modal
+        document.getElementById('incomingCallModal').style.display = 'none';
+        
+        // Show loading toast
+        showToast('info', 'Connecting call...');
+        
+        // Navigate to call page
+        window.location.href = `/pages/call/index.html?room=${encodeURIComponent(currentIncomingCall.room_url)}&friend=${encodeURIComponent(currentIncomingCall.caller_name)}`;
+        
+        // Clear current call
+        currentIncomingCall = null;
+        
+    } catch (error) {
+        console.error('❌ Error accepting call:', error);
+        showToast('error', 'Failed to accept call');
+    }
+};
+
+// Decline incoming call
+window.declineCall = async function(isMissed = false) {
+    if (!currentIncomingCall) return;
+    
+    try {
+        console.log('❌ Declining call:', currentIncomingCall);
+        
+        // Stop ringtone
+        if (callRingtone) {
+            callRingtone.pause();
+        }
+        
+        // Update call status
+        await updateCallStatus(currentIncomingCall.id, isMissed ? 'missed' : 'declined');
+        
+        // Hide modal
+        document.getElementById('incomingCallModal').style.display = 'none';
+        
+        // Show toast
+        showToast('info', isMissed ? 'Call missed' : 'Call declined');
+        
+        // Clear current call
+        currentIncomingCall = null;
+        
+    } catch (error) {
+        console.error('❌ Error declining call:', error);
+    }
+};
+
+// Load friends
 async function loadFriends() {
     try {
         if (!currentUser || !supabaseInstance) return;
@@ -116,7 +321,7 @@ function renderFriendsList() {
                     </div>
                 </div>
                 
-                <!-- SHORT GREEN CALL BUTTON -->
+                <!-- CALL BUTTON -->
                 <button class="call-friend-btn" onclick="startCall('${friend.id}', '${friend.username}')" style="background: #22c55e; border: none; color: white; width: 40px; height: 40px; border-radius: 50%; font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 5px rgba(34, 197, 94, 0.3);">
                     <i class="fas fa-phone"></i>
                 </button>
@@ -127,73 +332,56 @@ function renderFriendsList() {
     container.innerHTML = html;
 }
 
-// 🔥 FIXED: Start a call with proper error handling
+// Start a call
 window.startCall = async function(friendId, friendName) {
     try {
         console.log('📞 Starting call to:', friendName);
-        console.log('Current user:', currentUser);
-        console.log('Supabase instance:', supabaseInstance);
 
-        // Check if supabaseInstance is available
         if (!supabaseInstance) {
-            console.error('Supabase not initialized');
             showToast('error', 'Service not ready. Please refresh.');
             return;
         }
 
-        // Check if currentUser is available
         if (!currentUser) {
-            console.error('User not logged in');
             showToast('error', 'Please login first');
             return;
         }
 
-        // Show loading toast
         showToast('info', `Calling ${friendName}...`);
 
-        // 1. Create Daily.co room
-        console.log('Creating Daily.co room...');
+        // Create Daily.co room
         const roomResult = await createCallRoom();
 
-        if (!roomResult || !roomResult.success) {
-            console.error('Room creation failed:', roomResult?.error);
+        if (!roomResult?.success) {
             showToast('error', 'Failed to create call: ' + (roomResult?.error || 'Unknown error'));
             return;
         }
 
-        console.log('✅ Room created:', roomResult.url);
+        // Save to Supabase calls table
+        const { data, error } = await supabaseInstance
+            .from('calls')
+            .insert({
+                caller_id: currentUser.id,
+                receiver_id: friendId,
+                room_url: roomResult.url,
+                status: 'ringing',
+                created_at: new Date().toISOString()
+            })
+            .select()
+            .single();
 
-        // 2. Save to Supabase calls table
-        try {
-            const { error } = await supabaseInstance
-                .from('calls')
-                .insert({
-                    caller_id: currentUser.id,
-                    receiver_id: friendId,
-                    room_url: roomResult.url,
-                    status: 'ringing',
-                    created_at: new Date().toISOString()
-                });
-
-            if (error) {
-                console.error('Database error:', error);
-                if (error.code === '42P01') {
-                    showToast('error', 'Calls table not created in Supabase - but call will still work');
-                } else {
-                    showToast('error', 'Failed to save call: ' + error.message);
-                }
-                // Continue anyway - call can still work without DB entry
-            } else {
-                console.log('✅ Call saved to database');
-            }
-        } catch (dbError) {
-            console.error('Database error (non-fatal):', dbError);
-            // Continue anyway
+        if (error) {
+            console.error('Database error:', error);
+            showToast('error', 'Failed to initiate call');
+            return;
         }
 
-        // 3. Navigate to call page
-        console.log('Redirecting to call page with room:', roomResult.url);
-        window.location.href = `/pages/call/index.html?room=${encodeURIComponent(roomResult.url)}&friend=${encodeURIComponent(friendName)}`;
+        console.log('✅ Call saved:', data);
+        
+        // Navigate to call page after a short delay
+        setTimeout(() => {
+            window.location.href = `/pages/call/index.html?room=${encodeURIComponent(roomResult.url)}&friend=${encodeURIComponent(friendName)}`;
+        }, 500);
 
     } catch (error) {
         console.error('❌ Call error:', error);
@@ -249,7 +437,7 @@ function showEmptyState() {
         <div class="empty-state">
             <div class="empty-icon">👥</div>
             <h3>No friends yet</h3>
-            <p>Add friends to start chatting</p>
+            <p>Add friends to start chatting and calling</p>
             <button class="add-friends-btn" onclick="openSearch()">
                 <i class="fas fa-user-plus"></i> Add Friends
             </button>
@@ -274,7 +462,7 @@ function showError(message) {
     `;
 }
 
-// Open chat with correct path
+// Open chat
 window.openChat = function(friendId, friendName) {
     sessionStorage.setItem('currentChatFriend', JSON.stringify({
         id: friendId,
@@ -283,7 +471,7 @@ window.openChat = function(friendId, friendName) {
     window.location.href = `../../chats/index.html?friendId=${friendId}`;
 };
 
-// Search users WITH AVATAR URL
+// Search users
 window.searchUsers = async function() {
     if (!supabaseInstance || !currentUser) {
         console.log('Waiting for Supabase...');
@@ -368,6 +556,7 @@ window.searchUsers = async function() {
 };
 
 // Send friend request
+// Send friend request
 window.sendFriendRequest = async function(userId, username, btn) {
     try {
         btn.disabled = true;
@@ -404,8 +593,8 @@ function showToast(type, message) {
     const toast = document.createElement('div');
     toast.className = `toast toast-${type}`;
 
-    let icon = type === 'success' ? 'check-circle' : 'exclamation-circle';
-    let color = type === 'success' ? '#22c55e' : '#ef4444';
+    let icon = type === 'success' ? 'check-circle' : (type === 'info' ? 'info-circle' : 'exclamation-circle');
+    let color = type === 'success' ? '#22c55e' : (type === 'info' ? '#3b82f6' : '#ef4444');
 
     toast.innerHTML = `
         <i class="fas fa-${icon}" style="color:${color};"></i>
@@ -436,13 +625,30 @@ window.logout = async () => {
     if (supabaseInstance) await supabaseInstance.auth.signOut();
     localStorage.clear();
     sessionStorage.clear();
-
-    document.cookie.split(";").forEach(function(c) {
-        document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
-    });
-
     window.location.href = '../../../pages/login/index.html';
 };
 
-// Start
-document.addEventListener('DOMContentLoaded', initFriendsPage);
+// Cleanup on page unload
+window.addEventListener('beforeunload', () => {
+    if (callRingtone) {
+        callRingtone.pause();
+    }
+    cleanupRealtime();
+});
+
+// Add event listeners when DOM is ready
+document.addEventListener('DOMContentLoaded', () => {
+    initFriendsPage();
+    
+    // Add call button handlers
+    const acceptBtn = document.getElementById('acceptCallBtn');
+    const declineBtn = document.getElementById('declineCallBtn');
+    
+    if (acceptBtn) {
+        acceptBtn.addEventListener('click', acceptCall);
+    }
+    
+    if (declineBtn) {
+        declineBtn.addEventListener('click', () => declineCall(false));
+    }
+});
