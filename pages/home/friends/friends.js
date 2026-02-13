@@ -79,7 +79,7 @@ async function loadFriends() {
     }
 }
 
-// Render friends list WITH SHORT GREEN CALL BUTTON
+// Render friends list
 function renderFriendsList() {
     const container = document.getElementById('friendsList');
     if (!container) return;
@@ -127,18 +127,20 @@ function renderFriendsList() {
     container.innerHTML = html;
 }
 
-// Start a call
+// 🔥 FIXED: Start a call with proper error handling
 window.startCall = async function(friendId, friendName) {
     try {
-        console.log('📞 Calling:', friendName);
-        
+        console.log('📞 Starting call to:', friendName);
+        console.log('Current user:', currentUser);
+        console.log('Supabase instance:', supabaseInstance);
+
         // Check if supabaseInstance is available
         if (!supabaseInstance) {
             console.error('Supabase not initialized');
             showToast('error', 'Service not ready. Please refresh.');
             return;
         }
-        
+
         // Check if currentUser is available
         if (!currentUser) {
             console.error('User not logged in');
@@ -150,42 +152,52 @@ window.startCall = async function(friendId, friendName) {
         showToast('info', `Calling ${friendName}...`);
 
         // 1. Create Daily.co room
+        console.log('Creating Daily.co room...');
         const roomResult = await createCallRoom();
-        
+
         if (!roomResult || !roomResult.success) {
-            showToast('error', 'Failed to create call room');
+            console.error('Room creation failed:', roomResult?.error);
+            showToast('error', 'Failed to create call: ' + (roomResult?.error || 'Unknown error'));
             return;
         }
 
         console.log('✅ Room created:', roomResult.url);
 
         // 2. Save to Supabase calls table
-        const { error } = await supabaseInstance
-            .from('calls')
-            .insert({
-                caller_id: currentUser.id,
-                receiver_id: friendId,
-                room_url: roomResult.url,
-                status: 'ringing',
-                created_at: new Date().toISOString()
-            });
+        try {
+            const { error } = await supabaseInstance
+                .from('calls')
+                .insert({
+                    caller_id: currentUser.id,
+                    receiver_id: friendId,
+                    room_url: roomResult.url,
+                    status: 'ringing',
+                    created_at: new Date().toISOString()
+                });
 
-        if (error) {
-            console.error('Database error:', error);
-            if (error.code === '42P01') {
-                showToast('error', 'Calls table not created in Supabase');
+            if (error) {
+                console.error('Database error:', error);
+                if (error.code === '42P01') {
+                    showToast('error', 'Calls table not created in Supabase - but call will still work');
+                } else {
+                    showToast('error', 'Failed to save call: ' + error.message);
+                }
+                // Continue anyway - call can still work without DB entry
             } else {
-                showToast('error', 'Failed to save call');
+                console.log('✅ Call saved to database');
             }
-            return;
+        } catch (dbError) {
+            console.error('Database error (non-fatal):', dbError);
+            // Continue anyway
         }
 
         // 3. Navigate to call page
-        window.location.href = `/pages/call/index.html?room=${encodeURIComponent(roomResult.url)}`;
-        
+        console.log('Redirecting to call page with room:', roomResult.url);
+        window.location.href = `/pages/call/index.html?room=${encodeURIComponent(roomResult.url)}&friend=${encodeURIComponent(friendName)}`;
+
     } catch (error) {
-        console.error('Call error:', error);
-        showToast('error', 'Failed to start call');
+        console.error('❌ Call error:', error);
+        showToast('error', 'Failed to start call: ' + error.message);
     }
 };
 
