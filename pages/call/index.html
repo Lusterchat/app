@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>RelayTalk - Call</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- Loading State -->
+    <div class="call-loading" id="callLoading">
+        <div class="loading-spinner"></div>
+        <p>Connecting call...</p>
+    </div>
+
+    <!-- Call Container -->
+    <div class="call-container" id="callContainer" style="display: none;">
+        <!-- Daily.co iframe will be injected here -->
+        <div id="dailyFrame"></div>
+
+        <!-- Call Controls -->
+        <div class="call-controls">
+            <button class="call-btn mute-btn" id="muteBtn">
+                <i class="fas fa-microphone"></i>
+            </button>
+            <button class="call-btn video-btn" id="videoBtn">
+                <i class="fas fa-video"></i>
+            </button>
+            <button class="call-btn end-btn" id="endCallBtn">
+                <i class="fas fa-phone-slash"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Error State -->
+    <div class="call-error" id="callError" style="display: none;">
+        <i class="fas fa-exclamation-circle"></i>
+        <h3>Call Failed</h3>
+        <p id="errorMessage"></p>
+        <button class="back-btn" onclick="window.close()">Close</button>
+    </div>
+
+    <script type="module" src="script.js"></script>
+</body>
+</html>
