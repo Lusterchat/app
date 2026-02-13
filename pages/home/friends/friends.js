@@ -1,9 +1,9 @@
 // friends.js - WITH AVATAR SUPPORT + CALL FEATURE
 
-import { initializeSupabase, supabase as supabaseClient } from '../../../utils/supabase.js';
+import { initializeSupabase } from '../../../utils/supabase.js';
 import { createCallRoom } from '../../../utils/daily.js';
 
-let supabaseInstance = null;  // 🔥 CHANGED: Renamed to avoid conflict
+let supabaseInstance = null;
 let currentUser = null;
 let allFriends = [];
 let filteredFriends = [];
@@ -13,7 +13,7 @@ async function initFriendsPage() {
     console.log('Loading friends...');
 
     try {
-        supabaseInstance = await initializeSupabase();  // 🔥 CHANGED
+        supabaseInstance = await initializeSupabase();
 
         if (!supabaseInstance || !supabaseInstance.auth) {
             throw new Error('Supabase not initialized');
@@ -45,7 +45,7 @@ async function initFriendsPage() {
 // Load friends WITH AVATAR URL
 async function loadFriends() {
     try {
-        if (!currentUser || !supabaseInstance) return;  // 🔥 CHANGED
+        if (!currentUser || !supabaseInstance) return;
 
         const { data: friendsData, error: friendsError } = await supabaseInstance
             .from('friends')
@@ -127,7 +127,7 @@ function renderFriendsList() {
     container.innerHTML = html;
 }
 
-// ✅ FIXED: Start a call (USING supabaseInstance)
+// Start a call
 window.startCall = async function(friendId, friendName) {
     try {
         console.log('📞 Calling:', friendName);
@@ -159,8 +159,8 @@ window.startCall = async function(friendId, friendName) {
 
         console.log('✅ Room created:', roomResult.url);
 
-        // 2. Save to Supabase calls table (USING supabaseInstance)
-        const { error } = await supabaseInstance  // 🔥 CHANGED
+        // 2. Save to Supabase calls table
+        const { error } = await supabaseInstance
             .from('calls')
             .insert({
                 caller_id: currentUser.id,
@@ -273,7 +273,7 @@ window.openChat = function(friendId, friendName) {
 
 // Search users WITH AVATAR URL
 window.searchUsers = async function() {
-    if (!supabaseInstance || !currentUser) {  // 🔥 CHANGED
+    if (!supabaseInstance || !currentUser) {
         console.log('Waiting for Supabase...');
         return;
     }
@@ -290,14 +290,14 @@ window.searchUsers = async function() {
     }
 
     try {
-        const { data: friends } = await supabaseInstance  // 🔥 CHANGED
+        const { data: friends } = await supabaseInstance
             .from('friends')
             .select('friend_id')
             .eq('user_id', currentUser.id);
 
         const friendIds = friends?.map(f => f.friend_id) || [];
 
-        const { data: pending } = await supabaseInstance  // 🔥 CHANGED
+        const { data: pending } = await supabaseInstance
             .from('friend_requests')
             .select('receiver_id')
             .eq('sender_id', currentUser.id)
@@ -305,7 +305,7 @@ window.searchUsers = async function() {
 
         const pendingIds = pending?.map(r => r.receiver_id) || [];
 
-        const { data: users, error } = await supabaseInstance  // 🔥 CHANGED
+        const { data: users, error } = await supabaseInstance
             .from('profiles')
             .select('id, username, avatar_url')
             .neq('id', currentUser.id)
@@ -361,7 +361,7 @@ window.sendFriendRequest = async function(userId, username, btn) {
         btn.disabled = true;
         btn.textContent = 'Sending...';
 
-        const { error } = await supabaseInstance  // 🔥 CHANGED
+        const { error } = await supabaseInstance
             .from('friend_requests')
             .insert({
                 sender_id: currentUser.id,
@@ -421,7 +421,7 @@ window.closeModal = () => {
     document.getElementById('searchModal').style.display = 'none';
 };
 window.logout = async () => {
-    if (supabaseInstance) await supabaseInstance.auth.signOut();  // 🔥 CHANGED
+    if (supabaseInstance) await supabaseInstance.auth.signOut();
     localStorage.clear();
     sessionStorage.clear();
 
