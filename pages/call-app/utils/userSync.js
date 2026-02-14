@@ -1,9 +1,8 @@
-// pages/call-app/utils/userSync.js - Get user from old RelayTalk
+// pages/call-app/utils/userSync.js - Get user AND friends from old RelayTalk
 
 // Get user from old RelayTalk's localStorage
 export function getRelayTalkUser() {
     try {
-        // Try multiple possible storage keys
         const possibleKeys = [
             'supabase.auth.token',
             'sb-auth-token',
@@ -21,14 +20,11 @@ export function getRelayTalkUser() {
         }
         
         if (!authData) {
-            console.log('No auth data found in localStorage')
+            console.log('No auth data found')
             return null
         }
         
-        // Parse the auth data
         const parsed = JSON.parse(authData)
-        
-        // Handle different possible structures
         let session = null
         
         if (parsed.currentSession) {
@@ -41,10 +37,7 @@ export function getRelayTalkUser() {
             session = parsed[0]
         }
         
-        if (!session?.user) {
-            console.log('No user in session')
-            return null
-        }
+        if (!session?.user) return null
         
         const user = session.user
         
@@ -58,7 +51,7 @@ export function getRelayTalkUser() {
         }
         
     } catch (e) {
-        console.error('Error getting user from RelayTalk:', e)
+        console.error('Error getting user:', e)
         return null
     }
 }
@@ -68,22 +61,15 @@ export async function syncUserToDatabase(supabase, user) {
     try {
         console.log('🔄 Syncing user to CallApp DB:', user.email)
         
-        // Check if user exists
         const { data: existing, error: checkError } = await supabase
             .from('profiles')
             .select('*')
             .eq('id', user.id)
             .maybeSingle()
         
-        if (checkError) {
-            console.error('Error checking user:', checkError)
-            throw checkError
-        }
+        if (checkError) throw checkError
         
         if (existing) {
-            console.log('✅ User already exists, updating status')
-            
-            // Update status and last_seen
             const { data: updated, error: updateError } = await supabase
                 .from('profiles')
                 .update({ 
@@ -95,16 +81,9 @@ export async function syncUserToDatabase(supabase, user) {
                 .select()
                 .single()
             
-            if (updateError) {
-                console.error('Error updating user:', updateError)
-                return existing
-            }
-            
+            if (updateError) throw updateError
             return updated || existing
         }
-        
-        // Create new user
-        console.log('📝 Creating new user in CallApp DB')
         
         const newUser = {
             id: user.id,
@@ -122,12 +101,9 @@ export async function syncUserToDatabase(supabase, user) {
             .select()
             .single()
         
-        if (insertError) {
-            console.error('Error creating user:', insertError)
-            throw insertError
-        }
+        if (insertError) throw insertError
         
-        console.log('✅ User created in CallApp DB:', created.username)
+        console.log('✅ User created in CallApp DB')
         return created
         
     } catch (error) {
@@ -136,17 +112,93 @@ export async function syncUserToDatabase(supabase, user) {
     }
 }
 
-// Check if user has access
-export function checkAccess() {
-    const user = getRelayTalkUser()
-    if (!user) {
-        window.location.href = '/'
-        return null
+// NEW: Sync friends from old RelayTalk to CallApp
+export async function syncFriendsFromRelayTalk(supabase, userId) {
+    try {
+        console.log('🔄 Syncing friends from RelayTalk...')
+        
+        // Try to get friends from old app's localStorage
+        let oldFriends = []
+        
+        // Look for friends data in various possible keys
+        const possibleFriendKeys = [
+            'friends',
+            'relaytalk-friends',
+            'user-friends'
+        ]
+        
+        for (const key of possibleFriendKeys) {
+            const data = localStorage.getItem(key)
+            if (data) {
+                try {
+                    oldFriends = JSON.parse(data)
+                    console.log(`✅ Found friends in: ${key}`)
+                    break
+                } catch (e) {}
+            }
+        }
+        
+        // If we have old friends, sync them
+        if (oldFriends && oldFriends.length > 0) {
+            console.log(`📝 Syncing ${oldFriends.length} friends...`)
+            
+            for (const friend of oldFriends) {
+                // Check if friend exists in CallApp DB
+                const { data: existingFriend } = await supabase
+                    .from('profiles')
+                    .select('id')
+                    .eq('id', friend.id || friend.friend_id)
+                    .maybeSingle()
+                
+                if (existingFriend) {
+                    // Add friend relationship
+                    await supabase
+                        .from('friends')
+                        .upsert({
+                            user_id: userId,
+                            friend_id: existingFriend.id,
+                            created_at: new Date().toISOString()
+                        }, { onConflict: 'user_id,friend_id' })
+                }
+            }
+        }
+        
+        console.log('✅ Friend sync complete')
+        
+    } catch (error) {
+        console.error('❌ Friend sync failed:', error)
     }
-    return user
 }
 
-// Update user status (online/offline)
+// NEW: Get user's friends list
+export async function getUserFriends(supabase, userId) {
+    try {
+        const { data: friendships } = await supabase
+            .from('friends')
+            .select('friend_id')
+            .eq('user_id', userId)
+        
+        if (!friendships || friendships.length === 0) {
+            return []
+        }
+        
+        const friendIds = friendships.map(f => f.friend_id)
+        
+        const { data: friends } = await supabase
+            .from('profiles')
+            .select('id, username, avatar_url, status, last_seen')
+            .in('id', friendIds)
+            .order('username')
+        
+        return friends || []
+        
+    } catch (error) {
+        console.error('Error getting friends:', error)
+        return []
+    }
+}
+
+// Update user status
 export async function updateUserStatus(supabase, userId, status) {
     try {
         await supabase
