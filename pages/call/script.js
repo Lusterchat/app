@@ -1,5 +1,5 @@
-// pages/call/script.js - Using ONLY call-auth.js, NO auth.js
-import { getCallUser } from '/utils/call-auth.js';
+// pages/call/script.js - Fixed version that waits for Supabase
+import { initializeSupabase } from '/utils/supabase.js';
 import { createCallRoom } from '/utils/daily.js';
 
 // Get URL parameters
@@ -9,6 +9,7 @@ const friendName = urlParams.get('friend') || 'Friend';
 
 let callFrame = null;
 let currentRoom = null;
+let supabaseInstance = null;
 
 // Initialize call page
 async function initCallPage() {
@@ -19,21 +20,34 @@ async function initCallPage() {
     document.getElementById('callContainer').style.display = 'none';
     document.getElementById('callError').style.display = 'none';
 
-    // Check auth using call-auth.js (NEVER redirects)
+    // STEP 1: Initialize Supabase and wait for it
+    console.log('⏳ Waiting for Supabase to initialize...');
     try {
-        console.log('Checking auth with call-auth.js...');
-        const authResult = await getCallUser();
-        
-        if (authResult.success) {
-            console.log('✅ Call page: User authenticated as:', authResult.user?.email);
-        } else {
-            console.log('ℹ️ Call page: Continuing as guest (no auth required for calls)');
-        }
+        supabaseInstance = await initializeSupabase();
+        console.log('✅ Supabase initialized successfully');
     } catch (error) {
-        console.log('ℹ️ Call page: Auth check failed, continuing as guest:', error.message);
+        console.log('⚠️ Supabase initialization warning:', error.message);
+        // Continue anyway - call might still work
     }
 
-    // Load Daily.co script
+    // STEP 2: Check auth but NEVER redirect
+    try {
+        if (supabaseInstance?.auth) {
+            const { data: { session } } = await supabaseInstance.auth.getSession();
+            
+            if (session?.user) {
+                console.log('✅ User authenticated:', session.user.email);
+            } else {
+                console.log('ℹ️ No active session - continuing as guest');
+            }
+        } else {
+            console.log('ℹ️ Auth not available - continuing as guest');
+        }
+    } catch (error) {
+        console.log('ℹ️ Auth check failed - continuing as guest:', error.message);
+    }
+
+    // STEP 3: Load Daily.co script
     console.log('Loading Daily.co script...');
     const scriptLoaded = await loadDailyScript();
 
@@ -42,13 +56,13 @@ async function initCallPage() {
         return;
     }
 
-    // Check if we have a room URL
+    // STEP 4: Join or start call
     if (roomUrl) {
         console.log('📞 Joining existing call:', roomUrl);
         await joinCall(roomUrl);
     } else {
-        console.log('📞 No room URL provided');
-        showError('No call URL provided');
+        console.log('📞 Starting new call');
+        await startNewCall();
     }
 }
 
@@ -91,6 +105,22 @@ function loadDailyScript() {
         
         document.head.appendChild(script);
     });
+}
+
+// Start a new call
+async function startNewCall() {
+    try {
+        const result = await createCallRoom();
+        if (!result?.success) {
+            showError('Failed to create call: ' + (result?.error || 'Unknown error'));
+            return;
+        }
+        currentRoom = result;
+        await joinCall(result.url);
+    } catch (error) {
+        console.error('❌ Error starting new call:', error);
+        showError(error.message);
+    }
 }
 
 // Join an existing call
