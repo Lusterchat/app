@@ -1,5 +1,5 @@
-// pages/call/script.js - Fixed version that waits for Supabase
-import { initializeSupabase } from '/utils/supabase.js';
+// pages/call/script.js - Using dedicated call-supabase and call-auth
+import { getCallUser } from '/utils/call-auth.js';
 import { createCallRoom } from '/utils/daily.js';
 
 // Get URL parameters
@@ -9,45 +9,31 @@ const friendName = urlParams.get('friend') || 'Friend';
 
 let callFrame = null;
 let currentRoom = null;
-let supabaseInstance = null;
 
 // Initialize call page
 async function initCallPage() {
-    console.log('📞 Initializing call page...');
+    console.log('📞 Initializing call page with lightweight clients...');
 
     // Show loading immediately
     document.getElementById('callLoading').style.display = 'flex';
     document.getElementById('callContainer').style.display = 'none';
     document.getElementById('callError').style.display = 'none';
 
-    // STEP 1: Initialize Supabase and wait for it
-    console.log('⏳ Waiting for Supabase to initialize...');
+    // Check auth using call-auth (lightweight, never redirects)
     try {
-        supabaseInstance = await initializeSupabase();
-        console.log('✅ Supabase initialized successfully');
-    } catch (error) {
-        console.log('⚠️ Supabase initialization warning:', error.message);
-        // Continue anyway - call might still work
-    }
-
-    // STEP 2: Check auth but NEVER redirect
-    try {
-        if (supabaseInstance?.auth) {
-            const { data: { session } } = await supabaseInstance.auth.getSession();
-            
-            if (session?.user) {
-                console.log('✅ User authenticated:', session.user.email);
-            } else {
-                console.log('ℹ️ No active session - continuing as guest');
-            }
+        console.log('Checking auth with call-auth...');
+        const authResult = await getCallUser();
+        
+        if (authResult.success) {
+            console.log('✅ Call page: User authenticated as:', authResult.user?.email);
         } else {
-            console.log('ℹ️ Auth not available - continuing as guest');
+            console.log('ℹ️ Call page: No authentication needed for calls');
         }
     } catch (error) {
-        console.log('ℹ️ Auth check failed - continuing as guest:', error.message);
+        console.log('ℹ️ Call page: Auth check skipped - continuing as guest');
     }
 
-    // STEP 3: Load Daily.co script
+    // Load Daily.co script in parallel with auth
     console.log('Loading Daily.co script...');
     const scriptLoaded = await loadDailyScript();
 
@@ -56,13 +42,13 @@ async function initCallPage() {
         return;
     }
 
-    // STEP 4: Join or start call
+    // Check if we have a room URL
     if (roomUrl) {
         console.log('📞 Joining existing call:', roomUrl);
         await joinCall(roomUrl);
     } else {
-        console.log('📞 Starting new call');
-        await startNewCall();
+        console.log('📞 No room URL provided');
+        showError('No call URL provided');
     }
 }
 
@@ -75,52 +61,35 @@ function loadDailyScript() {
             return;
         }
 
-        console.log('📥 Loading Daily.co script from CDN...');
+        console.log('📥 Loading Daily.co script...');
         const script = document.createElement('script');
         script.src = 'https://unpkg.com/@daily-co/daily-js@0.24.0/dist/daily.js';
         script.async = true;
 
         script.onload = () => {
-            console.log('✅ Daily.co script loaded successfully');
+            console.log('✅ Daily.co script loaded');
             // Wait for DailyIframe
             let attempts = 0;
             const checkDaily = setInterval(() => {
                 if (window.DailyIframe) {
-                    console.log('✅ DailyIframe available');
                     clearInterval(checkDaily);
                     resolve(true);
                 }
                 if (attempts++ > 20) {
                     clearInterval(checkDaily);
-                    console.error('❌ DailyIframe not available after loading');
+                    console.error('❌ DailyIframe not available');
                     resolve(false);
                 }
             }, 100);
         };
 
-        script.onerror = (error) => {
-            console.error('❌ Failed to load Daily.co script:', error);
+        script.onerror = () => {
+            console.error('❌ Failed to load Daily.co script');
             resolve(false);
         };
         
         document.head.appendChild(script);
     });
-}
-
-// Start a new call
-async function startNewCall() {
-    try {
-        const result = await createCallRoom();
-        if (!result?.success) {
-            showError('Failed to create call: ' + (result?.error || 'Unknown error'));
-            return;
-        }
-        currentRoom = result;
-        await joinCall(result.url);
-    } catch (error) {
-        console.error('❌ Error starting new call:', error);
-        showError(error.message);
-    }
 }
 
 // Join an existing call
@@ -159,55 +128,35 @@ async function joinCall(url) {
         });
 
         // Successfully joined
-        callFrame.on('joined-meeting', (event) => {
-            console.log('✅ Successfully joined call:', event);
+        callFrame.on('joined-meeting', () => {
+            console.log('✅ Successfully joined call');
             document.getElementById('callLoading').style.display = 'none';
             document.getElementById('callContainer').style.display = 'block';
             document.getElementById('callError').style.display = 'none';
         });
 
-        // 🔥 CRITICAL: NO AUTO REDIRECT - Just show ended message
-        callFrame.on('left-meeting', (event) => {
-            console.log('👋 Call ended - showing end screen', event);
+        // 🔥 NO AUTO REDIRECT
+        callFrame.on('left-meeting', () => {
+            console.log('👋 Call ended - showing end screen');
             showCallEnded();
         });
 
-        // Handle errors
         callFrame.on('error', (error) => {
             console.error('❌ Call error:', error);
-            showError('Connection failed: ' + (error.errorMsg || 'Unknown error'));
-        });
-
-        // Handle participant events
-        callFrame.on('participant-left', (event) => {
-            console.log('👤 Participant left:', event);
-            if (event && event.participant && event.participant.user_name) {
-                showTemporaryMessage(`${event.participant.user_name} left the call`);
-            }
-        });
-
-        callFrame.on('participant-joined', (event) => {
-            console.log('👤 Participant joined:', event);
-            if (event && event.participant && event.participant.user_name) {
-                showTemporaryMessage(`${event.participant.user_name} joined the call`);
-            }
-        });
-
-        callFrame.on('participant-updated', (event) => {
-            console.log('👤 Participant updated:', event);
+            showError('Connection failed');
         });
 
         setupCallControls();
 
     } catch (error) {
         console.error('❌ Failed to join call:', error);
-        showError('Failed to join call: ' + error.message);
+        showError('Failed to join call');
     }
 }
 
 // 🔥 SHOW CALL ENDED - NO AUTO REDIRECT
 function showCallEnded() {
-    console.log('📱 Showing call ended screen - NO AUTO REDIRECT');
+    console.log('📱 Showing call ended screen');
     
     document.getElementById('callContainer').style.display = 'none';
     document.getElementById('callLoading').style.display = 'none';
@@ -218,7 +167,7 @@ function showCallEnded() {
     if (closeBtn) {
         closeBtn.textContent = 'Close';
         closeBtn.onclick = () => {
-            console.log('👆 User manually clicked close button');
+            console.log('👆 User manually clicked close');
             window.location.href = '/pages/home/friends/index.html';
         };
     }
@@ -279,47 +228,5 @@ function showError(message) {
     }
 }
 
-// Show temporary message
-function showTemporaryMessage(message) {
-    const msg = document.createElement('div');
-    msg.style.cssText = `
-        position: fixed;
-        top: 20px;
-        left: 50%;
-        transform: translateX(-50%);
-        background: rgba(0, 0, 0, 0.8);
-        color: white;
-        padding: 10px 20px;
-        border-radius: 20px;
-        font-size: 0.9rem;
-        z-index: 2000;
-        animation: fadeInOut 3s ease;
-    `;
-    msg.textContent = message;
-    document.body.appendChild(msg);
-    
-    setTimeout(() => {
-        msg.style.opacity = '0';
-        setTimeout(() => msg.remove(), 3000);
-    }, 3000);
-}
-
-// Add animation style
-const style = document.createElement('style');
-style.textContent = `
-    @keyframes fadeInOut {
-        0% { opacity: 0; transform: translate(-50%, -20px); }
-        10% { opacity: 1; transform: translate(-50%, 0); }
-        90% { opacity: 1; transform: translate(-50%, 0); }
-        100% { opacity: 0; transform: translate(-50%, -20px); }
-    }
-`;
-document.head.appendChild(style);
-
-// Block any automatic redirects
-window.addEventListener('beforeunload', (e) => {
-    console.log('⚠️ Page is unloading - this should only happen on manual navigation');
-});
-
-// Initialize when DOM is ready
+// Initialize
 document.addEventListener('DOMContentLoaded', initCallPage);
