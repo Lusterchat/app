@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Call · CallApp</title>
+    <link rel="stylesheet" href="../../styles/main.css">
+    <link rel="stylesheet" href="call.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div class="call-loading" id="loadingScreen">
+        <div class="loading-spinner"></div>
+        <div id="loadingText">Starting call...</div>
+    </div>
+
+    <!-- Incoming Call Screen -->
+    <div class="incoming-call-screen" id="incomingCallScreen" style="display: none;">
+        <div class="incoming-call-content">
+            <div class="caller-avatar" id="callerAvatar">
+                <i class="fas fa-user-circle"></i>
+            </div>
+            <div class="caller-info">
+                <h2 id="callerName">Incoming Call</h2>
+                <p>Voice call · CallApp</p>
+            </div>
+            <div class="call-actions">
+                <button class="call-btn decline-btn" onclick="window.declineCall()">
+                    <i class="fas fa-phone-slash"></i>
+                </button>
+                <button class="call-btn accept-btn" onclick="window.acceptCall()">
+                    <i class="fas fa-phone-alt"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Active Call Screen -->
+    <div class="active-call-screen" id="activeCallScreen" style="display: none;">
+        <div id="dailyContainer" class="daily-container"></div>
+        
+        <!-- Call Controls -->
+        <div class="call-controls">
+            <button class="control-btn" id="muteBtn" onclick="window.toggleMute()">
+                <i class="fas fa-microphone"></i>
+            </button>
+            <button class="control-btn" id="speakerBtn" onclick="window.toggleSpeaker()">
+                <i class="fas fa-volume-up"></i>
+            </button>
+            <button class="control-btn end-call-btn" onclick="window.endCall()">
+                <i class="fas fa-phone-slash"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Error Screen -->
+    <div class="error-screen" id="errorScreen" style="display: none;">
+        <i class="fas fa-exclamation-circle"></i>
+        <h3>Call Failed</h3>
+        <p id="errorMessage">Could not start the call</p>
+        <button class="back-home-btn" onclick="window.location.href='../../index.html'">
+            <i class="fas fa-arrow-left"></i> Go Back
+        </button>
+    </div>
+
+    <script type="module" src="call.js"></script>
+</body>
+</html>
