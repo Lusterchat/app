@@ -1,4 +1,4 @@
-// pages/call/script.js - Using dedicated call-supabase and call-auth
+// pages/call/script.js - Following home page pattern
 import { getCallUser } from '/utils/call-auth.js';
 import { createCallRoom } from '/utils/daily.js';
 
@@ -9,32 +9,45 @@ const friendName = urlParams.get('friend') || 'Friend';
 
 let callFrame = null;
 let currentRoom = null;
+let currentUser = null;
 
 // Initialize call page
 async function initCallPage() {
-    console.log('📞 Initializing call page with lightweight clients...');
+    console.log('📞 Initializing call page...');
 
-    // Show loading immediately
+    // Show loading
     document.getElementById('callLoading').style.display = 'flex';
     document.getElementById('callContainer').style.display = 'none';
     document.getElementById('callError').style.display = 'none';
 
-    // Check auth using call-auth (lightweight, never redirects)
+    // Check auth like home page - but NEVER redirect
     try {
-        console.log('Checking auth with call-auth...');
         const authResult = await getCallUser();
         
         if (authResult.success) {
-            console.log('✅ Call page: User authenticated as:', authResult.user?.email);
+            currentUser = authResult.user;
+            console.log('✅ Call page: User authenticated:', currentUser.email);
         } else {
-            console.log('ℹ️ Call page: No authentication needed for calls');
+            console.log('⚠️ Call page: Auth check failed - continuing anyway');
+            
+            // Try to recover from localStorage like home page
+            try {
+                const sessionStr = localStorage.getItem('supabase.auth.token');
+                if (sessionStr) {
+                    const session = JSON.parse(sessionStr);
+                    currentUser = {
+                        id: session?.user?.id,
+                        email: session?.user?.email
+                    };
+                    console.log('✅ Call page: Recovered user from localStorage');
+                }
+            } catch (e) {}
         }
     } catch (error) {
-        console.log('ℹ️ Call page: Auth check skipped - continuing as guest');
+        console.log('ℹ️ Call page: Auth error - continuing as guest');
     }
 
-    // Load Daily.co script in parallel with auth
-    console.log('Loading Daily.co script...');
+    // Load Daily.co script
     const scriptLoaded = await loadDailyScript();
 
     if (!scriptLoaded) {
@@ -42,33 +55,29 @@ async function initCallPage() {
         return;
     }
 
-    // Check if we have a room URL
+    // Join or start call
     if (roomUrl) {
-        console.log('📞 Joining existing call:', roomUrl);
+        console.log('📞 Joining call:', roomUrl);
         await joinCall(roomUrl);
     } else {
-        console.log('📞 No room URL provided');
-        showError('No call URL provided');
+        console.log('📞 Starting new call');
+        await startNewCall();
     }
 }
 
-// Load Daily.co iframe library
+// Load Daily.co script
 function loadDailyScript() {
     return new Promise((resolve) => {
         if (window.DailyIframe) {
-            console.log('✅ Daily.co already loaded');
             resolve(true);
             return;
         }
 
-        console.log('📥 Loading Daily.co script...');
         const script = document.createElement('script');
         script.src = 'https://unpkg.com/@daily-co/daily-js@0.24.0/dist/daily.js';
         script.async = true;
 
         script.onload = () => {
-            console.log('✅ Daily.co script loaded');
-            // Wait for DailyIframe
             let attempts = 0;
             const checkDaily = setInterval(() => {
                 if (window.DailyIframe) {
@@ -77,22 +86,32 @@ function loadDailyScript() {
                 }
                 if (attempts++ > 20) {
                     clearInterval(checkDaily);
-                    console.error('❌ DailyIframe not available');
                     resolve(false);
                 }
             }, 100);
         };
 
-        script.onerror = () => {
-            console.error('❌ Failed to load Daily.co script');
-            resolve(false);
-        };
-        
+        script.onerror = () => resolve(false);
         document.head.appendChild(script);
     });
 }
 
-// Join an existing call
+// Start new call
+async function startNewCall() {
+    try {
+        const result = await createCallRoom();
+        if (!result?.success) {
+            showError('Failed to create call');
+            return;
+        }
+        currentRoom = result;
+        await joinCall(result.url);
+    } catch (error) {
+        showError(error.message);
+    }
+}
+
+// Join call
 async function joinCall(url) {
     try {
         if (!window.DailyIframe) {
@@ -106,7 +125,6 @@ async function joinCall(url) {
             return;
         }
 
-        console.log('🔧 Creating Daily iframe...');
         callFrame = window.DailyIframe.createFrame(iframe, {
             showLeaveButton: false,
             iframeStyle: {
@@ -119,61 +137,50 @@ async function joinCall(url) {
             }
         });
 
-        console.log('🔌 Joining call with URL:', url);
-        
         callFrame.join({
             url: url,
             startVideoOff: true,
             startAudioOff: false
         });
 
-        // Successfully joined
         callFrame.on('joined-meeting', () => {
-            console.log('✅ Successfully joined call');
             document.getElementById('callLoading').style.display = 'none';
             document.getElementById('callContainer').style.display = 'block';
-            document.getElementById('callError').style.display = 'none';
         });
 
         // 🔥 NO AUTO REDIRECT
         callFrame.on('left-meeting', () => {
-            console.log('👋 Call ended - showing end screen');
+            console.log('Call ended');
             showCallEnded();
         });
 
-        callFrame.on('error', (error) => {
-            console.error('❌ Call error:', error);
+        callFrame.on('error', () => {
             showError('Connection failed');
         });
 
         setupCallControls();
 
     } catch (error) {
-        console.error('❌ Failed to join call:', error);
         showError('Failed to join call');
     }
 }
 
-// 🔥 SHOW CALL ENDED - NO AUTO REDIRECT
+// Show call ended - NO AUTO REDIRECT
 function showCallEnded() {
-    console.log('📱 Showing call ended screen');
-    
     document.getElementById('callContainer').style.display = 'none';
-    document.getElementById('callLoading').style.display = 'none';
     document.getElementById('callError').style.display = 'flex';
     document.getElementById('errorMessage').textContent = 'Call ended';
-    
+
     const closeBtn = document.querySelector('.back-btn');
     if (closeBtn) {
         closeBtn.textContent = 'Close';
         closeBtn.onclick = () => {
-            console.log('👆 User manually clicked close');
-            window.location.href = '/pages/home/friends/index.html';
+            window.location.href = '/pages/home/friends/index.html';  // ONLY on manual click
         };
     }
 }
 
-// Setup call controls
+// Setup controls
 function setupCallControls() {
     let isMuted = false;
     let isVideoOff = true;
@@ -200,32 +207,17 @@ function setupCallControls() {
 
     if (endBtn) {
         endBtn.addEventListener('click', () => {
-            console.log('👆 User clicked end call button');
-            if (callFrame) {
-                callFrame.leave();
-            } else {
-                showCallEnded();
-            }
+            if (callFrame) callFrame.leave();
+            showCallEnded();
         });
     }
 }
 
 // Show error
 function showError(message) {
-    console.error('❌ Error:', message);
-    
     document.getElementById('callLoading').style.display = 'none';
-    document.getElementById('callContainer').style.display = 'none';
     document.getElementById('callError').style.display = 'flex';
     document.getElementById('errorMessage').textContent = message;
-    
-    const closeBtn = document.querySelector('.back-btn');
-    if (closeBtn) {
-        closeBtn.onclick = () => {
-            console.log('👆 User manually clicked close from error');
-            window.location.href = '/pages/home/friends/index.html';
-        };
-    }
 }
 
 // Initialize
