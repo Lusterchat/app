@@ -1,5 +1,6 @@
 // utils/call-auth.js - SPECIAL VERSION FOR CALL PAGE ONLY
 // This version NEVER redirects, just returns status
+// Does NOT import or use auth.js at all
 
 import { initializeSupabase } from './supabase.js';
 
@@ -12,45 +13,55 @@ export async function getCallUser() {
         
         // Initialize Supabase if needed
         if (!supabaseInstance) {
+            console.log('Call page: Initializing Supabase...');
             supabaseInstance = await initializeSupabase();
         }
         
-        if (!supabaseInstance?.auth) {
+        if (!supabaseInstance || !supabaseInstance.auth) {
             console.log('⚠️ Call page: Auth not available');
-            return { success: false, user: null };
+            return { success: false, user: null, session: null };
         }
         
-        // Try to get user
-        const { data: { user }, error } = await supabaseInstance.auth.getUser();
+        // First try to get session (more reliable)
+        console.log('Call page: Checking session...');
+        const { data: sessionData, error: sessionError } = await supabaseInstance.auth.getSession();
         
-        if (error) {
-            console.log('⚠️ Call page: Auth error:', error.message);
-            
-            // Try session as fallback
-            const { data: sessionData } = await supabaseInstance.auth.getSession();
-            if (sessionData.session?.user) {
-                console.log('✅ Call page: Found user via session');
-                return { 
-                    success: true, 
-                    user: sessionData.session.user,
-                    session: sessionData.session 
-                };
-            }
-            
-            return { success: false, user: null };
+        if (sessionError) {
+            console.log('⚠️ Call page: Session error:', sessionError.message);
         }
         
-        if (user) {
-            console.log('✅ Call page: User found:', user.email);
-            return { success: true, user };
+        if (sessionData?.session?.user) {
+            console.log('✅ Call page: Found user via session:', sessionData.session.user.email);
+            return { 
+                success: true, 
+                user: sessionData.session.user,
+                session: sessionData.session 
+            };
         }
         
-        console.log('⚠️ Call page: No user found');
-        return { success: false, user: null };
+        // If no session, try getUser as fallback
+        console.log('Call page: No session, trying getUser...');
+        const { data: userData, error: userError } = await supabaseInstance.auth.getUser();
+        
+        if (userError) {
+            console.log('⚠️ Call page: GetUser error:', userError.message);
+        }
+        
+        if (userData?.user) {
+            console.log('✅ Call page: Found user via getUser:', userData.user.email);
+            return { 
+                success: true, 
+                user: userData.user,
+                session: null 
+            };
+        }
+        
+        console.log('ℹ️ Call page: No authenticated user found - continuing as guest');
+        return { success: false, user: null, session: null };
         
     } catch (error) {
-        console.log('⚠️ Call page: Auth exception:', error.message);
-        return { success: false, user: null };
+        console.log('⚠️ Call page: Auth exception (non-fatal):', error.message);
+        return { success: false, user: null, session: null };
     }
 }
 
@@ -65,5 +76,15 @@ export async function hasValidSession() {
         return !!data.session;
     } catch {
         return false;
+    }
+}
+
+// Get current user ID if available
+export async function getCurrentUserId() {
+    try {
+        const result = await getCallUser();
+        return result.success ? result.user.id : null;
+    } catch {
+        return null;
     }
 }
