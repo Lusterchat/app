@@ -1,7 +1,7 @@
 // pages/call/call.js - COMPLETE FIXED VERSION
 
-import { initializeSupabase, supabase as supabaseClient } from '../../utils/supabase.js';
-import { createCallRoom, getCallUrl, getRoomInfo } from '../../utils/daily.js';
+import { initializeSupabase } from '../../utils/supabase.js';
+import { createCallRoom, getRoomInfo } from '../../utils/daily.js';
 import { cleanupCallListener } from '../../utils/callListener.js';
 
 let supabase = null;
@@ -11,33 +11,33 @@ let dailyIframe = null;
 let callRoom = null;
 let callType = 'outgoing';
 let callerInfo = null;
+let callSubscription = null;
 
 // Initialize call page
 async function initCallPage() {
     console.log('Initializing call page...');
-    
-    // Clean up any existing listeners from other pages
+
     cleanupCallListener();
-    
+
     try {
         supabase = await initializeSupabase();
-        
+
         if (!supabase || !supabase.auth) {
             throw new Error('Supabase not initialized');
         }
-        
+
         const { data: { session }, error } = await supabase.auth.getSession();
-        
+
         if (error) throw error;
-        
+
         if (!session) {
             window.location.href = '../../pages/login/index.html';
             return;
         }
-        
+
         currentUser = session.user;
         console.log('✅ User:', currentUser.email);
-        
+
         // Get call parameters from URL
         const urlParams = new URLSearchParams(window.location.search);
         const friendId = urlParams.get('friendId');
@@ -45,7 +45,9 @@ async function initCallPage() {
         const incoming = urlParams.get('incoming');
         const callerId = urlParams.get('callerId');
         const callId = urlParams.get('callId');
-        
+
+        console.log('URL Parameters:', { friendId, roomName, incoming, callerId, callId });
+
         if (incoming === 'true' && roomName && callerId && callId) {
             // Incoming call
             callType = 'incoming';
@@ -55,9 +57,19 @@ async function initCallPage() {
             callType = 'outgoing';
             await startOutgoingCall(friendId);
         } else {
+            // Check sessionStorage for backup
+            const storedCall = sessionStorage.getItem('currentCall');
+            if (storedCall) {
+                const data = JSON.parse(storedCall);
+                console.log('Found stored call:', data);
+                if (data.friendId) {
+                    await startOutgoingCall(data.friendId);
+                    return;
+                }
+            }
             showError('No call information provided');
         }
-        
+
     } catch (error) {
         console.error('Init error:', error);
         showError('Failed to initialize call: ' + error.message);
@@ -68,44 +80,28 @@ async function initCallPage() {
 async function startOutgoingCall(friendId) {
     try {
         document.getElementById('loadingText').textContent = 'Calling...';
-        
+
         // Get friend info
         const { data: friend, error } = await supabase
             .from('profiles')
             .select('id, username, avatar_url')
             .eq('id', friendId)
             .single();
-            
+
         if (error || !friend) {
             throw new Error('Could not find friend');
         }
-        
+
         callerInfo = friend;
-        
+
         // Create Daily.co room
         console.log('1️⃣ Creating Daily.co room...');
         callRoom = await createCallRoom();
         console.log('2️⃣ Room created:', callRoom);
-        
-        // STORE CALL IN SUPABASE
-        console.log('3️⃣ Attempting to insert call into Supabase...');
-        console.log('   Caller ID:', currentUser.id);
-        console.log('   Receiver ID:', friendId);
-        console.log('   Room Name:', callRoom.name);
-        console.log('   Room URL:', callRoom.url);
-        
-        // First, check if calls table exists and is accessible
-        const { count, error: testError } = await supabase
-            .from('calls')
-            .select('*', { count: 'exact', head: true });
-            
-        if (testError) {
-            console.error('❌ Calls table not accessible:', testError);
-            throw new Error('Database error: ' + testError.message);
-        }
-        
-        console.log('✅ Calls table is accessible');
-        
+
+        // Insert call into database
+        console.log('3️⃣ Inserting call into Supabase...');
+
         const callData = {
             caller_id: currentUser.id,
             receiver_id: friendId,
@@ -114,9 +110,7 @@ async function startOutgoingCall(friendId) {
             status: 'ringing',
             created_at: new Date().toISOString()
         };
-        
-        console.log('   Inserting data:', callData);
-        
+
         const { data: call, error: callError } = await supabase
             .from('calls')
             .insert([callData])
@@ -124,26 +118,26 @@ async function startOutgoingCall(friendId) {
             .single();
 
         if (callError) {
-            console.error('❌ FAILED to insert call:', callError);
-            console.error('Error code:', callError.code);
-            console.error('Error message:', callError.message);
-            console.error('Error details:', callError.details);
+            console.error('❌ Failed to insert call:', callError);
             throw new Error('Failed to create call: ' + callError.message);
         }
-        
-        console.log('4️⃣ ✅ Call inserted successfully:', call);
-        
+
+        console.log('4️⃣ ✅ Call inserted:', call);
+
         currentCall = call;
-        
+
+        // Store in sessionStorage
+        sessionStorage.setItem('currentCall', JSON.stringify({
+            id: call.id,
+            roomName: call.room_name,
+            friendId: friendId
+        }));
+
         // Hide loading, show calling UI
         document.getElementById('loadingScreen').style.display = 'none';
-        
-        // Show outgoing call UI
         showOutgoingUI(friend);
-        
-        // Listen for call acceptance/rejection
         setupCallListener(call.id);
-        
+
     } catch (error) {
         console.error('Call start error:', error);
         showError(error.message);
@@ -154,21 +148,20 @@ async function startOutgoingCall(friendId) {
 async function handleIncomingCall(roomName, callerId, callId) {
     try {
         document.getElementById('loadingText').textContent = 'Connecting...';
-        
-        // Get caller info
+
         const { data: caller, error } = await supabase
             .from('profiles')
             .select('id, username, avatar_url')
             .eq('id', callerId)
             .single();
-            
+
         if (error || !caller) {
             throw new Error('Could not find caller');
         }
-        
+
         callerInfo = caller;
         currentCall = { id: callId, room_name: roomName };
-        
+
         // Update call status to active
         const { error: updateError } = await supabase
             .from('calls')
@@ -177,21 +170,45 @@ async function handleIncomingCall(roomName, callerId, callId) {
                 answered_at: new Date().toISOString()
             })
             .eq('id', callId);
-            
+
         if (updateError) {
             console.error('Failed to update call:', updateError);
         }
+
+        document.getElementById('loadingScreen').style.display = 'none';
         
-        // Join the call immediately
-        await joinCall();
+        // Show incoming UI briefly
+        showIncomingUI(caller);
         
+        // Auto-join after 1 second
+        setTimeout(() => {
+            joinCall();
+        }, 1000);
+
     } catch (error) {
         console.error('Incoming call error:', error);
         showError('Failed to handle incoming call: ' + error.message);
     }
 }
 
-// Show outgoing call UI
+// Show incoming UI
+function showIncomingUI(caller) {
+    const incomingScreen = document.getElementById('incomingCallScreen');
+    if (incomingScreen) {
+        document.getElementById('callerName').textContent = caller.username || 'Unknown';
+        
+        const avatarEl = document.getElementById('callerAvatar');
+        if (caller.avatar_url) {
+            avatarEl.innerHTML = `<img src="${caller.avatar_url}" alt="${caller.username}" style="width:120px; height:120px; border-radius:50%; object-fit:cover; border: 3px solid #007acc;">`;
+        } else {
+            avatarEl.innerHTML = '<i class="fas fa-user-circle"></i>';
+        }
+        
+        incomingScreen.style.display = 'flex';
+    }
+}
+
+// Show outgoing UI
 function showOutgoingUI(friend) {
     const outgoingScreen = document.createElement('div');
     outgoingScreen.className = 'incoming-call-screen';
@@ -218,12 +235,11 @@ function showOutgoingUI(friend) {
     document.body.appendChild(outgoingScreen);
 }
 
-// Setup realtime listener for call
+// Setup call listener
 function setupCallListener(callId) {
     console.log('Setting up call listener for call ID:', callId);
-    
-    // Subscribe to call changes
-    const subscription = supabase
+
+    callSubscription = supabase
         .channel(`call-${callId}`)
         .on('postgres_changes', {
             event: 'UPDATE',
@@ -232,32 +248,23 @@ function setupCallListener(callId) {
             filter: `id=eq.${callId}`
         }, (payload) => {
             console.log('Call update received:', payload);
-            
+
             if (payload.new.status === 'active' && !dailyIframe) {
-                // Call was accepted
                 document.getElementById('callStatusText').textContent = 'Connecting...';
                 joinCall();
             } else if (payload.new.status === 'rejected') {
-                // Call was rejected
                 showCallEnded('Call was rejected');
             } else if (payload.new.status === 'ended') {
-                // Call ended by other user
                 if (dailyIframe) {
                     window.location.href = '../../pages/home/index.html';
                 }
             } else if (payload.new.status === 'cancelled') {
-                // Call was cancelled
                 showCallEnded('Call was cancelled');
             }
         })
-        .subscribe((status) => {
-            console.log('Call listener subscription status:', status);
-        });
-    
-    // Store subscription for cleanup
-    window.callSubscription = subscription;
-    
-    // Check if call is already active
+        .subscribe();
+
+    window.callSubscription = callSubscription;
     checkCallStatus(callId);
 }
 
@@ -268,14 +275,14 @@ async function checkCallStatus(callId) {
         .select('*')
         .eq('id', callId)
         .single();
-        
+
     if (error) {
         console.error('Error checking call status:', error);
         return;
     }
-    
+
     console.log('Current call status:', call);
-        
+
     if (call && call.status === 'active') {
         joinCall();
     }
@@ -287,8 +294,7 @@ window.acceptCall = async function() {
         document.getElementById('incomingCallScreen').style.display = 'none';
         document.getElementById('loadingScreen').style.display = 'flex';
         document.getElementById('loadingText').textContent = 'Connecting...';
-        
-        // Update call status in Supabase
+
         const { error } = await supabase
             .from('calls')
             .update({ 
@@ -296,12 +302,11 @@ window.acceptCall = async function() {
                 answered_at: new Date().toISOString()
             })
             .eq('id', currentCall.id);
-            
+
         if (error) throw error;
-        
-        // Join the call
+
         await joinCall();
-        
+
     } catch (error) {
         console.error('Accept error:', error);
         showError('Failed to accept call');
@@ -318,9 +323,9 @@ window.declineCall = async function() {
                 ended_at: new Date().toISOString()
             })
             .eq('id', currentCall.id);
-        
+
         window.location.href = '../../pages/home/index.html';
-        
+
     } catch (error) {
         console.error('Decline error:', error);
         window.location.href = '../../pages/home/index.html';
@@ -337,9 +342,9 @@ window.cancelCall = async function() {
                 ended_at: new Date().toISOString()
             })
             .eq('id', currentCall.id);
-        
+
         window.location.href = '../../pages/home/index.html';
-        
+
     } catch (error) {
         console.error('Cancel error:', error);
         window.location.href = '../../pages/home/index.html';
@@ -351,35 +356,29 @@ async function joinCall() {
     try {
         document.getElementById('loadingScreen').style.display = 'flex';
         document.getElementById('loadingText').textContent = 'Joining call...';
-        
-        // Hide any incoming/outgoing UI
+
         document.getElementById('incomingCallScreen')?.style.display = 'none';
         document.getElementById('outgoingCallScreen')?.remove();
-        
-        // Get room name
+
         const roomName = currentCall.room_name;
         console.log('Joining room:', roomName);
-        
-        // Get room URL
+
         const roomInfo = await getRoomInfo(roomName);
         if (!roomInfo) {
             throw new Error('Could not find call room');
         }
-        
+
         console.log('Room info:', roomInfo);
-        
-        // Create Daily iframe
+
         const container = document.getElementById('dailyContainer');
-        
-        // Create iframe for Daily
+
         const iframe = document.createElement('iframe');
         iframe.allow = 'microphone; autoplay; playinline';
         iframe.style.width = '100%';
         iframe.style.height = '100%';
         iframe.style.border = 'none';
         iframe.style.background = '#000';
-        
-        // Build URL with parameters
+
         const dailyUrl = new URL(roomInfo.url);
         dailyUrl.searchParams.set('t', '');
         dailyUrl.searchParams.set('dn', currentUser.user_metadata?.username || 'User');
@@ -387,21 +386,19 @@ async function joinCall() {
         dailyUrl.searchParams.set('audio', '1');
         dailyUrl.searchParams.set('chrome', '0');
         dailyUrl.searchParams.set('embed', '1');
-        
+
         iframe.src = dailyUrl.toString();
         console.log('Daily URL:', dailyUrl.toString());
-        
+
         container.innerHTML = '';
         container.appendChild(iframe);
         dailyIframe = iframe;
-        
-        // Show active call screen
+
         document.getElementById('loadingScreen').style.display = 'none';
         document.getElementById('activeCallScreen').style.display = 'block';
-        
-        // Setup audio state
+
         setupAudioHandling();
-        
+
     } catch (error) {
         console.error('Join error:', error);
         showError('Failed to join call: ' + error.message);
@@ -412,12 +409,11 @@ async function joinCall() {
 function setupAudioHandling() {
     let isMuted = false;
     let isSpeakerOn = true;
-    
-    // Mute toggle
+
     window.toggleMute = function() {
         isMuted = !isMuted;
         const muteBtn = document.getElementById('muteBtn');
-        
+
         if (isMuted) {
             muteBtn.innerHTML = '<i class="fas fa-microphone-slash"></i>';
             muteBtn.classList.add('muted');
@@ -426,12 +422,11 @@ function setupAudioHandling() {
             muteBtn.classList.remove('muted');
         }
     };
-    
-    // Speaker toggle
+
     window.toggleSpeaker = function() {
         isSpeakerOn = !isSpeakerOn;
         const speakerBtn = document.getElementById('speakerBtn');
-        
+
         if (!isSpeakerOn) {
             speakerBtn.innerHTML = '<i class="fas fa-volume-mute"></i>';
             speakerBtn.classList.add('speaker-off');
@@ -440,8 +435,7 @@ function setupAudioHandling() {
             speakerBtn.classList.remove('speaker-off');
         }
     };
-    
-    // End call
+
     window.endCall = async function() {
         try {
             await supabase
@@ -451,9 +445,9 @@ function setupAudioHandling() {
                     ended_at: new Date().toISOString()
                 })
                 .eq('id', currentCall.id);
-            
+
             window.location.href = '../../pages/home/index.html';
-            
+
         } catch (error) {
             console.error('End call error:', error);
             window.location.href = '../../pages/home/index.html';
@@ -461,10 +455,10 @@ function setupAudioHandling() {
     };
 }
 
-// Show call ended message
+// Show call ended
 function showCallEnded(message) {
     document.getElementById('outgoingCallScreen')?.remove();
-    
+
     const endedScreen = document.createElement('div');
     endedScreen.className = 'incoming-call-screen';
     endedScreen.innerHTML = `
@@ -496,7 +490,7 @@ window.goBack = function() {
     window.location.href = '../../pages/home/index.html';
 };
 
-// Clean up on page unload
+// Clean up
 window.addEventListener('beforeunload', () => {
     if (window.callSubscription) {
         window.callSubscription.unsubscribe();
