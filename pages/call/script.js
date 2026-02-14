@@ -1,5 +1,5 @@
-// pages/call/script.js - Using special call-auth
-import { getCallUser, hasValidSession } from '/utils/call-auth.js';
+// pages/call/script.js - Using ONLY call-auth.js, NO auth.js
+import { getCallUser } from '/utils/call-auth.js';
 import { createCallRoom } from '/utils/daily.js';
 
 // Get URL parameters
@@ -19,19 +19,22 @@ async function initCallPage() {
     document.getElementById('callContainer').style.display = 'none';
     document.getElementById('callError').style.display = 'none';
 
-    // Check auth but NEVER redirect
+    // Check auth using call-auth.js (NEVER redirects)
     try {
+        console.log('Checking auth with call-auth.js...');
         const authResult = await getCallUser();
+        
         if (authResult.success) {
-            console.log('✅ Call page: User authenticated:', authResult.user.email);
+            console.log('✅ Call page: User authenticated as:', authResult.user?.email);
         } else {
-            console.log('ℹ️ Call page: Continuing without authentication');
+            console.log('ℹ️ Call page: Continuing as guest (no auth required for calls)');
         }
     } catch (error) {
-        console.log('ℹ️ Call page: Auth check failed, continuing anyway');
+        console.log('ℹ️ Call page: Auth check failed, continuing as guest:', error.message);
     }
 
     // Load Daily.co script
+    console.log('Loading Daily.co script...');
     const scriptLoaded = await loadDailyScript();
 
     if (!scriptLoaded) {
@@ -44,8 +47,8 @@ async function initCallPage() {
         console.log('📞 Joining existing call:', roomUrl);
         await joinCall(roomUrl);
     } else {
-        console.log('📞 Starting new call');
-        await startNewCall();
+        console.log('📞 No room URL provided');
+        showError('No call URL provided');
     }
 }
 
@@ -58,51 +61,36 @@ function loadDailyScript() {
             return;
         }
 
-        console.log('📥 Loading Daily.co script...');
+        console.log('📥 Loading Daily.co script from CDN...');
         const script = document.createElement('script');
         script.src = 'https://unpkg.com/@daily-co/daily-js@0.24.0/dist/daily.js';
         script.async = true;
 
         script.onload = () => {
-            console.log('✅ Daily.co script loaded');
+            console.log('✅ Daily.co script loaded successfully');
             // Wait for DailyIframe
             let attempts = 0;
             const checkDaily = setInterval(() => {
                 if (window.DailyIframe) {
+                    console.log('✅ DailyIframe available');
                     clearInterval(checkDaily);
                     resolve(true);
                 }
                 if (attempts++ > 20) {
                     clearInterval(checkDaily);
-                    console.error('❌ DailyIframe not available');
+                    console.error('❌ DailyIframe not available after loading');
                     resolve(false);
                 }
             }, 100);
         };
 
-        script.onerror = () => {
-            console.error('❌ Failed to load Daily.co script');
+        script.onerror = (error) => {
+            console.error('❌ Failed to load Daily.co script:', error);
             resolve(false);
         };
         
         document.head.appendChild(script);
     });
-}
-
-// Start a new call
-async function startNewCall() {
-    try {
-        const result = await createCallRoom();
-        if (!result?.success) {
-            showError('Failed to create call: ' + (result?.error || 'Unknown error'));
-            return;
-        }
-        currentRoom = result;
-        await joinCall(result.url);
-    } catch (error) {
-        console.error('❌ Error starting new call:', error);
-        showError(error.message);
-    }
 }
 
 // Join an existing call
@@ -132,7 +120,7 @@ async function joinCall(url) {
             }
         });
 
-        console.log('🔌 Joining call...');
+        console.log('🔌 Joining call with URL:', url);
         
         callFrame.join({
             url: url,
@@ -141,35 +129,55 @@ async function joinCall(url) {
         });
 
         // Successfully joined
-        callFrame.on('joined-meeting', () => {
-            console.log('✅ Successfully joined call');
+        callFrame.on('joined-meeting', (event) => {
+            console.log('✅ Successfully joined call:', event);
             document.getElementById('callLoading').style.display = 'none';
             document.getElementById('callContainer').style.display = 'block';
             document.getElementById('callError').style.display = 'none';
         });
 
-        // 🔥 CRITICAL: NO AUTO REDIRECT
-        callFrame.on('left-meeting', () => {
-            console.log('👋 Call ended - showing end screen');
+        // 🔥 CRITICAL: NO AUTO REDIRECT - Just show ended message
+        callFrame.on('left-meeting', (event) => {
+            console.log('👋 Call ended - showing end screen', event);
             showCallEnded();
         });
 
+        // Handle errors
         callFrame.on('error', (error) => {
             console.error('❌ Call error:', error);
-            showError('Connection failed');
+            showError('Connection failed: ' + (error.errorMsg || 'Unknown error'));
+        });
+
+        // Handle participant events
+        callFrame.on('participant-left', (event) => {
+            console.log('👤 Participant left:', event);
+            if (event && event.participant && event.participant.user_name) {
+                showTemporaryMessage(`${event.participant.user_name} left the call`);
+            }
+        });
+
+        callFrame.on('participant-joined', (event) => {
+            console.log('👤 Participant joined:', event);
+            if (event && event.participant && event.participant.user_name) {
+                showTemporaryMessage(`${event.participant.user_name} joined the call`);
+            }
+        });
+
+        callFrame.on('participant-updated', (event) => {
+            console.log('👤 Participant updated:', event);
         });
 
         setupCallControls();
 
     } catch (error) {
         console.error('❌ Failed to join call:', error);
-        showError('Failed to join call');
+        showError('Failed to join call: ' + error.message);
     }
 }
 
 // 🔥 SHOW CALL ENDED - NO AUTO REDIRECT
 function showCallEnded() {
-    console.log('📱 Showing call ended screen');
+    console.log('📱 Showing call ended screen - NO AUTO REDIRECT');
     
     document.getElementById('callContainer').style.display = 'none';
     document.getElementById('callLoading').style.display = 'none';
@@ -180,7 +188,7 @@ function showCallEnded() {
     if (closeBtn) {
         closeBtn.textContent = 'Close';
         closeBtn.onclick = () => {
-            console.log('👆 User manually clicked close');
+            console.log('👆 User manually clicked close button');
             window.location.href = '/pages/home/friends/index.html';
         };
     }
@@ -241,5 +249,47 @@ function showError(message) {
     }
 }
 
-// Initialize
+// Show temporary message
+function showTemporaryMessage(message) {
+    const msg = document.createElement('div');
+    msg.style.cssText = `
+        position: fixed;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0, 0, 0, 0.8);
+        color: white;
+        padding: 10px 20px;
+        border-radius: 20px;
+        font-size: 0.9rem;
+        z-index: 2000;
+        animation: fadeInOut 3s ease;
+    `;
+    msg.textContent = message;
+    document.body.appendChild(msg);
+    
+    setTimeout(() => {
+        msg.style.opacity = '0';
+        setTimeout(() => msg.remove(), 3000);
+    }, 3000);
+}
+
+// Add animation style
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes fadeInOut {
+        0% { opacity: 0; transform: translate(-50%, -20px); }
+        10% { opacity: 1; transform: translate(-50%, 0); }
+        90% { opacity: 1; transform: translate(-50%, 0); }
+        100% { opacity: 0; transform: translate(-50%, -20px); }
+    }
+`;
+document.head.appendChild(style);
+
+// Block any automatic redirects
+window.addEventListener('beforeunload', (e) => {
+    console.log('⚠️ Page is unloading - this should only happen on manual navigation');
+});
+
+// Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', initCallPage);
