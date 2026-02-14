@@ -329,6 +329,10 @@ async function joinCall() {
         // Create iframe for Daily
         const iframe = document.createElement('iframe');
         iframe.allow = 'microphone; autoplay; playinline';
+        iframe.style.width = '100%';
+        iframe.style.height = '100%';
+        iframe.style.border = 'none';
+        iframe.style.background = '#000';
         
         // Build URL with parameters
         const dailyUrl = new URL(roomInfo.url);
