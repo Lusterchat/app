@@ -1,4 +1,4 @@
-// pages/call-app/call/call.js - COMPLETE WITH JITSI
+// pages/call-app/call/call.js - COMPLETE FINAL VERSION
 
 import { initializeSupabase } from '../utils/supabase.js'
 import { createCallRoom, getRoomInfo, getCallUrl } from '../utils/jitsi.js'
@@ -33,6 +33,8 @@ async function initCall() {
         const callerId = params.get('callerId')
         const callId = params.get('callId')
         
+        console.log('📞 Call params:', { friendId, friendName, incoming, roomName, callerId, callId })
+        
         if (incoming === 'true' && roomName && callerId && callId) {
             await handleIncomingCall(roomName, callerId, callId)
         } else if (friendId) {
@@ -50,8 +52,10 @@ async function initCall() {
 async function startOutgoingCall(friendId, friendName) {
     try {
         document.getElementById('loadingText').textContent = `Calling ${friendName}...`
+        console.log('1️⃣ Starting outgoing call to:', friendId, friendName)
         
         callRoom = await createCallRoom()
+        console.log('2️⃣ Room created:', callRoom)
         
         const callData = {
             caller_id: currentUser.id,
@@ -62,13 +66,20 @@ async function startOutgoingCall(friendId, friendName) {
             created_at: new Date().toISOString()
         }
         
+        console.log('3️⃣ Call data:', callData)
+        
         const { data: call, error } = await supabase
             .from('calls')
             .insert([callData])
             .select()
             .single()
         
-        if (error) throw new Error('Database error: ' + error.message)
+        if (error) {
+            console.error('❌ Supabase error:', error)
+            throw new Error('Database error: ' + error.message)
+        }
+        
+        console.log('4️⃣ ✅ Call inserted:', call)
         
         currentCall = call
         document.getElementById('loadingScreen').style.display = 'none'
@@ -83,6 +94,7 @@ async function startOutgoingCall(friendId, friendName) {
 
 async function handleIncomingCall(roomName, callerId, callId) {
     try {
+        console.log('📞 Handling incoming call:', { roomName, callerId, callId })
         document.getElementById('loadingText').textContent = 'Connecting...'
         
         currentCall = { id: callId, room_name: roomName }
@@ -124,6 +136,8 @@ function showCallingUI(friendName) {
 }
 
 function setupCallListener(callId) {
+    console.log('5️⃣ Setting up call listener for ID:', callId)
+    
     supabase
         .channel(`call-${callId}`)
         .on('postgres_changes', {
@@ -132,6 +146,8 @@ function setupCallListener(callId) {
             table: 'calls',
             filter: `id=eq.${callId}`
         }, (payload) => {
+            console.log('📞 Call update received:', payload.new.status)
+            
             if (payload.new.status === 'active') {
                 document.getElementById('callStatus').textContent = 'Connecting...'
                 joinCall(payload.new.room_name)
@@ -141,16 +157,21 @@ function setupCallListener(callId) {
                 showCallEnded('Call was cancelled')
             }
         })
-        .subscribe()
+        .subscribe((status) => {
+            console.log('Call listener subscription status:', status)
+        })
 }
 
 async function joinCall(roomName) {
     try {
+        console.log('6️⃣ Joining Jitsi call room:', roomName)
+        
         document.getElementById('outgoingUI')?.remove()
         document.getElementById('loadingScreen').style.display = 'flex'
         document.getElementById('loadingText').textContent = 'Connecting...'
         
         const roomInfo = await getRoomInfo(roomName)
+        console.log('7️⃣ Room info:', roomInfo)
         
         const container = document.getElementById('dailyContainer')
         container.innerHTML = ''
@@ -164,6 +185,7 @@ async function joinCall(roomName) {
         
         const url = getCallUrl(roomInfo.url, currentUser.username)
         iframe.src = url
+        console.log('8️⃣ Iframe URL:', url)
         
         container.appendChild(iframe)
         jitsiIframe = iframe
@@ -171,15 +193,7 @@ async function joinCall(roomName) {
         document.getElementById('loadingScreen').style.display = 'none'
         document.getElementById('activeCallScreen').style.display = 'block'
         
-        // Auto-hide toolbar after 3 seconds
-        setTimeout(() => {
-            try {
-                iframe.contentWindow.postMessage({
-                    type: 'toolbarVisible',
-                    visible: false
-                }, '*');
-            } catch (e) {}
-        }, 3000)
+        console.log('✅ Jitsi call connected!')
         
     } catch (error) {
         console.error('❌ Join error:', error)
@@ -204,6 +218,7 @@ window.toggleSpeaker = function() {
 }
 
 window.endCall = async function() {
+    console.log('Ending call...')
     if (currentCall) {
         await supabase
             .from('calls')
@@ -214,6 +229,7 @@ window.endCall = async function() {
 }
 
 window.cancelCall = async function() {
+    console.log('Cancelling call...')
     if (currentCall) {
         await supabase
             .from('calls')
@@ -222,6 +238,9 @@ window.cancelCall = async function() {
     }
     window.location.href = '../index.html'
 }
+
+window.acceptCall = function() {}
+window.declineCall = function() {}
 
 function showCallEnded(message) {
     document.getElementById('outgoingUI')?.remove()
@@ -235,14 +254,18 @@ function showCallEnded(message) {
             </div>
             <div class="caller-info">
                 <h2 style="color: white;">Call Ended</h2>
-                <p style="color:#ccc;">${message}</p>
+                <p style="color:#ccc; margin: 10px 0 20px;">${message}</p>
             </div>
-            <button onclick="window.location.href='../index.html'" style="background: #f5b342; color: #333; border: none; padding: 12px 24px; border-radius: 25px; margin-top: 20px; cursor: pointer;">
+            <button onclick="window.location.href='../index.html'" style="background: #f5b342; color: #333; border: none; padding: 12px 24px; border-radius: 25px; font-size: 16px; cursor: pointer;">
                 Go Back
             </button>
         </div>
     `
     document.body.appendChild(endedScreen)
+    
+    setTimeout(() => {
+        window.location.href = '../index.html'
+    }, 2000)
 }
 
 function showError(message) {
