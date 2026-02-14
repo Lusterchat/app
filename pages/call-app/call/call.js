@@ -1,4 +1,4 @@
-// pages/call-app/call/call.js
+// pages/call-app/call/call.js - COMPLETE FIXED VERSION
 
 import { initializeSupabase } from '../utils/supabase.js'
 import { createCallRoom, getRoomInfo, getCallUrl } from '../utils/daily.js'
@@ -20,6 +20,8 @@ async function initCall() {
             showError('Please login to RelayTalk first')
             return
         }
+        
+        console.log('✅ Got user:', relayUser.email)
         
         // Initialize Supabase
         supabase = await initializeSupabase()
@@ -65,10 +67,7 @@ async function startOutgoingCall(friendId, friendName) {
         console.log('3️⃣ Room created:', callRoom)
         
         // Store call in database
-        console.log('4️⃣ Attempting to insert call into Supabase...')
-        console.log('   Caller ID:', currentUser.id)
-        console.log('   Receiver ID:', friendId)
-        console.log('   Room Name:', callRoom.name)
+        console.log('4️⃣ Inserting call into Supabase...')
         
         const callData = {
             caller_id: currentUser.id,
@@ -79,7 +78,7 @@ async function startOutgoingCall(friendId, friendName) {
             created_at: new Date().toISOString()
         }
         
-        console.log('   Call data:', callData)
+        console.log('Call data:', callData)
         
         const { data: call, error } = await supabase
             .from('calls')
@@ -88,14 +87,11 @@ async function startOutgoingCall(friendId, friendName) {
             .single()
         
         if (error) {
-            console.error('❌ Failed to insert call:', error)
-            console.error('Error code:', error.code)
-            console.error('Error message:', error.message)
-            console.error('Error details:', error.details)
-            throw new Error('Failed to create call: ' + error.message)
+            console.error('❌ Supabase error:', error)
+            throw new Error('Database error: ' + error.message)
         }
         
-        console.log('5️⃣ ✅ Call inserted successfully:', call)
+        console.log('5️⃣ ✅ Call inserted:', call)
         
         currentCall = call
         
@@ -211,6 +207,7 @@ async function joinCall(roomName) {
         iframe.style.width = '100%'
         iframe.style.height = '100%'
         iframe.style.border = 'none'
+        iframe.style.background = '#000'
         
         // Build URL
         const url = getCallUrl(roomInfo.url, currentUser.username)
@@ -257,26 +254,34 @@ window.toggleSpeaker = function() {
 
 window.endCall = async function() {
     if (currentCall) {
-        await supabase
-            .from('calls')
-            .update({ 
-                status: 'ended',
-                ended_at: new Date().toISOString()
-            })
-            .eq('id', currentCall.id)
+        try {
+            await supabase
+                .from('calls')
+                .update({ 
+                    status: 'ended',
+                    ended_at: new Date().toISOString()
+                })
+                .eq('id', currentCall.id)
+        } catch (error) {
+            console.error('Error ending call:', error)
+        }
     }
     window.location.href = '../index.html'
 }
 
 window.cancelCall = async function() {
     if (currentCall) {
-        await supabase
-            .from('calls')
-            .update({ 
-                status: 'cancelled',
-                ended_at: new Date().toISOString()
-            })
-            .eq('id', currentCall.id)
+        try {
+            await supabase
+                .from('calls')
+                .update({ 
+                    status: 'cancelled',
+                    ended_at: new Date().toISOString()
+                })
+                .eq('id', currentCall.id)
+        } catch (error) {
+            console.error('Error cancelling call:', error)
+        }
     }
     window.location.href = '../index.html'
 }
@@ -287,13 +292,17 @@ window.acceptCall = async function() {
 
 window.declineCall = async function() {
     if (currentCall) {
-        await supabase
-            .from('calls')
-            .update({ 
-                status: 'rejected',
-                ended_at: new Date().toISOString()
-            })
-            .eq('id', currentCall.id)
+        try {
+            await supabase
+                .from('calls')
+                .update({ 
+                    status: 'rejected',
+                    ended_at: new Date().toISOString()
+                })
+                .eq('id', currentCall.id)
+        } catch (error) {
+            console.error('Error declining call:', error)
+        }
     }
     window.location.href = '../index.html'
 }
@@ -306,13 +315,13 @@ function showCallEnded(message) {
     endedScreen.innerHTML = `
         <div class="incoming-call-content">
             <div class="caller-avatar">
-                <i class="fas fa-phone-slash" style="color:#dc3545;"></i>
+                <i class="fas fa-phone-slash" style="color:#dc3545; font-size: 60px;"></i>
             </div>
             <div class="caller-info">
                 <h2>Call Ended</h2>
-                <p style="color:#999;">${message}</p>
+                <p style="color:#999; margin: 10px 0 20px;">${message}</p>
             </div>
-            <button class="back-home-btn" onclick="window.location.href='../index.html'">
+            <button class="back-home-btn" onclick="window.location.href='../index.html'" style="background: #f5b342; color: #333; border: none; padding: 12px 24px; border-radius: 25px; cursor: pointer;">
                 Go Back
             </button>
         </div>
@@ -330,5 +339,5 @@ function showError(message) {
     document.getElementById('errorMessage').textContent = message
 }
 
-// Start
+// Start the app
 initCall()
