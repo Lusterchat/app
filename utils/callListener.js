@@ -1,4 +1,4 @@
-// utils/callListener.js - FINAL PRODUCTION VERSION WITH FIXES
+// utils/callListener.js - COMPLETE FIXED VERSION
 
 import { initializeSupabase } from './supabase.js';
 
@@ -6,6 +6,7 @@ let supabase = null;
 let currentUser = null;
 let callSubscription = null;
 let audioPlayer = null;
+let ringtoneInterval = null;
 
 // Initialize call listener
 export async function initCallListener() {
@@ -26,78 +27,60 @@ export async function initCallListener() {
 
         setupRingtone();
         setupIncomingCallListener();
+        
+        // Check for any existing ringing calls
+        checkExistingCalls();
 
     } catch (error) {
         console.error('Call listener error:', error);
     }
 }
 
-// Setup ringtone - FIXED with actual ringtone sound
+// Setup ringtone using Web Audio API
 function setupRingtone() {
     try {
-        // Create a simple beep using Web Audio API (more reliable)
         const AudioContext = window.AudioContext || window.webkitAudioContext;
         if (AudioContext) {
             const audioCtx = new AudioContext();
             
-            // Create a function to play ringtone
             audioPlayer = {
                 play: function() {
-                    // Resume audio context if suspended
                     if (audioCtx.state === 'suspended') {
                         audioCtx.resume();
                     }
                     
-                    // Create oscillator for ringtone
-                    const oscillator = audioCtx.createOscillator();
-                    const gainNode = audioCtx.createGain();
-                    
-                    oscillator.type = 'sine';
-                    oscillator.frequency.value = 440; // A note
-                    
-                    gainNode.gain.value = 0.1;
-                    
-                    oscillator.connect(gainNode);
-                    gainNode.connect(audioCtx.destination);
-                    
-                    oscillator.start();
-                    
-                    // Stop after 1 second
-                    setTimeout(() => {
-                        oscillator.stop();
-                    }, 1000);
-                    
-                    // Repeat every 3 seconds
-                    this.interval = setInterval(() => {
+                    // Play beep every 2 seconds
+                    ringtoneInterval = setInterval(() => {
                         if (audioCtx.state === 'suspended') {
                             audioCtx.resume();
                         }
                         
-                        const osc = audioCtx.createOscillator();
-                        const gain = audioCtx.createGain();
+                        const oscillator = audioCtx.createOscillator();
+                        const gainNode = audioCtx.createGain();
                         
-                        osc.type = 'sine';
-                        osc.frequency.value = 440;
-                        gain.gain.value = 0.1;
+                        oscillator.type = 'sine';
+                        oscillator.frequency.value = 440;
                         
-                        osc.connect(gain);
-                        gain.connect(audioCtx.destination);
+                        gainNode.gain.value = 0.1;
                         
-                        osc.start();
+                        oscillator.connect(gainNode);
+                        gainNode.connect(audioCtx.destination);
+                        
+                        oscillator.start();
                         
                         setTimeout(() => {
-                            osc.stop();
-                        }, 1000);
-                    }, 3000);
+                            oscillator.stop();
+                        }, 500);
+                    }, 2000);
                 },
                 pause: function() {
-                    if (this.interval) {
-                        clearInterval(this.interval);
+                    if (ringtoneInterval) {
+                        clearInterval(ringtoneInterval);
+                        ringtoneInterval = null;
                     }
                 }
             };
         } else {
-            // Fallback - no sound
             audioPlayer = { play: () => {}, pause: () => {} };
         }
     } catch (e) {
@@ -122,7 +105,6 @@ function stopRingtone() {
 
 // Setup incoming call listener
 function setupIncomingCallListener() {
-    // Clean up existing subscription
     if (callSubscription) {
         callSubscription.unsubscribe();
     }
@@ -137,7 +119,6 @@ function setupIncomingCallListener() {
         }, (payload) => {
             console.log('📞 Incoming call detected!', payload);
             
-            // Only show if status is 'ringing'
             if (payload.new.status === 'ringing') {
                 handleIncomingCall(payload.new);
             }
@@ -150,34 +131,24 @@ function setupIncomingCallListener() {
         }, (payload) => {
             console.log('📞 Call updated:', payload);
             
-            // If call is no longer ringing, hide notification
             if (payload.new.status !== 'ringing') {
                 hideIncomingCallNotification();
                 stopRingtone();
             }
         })
-        .subscribe((status) => {
-            console.log('Call listener subscription status:', status);
-        });
+        .subscribe();
 }
 
 // Handle incoming call
 async function handleIncomingCall(call) {
-    // Don't show if already on call page
     if (window.location.pathname.includes('/call/')) {
         return;
     }
 
-    // Get caller info
     const caller = await getCallerInfo(call.caller_id);
-    
-    // Show notification
     showIncomingCallNotification(call, caller);
-    
-    // Play ringtone
     playRingtone();
 
-    // Store in sessionStorage as backup
     sessionStorage.setItem('incomingCall', JSON.stringify({
         id: call.id,
         roomName: call.room_name,
@@ -198,14 +169,12 @@ async function getCallerInfo(callerId) {
         if (error) throw error;
         return data || { username: 'Unknown', avatar_url: null };
     } catch (error) {
-        console.error('Error getting caller info:', error);
         return { username: 'Unknown', avatar_url: null };
     }
 }
 
-// Show incoming call notification - FIXED with working buttons
+// Show incoming call notification
 function showIncomingCallNotification(call, caller) {
-    // Remove any existing notification
     hideIncomingCallNotification();
 
     const notification = document.createElement('div');
@@ -228,7 +197,6 @@ function showIncomingCallNotification(call, caller) {
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     `;
 
-    // Add animation style if not exists
     if (!document.getElementById('callAnimationStyle')) {
         const style = document.createElement('style');
         style.id = 'callAnimationStyle';
@@ -272,13 +240,11 @@ function showIncomingCallNotification(call, caller) {
 
     document.body.prepend(notification);
 
-    // Add event listeners
     document.getElementById('acceptCallBtn').addEventListener('click', async (e) => {
         e.stopPropagation();
         stopRingtone();
         hideIncomingCallNotification();
 
-        // Update call status to active
         await supabase
             .from('calls')
             .update({ 
@@ -287,7 +253,6 @@ function showIncomingCallNotification(call, caller) {
             })
             .eq('id', call.id);
 
-        // Navigate to call page
         window.location.href = `/pages/call/index.html?incoming=true&room=${call.room_name}&callerId=${call.caller_id}&callId=${call.id}`;
     });
 
@@ -296,7 +261,6 @@ function showIncomingCallNotification(call, caller) {
         stopRingtone();
         hideIncomingCallNotification();
 
-        // Update call status to rejected
         await supabase
             .from('calls')
             .update({ 
@@ -308,13 +272,11 @@ function showIncomingCallNotification(call, caller) {
         sessionStorage.removeItem('incomingCall');
     });
 
-    // Auto-hide after 45 seconds if no answer
     setTimeout(() => {
         if (document.getElementById('incomingCallNotification')) {
             stopRingtone();
             hideIncomingCallNotification();
             
-            // Update status to missed if still ringing
             supabase
                 .from('calls')
                 .update({ 
@@ -333,15 +295,15 @@ function hideIncomingCallNotification() {
     if (existing) existing.remove();
 }
 
-// Check for existing ringing calls on page load
-export async function checkExistingCalls() {
+// Check existing calls
+async function checkExistingCalls() {
     try {
         const { data: calls, error } = await supabase
             .from('calls')
-            .select('*, caller:caller_id(username, avatar_url)')
+            .select('*')
             .eq('receiver_id', currentUser.id)
             .eq('status', 'ringing')
-            .gt('created_at', new Date(Date.now() - 60000).toISOString()) // Last 60 seconds
+            .gt('created_at', new Date(Date.now() - 60000).toISOString())
             .order('created_at', { ascending: false })
             .limit(1);
 
@@ -366,7 +328,7 @@ export function cleanupCallListener() {
     hideIncomingCallNotification();
 }
 
-// Auto-initialize on every page except call page
+// Auto-initialize
 if (!window.location.pathname.includes('/call/')) {
     document.addEventListener('DOMContentLoaded', () => {
         initCallListener();
