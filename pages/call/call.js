@@ -1,4 +1,4 @@
-// call.js - Daily.co voice calls for mobile
+// pages/call/call.js - COMPLETE FIXED VERSION
 
 import { initializeSupabase, supabase as supabaseClient } from '../../utils/supabase.js';
 import { createCallRoom, getCallUrl, getRoomInfo } from '../../utils/daily.js';
@@ -9,9 +9,8 @@ let currentUser = null;
 let currentCall = null;
 let dailyIframe = null;
 let callRoom = null;
-let callType = 'outgoing'; // 'incoming' or 'outgoing'
+let callType = 'outgoing';
 let callerInfo = null;
-let callInterval = null;
 
 // Initialize call page
 async function initCallPage() {
@@ -84,24 +83,55 @@ async function startOutgoingCall(friendId) {
         callerInfo = friend;
         
         // Create Daily.co room
+        console.log('1️⃣ Creating Daily.co room...');
         callRoom = await createCallRoom();
-        console.log('✅ Room created:', callRoom);
+        console.log('2️⃣ Room created:', callRoom);
         
-        // Store call in Supabase
+        // STORE CALL IN SUPABASE
+        console.log('3️⃣ Attempting to insert call into Supabase...');
+        console.log('   Caller ID:', currentUser.id);
+        console.log('   Receiver ID:', friendId);
+        console.log('   Room Name:', callRoom.name);
+        console.log('   Room URL:', callRoom.url);
+        
+        // First, check if calls table exists and is accessible
+        const { count, error: testError } = await supabase
+            .from('calls')
+            .select('*', { count: 'exact', head: true });
+            
+        if (testError) {
+            console.error('❌ Calls table not accessible:', testError);
+            throw new Error('Database error: ' + testError.message);
+        }
+        
+        console.log('✅ Calls table is accessible');
+        
+        const callData = {
+            caller_id: currentUser.id,
+            receiver_id: friendId,
+            room_name: callRoom.name,
+            room_url: callRoom.url,
+            status: 'ringing',
+            created_at: new Date().toISOString()
+        };
+        
+        console.log('   Inserting data:', callData);
+        
         const { data: call, error: callError } = await supabase
             .from('calls')
-            .insert({
-                caller_id: currentUser.id,
-                receiver_id: friendId,
-                room_name: callRoom.name,
-                room_url: callRoom.url,
-                status: 'ringing',
-                created_at: new Date().toISOString()
-            })
+            .insert([callData])
             .select()
             .single();
-            
-        if (callError) throw callError;
+
+        if (callError) {
+            console.error('❌ FAILED to insert call:', callError);
+            console.error('Error code:', callError.code);
+            console.error('Error message:', callError.message);
+            console.error('Error details:', callError.details);
+            throw new Error('Failed to create call: ' + callError.message);
+        }
+        
+        console.log('4️⃣ ✅ Call inserted successfully:', call);
         
         currentCall = call;
         
@@ -116,7 +146,7 @@ async function startOutgoingCall(friendId) {
         
     } catch (error) {
         console.error('Call start error:', error);
-        showError('Failed to start call: ' + error.message);
+        showError(error.message);
     }
 }
 
@@ -140,13 +170,17 @@ async function handleIncomingCall(roomName, callerId, callId) {
         currentCall = { id: callId, room_name: roomName };
         
         // Update call status to active
-        await supabase
+        const { error: updateError } = await supabase
             .from('calls')
             .update({ 
                 status: 'active',
                 answered_at: new Date().toISOString()
             })
             .eq('id', callId);
+            
+        if (updateError) {
+            console.error('Failed to update call:', updateError);
+        }
         
         // Join the call immediately
         await joinCall();
@@ -186,16 +220,18 @@ function showOutgoingUI(friend) {
 
 // Setup realtime listener for call
 function setupCallListener(callId) {
+    console.log('Setting up call listener for call ID:', callId);
+    
     // Subscribe to call changes
     const subscription = supabase
-        .channel(`call:${callId}`)
+        .channel(`call-${callId}`)
         .on('postgres_changes', {
             event: 'UPDATE',
             schema: 'public',
             table: 'calls',
             filter: `id=eq.${callId}`
         }, (payload) => {
-            console.log('Call update:', payload);
+            console.log('Call update received:', payload);
             
             if (payload.new.status === 'active' && !dailyIframe) {
                 // Call was accepted
@@ -209,9 +245,14 @@ function setupCallListener(callId) {
                 if (dailyIframe) {
                     window.location.href = '../../pages/home/index.html';
                 }
+            } else if (payload.new.status === 'cancelled') {
+                // Call was cancelled
+                showCallEnded('Call was cancelled');
             }
         })
-        .subscribe();
+        .subscribe((status) => {
+            console.log('Call listener subscription status:', status);
+        });
     
     // Store subscription for cleanup
     window.callSubscription = subscription;
@@ -222,11 +263,18 @@ function setupCallListener(callId) {
 
 // Check call status
 async function checkCallStatus(callId) {
-    const { data: call } = await supabase
+    const { data: call, error } = await supabase
         .from('calls')
         .select('*')
         .eq('id', callId)
         .single();
+        
+    if (error) {
+        console.error('Error checking call status:', error);
+        return;
+    }
+    
+    console.log('Current call status:', call);
         
     if (call && call.status === 'active') {
         joinCall();
@@ -241,13 +289,15 @@ window.acceptCall = async function() {
         document.getElementById('loadingText').textContent = 'Connecting...';
         
         // Update call status in Supabase
-        await supabase
+        const { error } = await supabase
             .from('calls')
             .update({ 
                 status: 'active',
                 answered_at: new Date().toISOString()
             })
             .eq('id', currentCall.id);
+            
+        if (error) throw error;
         
         // Join the call
         await joinCall();
@@ -291,6 +341,7 @@ window.cancelCall = async function() {
         window.location.href = '../../pages/home/index.html';
         
     } catch (error) {
+        console.error('Cancel error:', error);
         window.location.href = '../../pages/home/index.html';
     }
 };
@@ -307,12 +358,15 @@ async function joinCall() {
         
         // Get room name
         const roomName = currentCall.room_name;
+        console.log('Joining room:', roomName);
         
         // Get room URL
         const roomInfo = await getRoomInfo(roomName);
         if (!roomInfo) {
             throw new Error('Could not find call room');
         }
+        
+        console.log('Room info:', roomInfo);
         
         // Create Daily iframe
         const container = document.getElementById('dailyContainer');
@@ -335,6 +389,7 @@ async function joinCall() {
         dailyUrl.searchParams.set('embed', '1');
         
         iframe.src = dailyUrl.toString();
+        console.log('Daily URL:', dailyUrl.toString());
         
         container.innerHTML = '';
         container.appendChild(iframe);
@@ -400,6 +455,7 @@ function setupAudioHandling() {
             window.location.href = '../../pages/home/index.html';
             
         } catch (error) {
+            console.error('End call error:', error);
             window.location.href = '../../pages/home/index.html';
         }
     };
