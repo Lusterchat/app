@@ -1,8 +1,8 @@
-// pages/call-app/pages/call/call.js
+// pages/call-app/call/call.js
 
-import { initializeSupabase } from '../../utils/supabase.js'
-import { createCallRoom, getRoomInfo, getCallUrl } from '../../utils/daily.js'
-import { getRelayTalkUser, syncUserToDatabase } from '../../utils/userSync.js'
+import { initializeSupabase } from '../utils/supabase.js'
+import { createCallRoom, getRoomInfo, getCallUrl } from '../utils/daily.js'
+import { getRelayTalkUser, syncUserToDatabase } from '../utils/userSync.js'
 
 let supabase
 let currentUser
@@ -11,6 +11,8 @@ let dailyIframe
 let callRoom
 
 async function initCall() {
+    console.log('📞 Initializing call page...')
+    
     try {
         // Get user from RelayTalk
         const relayUser = getRelayTalkUser()
@@ -34,6 +36,8 @@ async function initCall() {
         const callerId = params.get('callerId')
         const callId = params.get('callId')
         
+        console.log('📞 Call params:', { friendId, friendName, incoming, roomName, callerId, callId })
+        
         if (incoming === 'true' && roomName && callerId && callId) {
             // Handle incoming call
             await handleIncomingCall(roomName, callerId, callId)
@@ -45,34 +49,53 @@ async function initCall() {
         }
         
     } catch (error) {
-        console.error('Init error:', error)
-        showError('Failed to initialize call')
+        console.error('❌ Init error:', error)
+        showError('Failed to initialize call: ' + error.message)
     }
 }
 
 async function startOutgoingCall(friendId, friendName) {
     try {
         document.getElementById('loadingText').textContent = `Calling ${friendName}...`
+        console.log('1️⃣ Starting outgoing call to:', friendId, friendName)
         
         // Create Daily.co room
-        console.log('Creating call room...')
+        console.log('2️⃣ Creating Daily.co room...')
         callRoom = await createCallRoom()
+        console.log('3️⃣ Room created:', callRoom)
         
         // Store call in database
+        console.log('4️⃣ Attempting to insert call into Supabase...')
+        console.log('   Caller ID:', currentUser.id)
+        console.log('   Receiver ID:', friendId)
+        console.log('   Room Name:', callRoom.name)
+        
+        const callData = {
+            caller_id: currentUser.id,
+            receiver_id: friendId,
+            room_name: callRoom.name,
+            room_url: callRoom.url,
+            status: 'ringing',
+            created_at: new Date().toISOString()
+        }
+        
+        console.log('   Call data:', callData)
+        
         const { data: call, error } = await supabase
             .from('calls')
-            .insert([{
-                caller_id: currentUser.id,
-                receiver_id: friendId,
-                room_name: callRoom.name,
-                room_url: callRoom.url,
-                status: 'ringing',
-                created_at: new Date().toISOString()
-            }])
+            .insert([callData])
             .select()
             .single()
         
-        if (error) throw error
+        if (error) {
+            console.error('❌ Failed to insert call:', error)
+            console.error('Error code:', error.code)
+            console.error('Error message:', error.message)
+            console.error('Error details:', error.details)
+            throw new Error('Failed to create call: ' + error.message)
+        }
+        
+        console.log('5️⃣ ✅ Call inserted successfully:', call)
         
         currentCall = call
         
@@ -84,19 +107,20 @@ async function startOutgoingCall(friendId, friendName) {
         setupCallListener(call.id)
         
     } catch (error) {
-        console.error('Call error:', error)
+        console.error('❌ Call error:', error)
         showError('Failed to start call: ' + error.message)
     }
 }
 
 async function handleIncomingCall(roomName, callerId, callId) {
     try {
+        console.log('📞 Handling incoming call:', { roomName, callerId, callId })
         document.getElementById('loadingText').textContent = 'Connecting...'
         
         currentCall = { id: callId, room_name: roomName }
         
         // Update call status
-        await supabase
+        const { error } = await supabase
             .from('calls')
             .update({ 
                 status: 'active',
@@ -104,11 +128,15 @@ async function handleIncomingCall(roomName, callerId, callId) {
             })
             .eq('id', callId)
         
+        if (error) {
+            console.error('❌ Failed to update call:', error)
+        }
+        
         // Join the call
         await joinCall(roomName)
         
     } catch (error) {
-        console.error('Incoming call error:', error)
+        console.error('❌ Incoming call error:', error)
         showError('Failed to accept call')
     }
 }
@@ -137,6 +165,8 @@ function showCallingUI(friendName) {
 }
 
 function setupCallListener(callId) {
+    console.log('6️⃣ Setting up call listener for ID:', callId)
+    
     supabase
         .channel(`call-${callId}`)
         .on('postgres_changes', {
@@ -145,7 +175,7 @@ function setupCallListener(callId) {
             table: 'calls',
             filter: `id=eq.${callId}`
         }, (payload) => {
-            console.log('Call update:', payload.new.status)
+            console.log('📞 Call update received:', payload.new.status)
             
             if (payload.new.status === 'active') {
                 document.getElementById('callStatus').textContent = 'Connecting...'
@@ -156,11 +186,15 @@ function setupCallListener(callId) {
                 showCallEnded('Call was cancelled')
             }
         })
-        .subscribe()
+        .subscribe((status) => {
+            console.log('Call listener subscription status:', status)
+        })
 }
 
 async function joinCall(roomName) {
     try {
+        console.log('7️⃣ Joining call room:', roomName)
+        
         // Remove outgoing UI
         document.getElementById('outgoingUI')?.remove()
         
@@ -169,6 +203,7 @@ async function joinCall(roomName) {
         
         // Get room info
         const roomInfo = await getRoomInfo(roomName)
+        console.log('8️⃣ Room info:', roomInfo)
         
         // Create iframe
         const iframe = document.createElement('iframe')
@@ -180,6 +215,7 @@ async function joinCall(roomName) {
         // Build URL
         const url = getCallUrl(roomInfo.url, currentUser.username)
         iframe.src = url
+        console.log('9️⃣ Iframe URL:', url)
         
         // Add to container
         document.getElementById('dailyContainer').innerHTML = ''
@@ -190,9 +226,11 @@ async function joinCall(roomName) {
         document.getElementById('loadingScreen').style.display = 'none'
         document.getElementById('activeCallScreen').style.display = 'block'
         
+        console.log('✅ Call connected!')
+        
     } catch (error) {
-        console.error('Join error:', error)
-        showError('Failed to join call')
+        console.error('❌ Join error:', error)
+        showError('Failed to join call: ' + error.message)
     }
 }
 
@@ -227,7 +265,7 @@ window.endCall = async function() {
             })
             .eq('id', currentCall.id)
     }
-    window.location.href = '../../index.html'
+    window.location.href = '../index.html'
 }
 
 window.cancelCall = async function() {
@@ -240,7 +278,7 @@ window.cancelCall = async function() {
             })
             .eq('id', currentCall.id)
     }
-    window.location.href = '../../index.html'
+    window.location.href = '../index.html'
 }
 
 window.acceptCall = async function() {
@@ -257,7 +295,7 @@ window.declineCall = async function() {
             })
             .eq('id', currentCall.id)
     }
-    window.location.href = '../../index.html'
+    window.location.href = '../index.html'
 }
 
 function showCallEnded(message) {
@@ -274,7 +312,7 @@ function showCallEnded(message) {
                 <h2>Call Ended</h2>
                 <p style="color:#999;">${message}</p>
             </div>
-            <button class="back-home-btn" onclick="window.location.href='../../index.html'">
+            <button class="back-home-btn" onclick="window.location.href='../index.html'">
                 Go Back
             </button>
         </div>
@@ -282,7 +320,7 @@ function showCallEnded(message) {
     document.body.appendChild(endedScreen)
     
     setTimeout(() => {
-        window.location.href = '../../index.html'
+        window.location.href = '../index.html'
     }, 2000)
 }
 
