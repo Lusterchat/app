@@ -1,4 +1,4 @@
-// pages/call-app/utils/jitsi.js - FINAL FIX (NO PHONE NUMBERS!)
+// pages/call-app/utils/jitsi.js - COMPLETE FINAL VERSION
 
 export async function createCallRoom(roomName = null) {
     try {
@@ -6,38 +6,63 @@ export async function createCallRoom(roomName = null) {
         
         console.log('🎯 Creating Jitsi room:', uniqueRoomName);
         
-        // COMPLETE CONFIG - NO PHONE, NO MODERATOR MESSAGES
+        // COMPLETE CONFIG - NO PHONE, NO MODERATOR MESSAGES, AUTO-JOIN
         const jitsiConfig = '#' +
-            // DISABLE EVERYTHING ANNOYING
+            // ===== CRITICAL: Disable phone numbers =====
             'config.dialInConfCode.enabled=false' +
             '&config.dialInNumbersUrl=""' +
             '&config.dialOutAuthUrl=""' +
             '&config.dialOutEnabled=false' +
             '&config.enableDialIn=false' +
+            '&config.phoneEnabled=false' +
             
-            // DISABLE MODERATOR MESSAGES
+            // ===== Disable moderator messages =====
             '&config.disableModeratorIndicator=true' +
             '&config.hideModeratorMessage=true' +
+            '&config.notificationTimeouts.moderator=1' +
             
-            // AUTO-JOIN (YOUR FIX)
+            // ===== AUTO-JOIN (MOST IMPORTANT) =====
             '&config.prejoinPageEnabled=false' +
             '&config.startWithAudioMuted=false' +
             '&config.startWithVideoMuted=true' +
             '&config.enableWelcomePage=false' +
             
-            // HIDE EVERYTHING
+            // ===== Hide everything =====
             '&config.disableChat=true' +
             '&config.disableInviteFunctions=true' +
             '&config.disableRecording=true' +
+            '&config.disableLiveStreaming=true' +
             '&config.hideConferenceTimer=true' +
             '&config.hideParticipantsStats=true' +
             '&config.hideLogo=true' +
             '&config.hideWatermark=true' +
             '&config.hideBrandWatermark=true' +
+            '&config.hideHelpButton=true' +
+            '&config.hideShareButton=true' +
+            '&config.hideVideoQualityLabel=true' +
+            '&config.hideAddPersonButton=true' +
+            '&config.hideMeetingName=true' +
+            '&config.hideSubject=true' +
             
-            // ONLY 3 BUTTONS
+            // ===== Only show essential buttons =====
             '&config.toolbarButtons=["microphone","camera","hangup"]' +
-            '&config.toolbarAlwaysVisible=true';
+            '&config.toolbarAlwaysVisible=true' +
+            
+            // ===== Audio settings =====
+            '&config.disableAudioLevel=false' +
+            '&config.enableNoAudioDetection=true' +
+            '&config.enableNoisyMicDetection=true' +
+            '&config.channelLastN=2' +
+            
+            // ===== Disable reactions and raise hand =====
+            '&config.disableReactions=true' +
+            '&config.disableRaiseHand=true' +
+            
+            // ===== Interface tweaks =====
+            '&config.disableFilmstripAutoHide=false' +
+            '&config.disableTileView=true' +
+            '&config.disableShortcuts=true' +
+            '&config.disableSelfViewSettings=true';
         
         return {
             name: uniqueRoomName,
@@ -46,7 +71,7 @@ export async function createCallRoom(roomName = null) {
         };
         
     } catch (error) {
-        console.error('❌ Error:', error);
+        console.error('❌ Error creating room:', error);
         throw error;
     }
 }
@@ -57,12 +82,18 @@ export async function getRoomInfo(roomName) {
             'config.dialInConfCode.enabled=false' +
             '&config.dialOutEnabled=false' +
             '&config.enableDialIn=false' +
+            '&config.phoneEnabled=false' +
             '&config.disableModeratorIndicator=true' +
+            '&config.hideModeratorMessage=true' +
             '&config.prejoinPageEnabled=false' +
             '&config.startWithAudioMuted=false' +
             '&config.startWithVideoMuted=true' +
             '&config.enableWelcomePage=false' +
-            '&config.toolbarButtons=["microphone","camera","hangup"]';
+            '&config.toolbarButtons=["microphone","camera","hangup"]' +
+            '&config.disableChat=true' +
+            '&config.disableInviteFunctions=true' +
+            '&config.disableReactions=true' +
+            '&config.disableRaiseHand=true';
         
         return {
             name: roomName,
@@ -70,7 +101,7 @@ export async function getRoomInfo(roomName) {
         };
         
     } catch (error) {
-        console.error('❌ Error:', error);
+        console.error('❌ Error getting room info:', error);
         throw error;
     }
 }
