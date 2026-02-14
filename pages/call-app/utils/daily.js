@@ -1,6 +1,6 @@
 // pages/call-app/utils/daily.js
 
-const DAILY_API_KEY = '909b11ef9f9f9ca6d21f995698e0ce3ce5ce05f589c12b0fe6664bba974f69'
+const DAILY_API_KEY = '1c5745786e9656a252444e587670d2ceec086aba600f90d5062f7335f5cd73b6'
 const DAILY_API_URL = 'https://api.daily.co/v1'
 
 export async function createCallRoom(roomName = null) {
