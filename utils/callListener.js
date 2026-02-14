@@ -10,7 +10,7 @@ let ringtoneInterval = null;
 
 // Initialize call listener
 export async function initCallListener() {
-    console.log('📞 Initializing call listener...');
+    console.log('📞 Call listener initializing...');
 
     try {
         supabase = await initializeSupabase();
@@ -23,12 +23,10 @@ export async function initCallListener() {
         }
 
         currentUser = session.user;
-        console.log('📞 Call listener initialized for:', currentUser.email);
+        console.log('✅ Call listener for:', currentUser.email);
 
         setupRingtone();
         setupIncomingCallListener();
-        
-        // Check for any existing ringing calls
         checkExistingCalls();
 
     } catch (error) {
@@ -36,7 +34,7 @@ export async function initCallListener() {
     }
 }
 
-// Setup ringtone using Web Audio API
+// Setup ringtone
 function setupRingtone() {
     try {
         const AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -49,7 +47,6 @@ function setupRingtone() {
                         audioCtx.resume();
                     }
                     
-                    // Play beep every 2 seconds
                     ringtoneInterval = setInterval(() => {
                         if (audioCtx.state === 'suspended') {
                             audioCtx.resume();
@@ -60,17 +57,13 @@ function setupRingtone() {
                         
                         oscillator.type = 'sine';
                         oscillator.frequency.value = 440;
-                        
                         gainNode.gain.value = 0.1;
                         
                         oscillator.connect(gainNode);
                         gainNode.connect(audioCtx.destination);
                         
                         oscillator.start();
-                        
-                        setTimeout(() => {
-                            oscillator.stop();
-                        }, 500);
+                        setTimeout(() => oscillator.stop(), 500);
                     }, 2000);
                 },
                 pause: function() {
@@ -103,7 +96,7 @@ function stopRingtone() {
     }
 }
 
-// Setup incoming call listener
+// Setup listener
 function setupIncomingCallListener() {
     if (callSubscription) {
         callSubscription.unsubscribe();
@@ -136,7 +129,9 @@ function setupIncomingCallListener() {
                 stopRingtone();
             }
         })
-        .subscribe();
+        .subscribe((status) => {
+            console.log('Call listener subscription status:', status);
+        });
 }
 
 // Handle incoming call
@@ -173,7 +168,7 @@ async function getCallerInfo(callerId) {
     }
 }
 
-// Show incoming call notification
+// Show notification
 function showIncomingCallNotification(call, caller) {
     hideIncomingCallNotification();
 
@@ -310,7 +305,7 @@ async function checkExistingCalls() {
         if (error) throw error;
 
         if (calls && calls.length > 0) {
-            console.log('Found existing ringing call:', calls[0]);
+            console.log('Found existing call:', calls[0]);
             handleIncomingCall(calls[0]);
         }
     } catch (error) {
