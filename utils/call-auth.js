@@ -1,79 +1,54 @@
-// utils/call-auth.js - SPECIAL VERSION FOR CALL PAGE ONLY
-// This version NEVER redirects, just returns status
-// Does NOT import or use auth.js at all
-
-import { initializeSupabase } from './supabase.js';
+// utils/call-auth.js - Uses call-supabase for lightweight auth
+import { initCallSupabase, getCallSession, getCallUser } from './call-supabase.js';
 
 let supabaseInstance = null;
 
 // Lightweight auth check for call page - NEVER redirects
 export async function getCallUser() {
     try {
-        console.log('🔍 Call page: checking auth (no redirects)');
+        console.log('🔍 Call page: checking auth with lightweight client');
         
-        // Initialize Supabase if needed
-        if (!supabaseInstance) {
-            console.log('Call page: Initializing Supabase...');
-            supabaseInstance = await initializeSupabase();
-        }
+        // Initialize call-specific Supabase
+        supabaseInstance = await initCallSupabase();
         
-        if (!supabaseInstance || !supabaseInstance.auth) {
-            console.log('⚠️ Call page: Auth not available');
-            return { success: false, user: null, session: null };
-        }
+        // Try to get session
+        const session = await getCallSession();
         
-        // First try to get session (more reliable)
-        console.log('Call page: Checking session...');
-        const { data: sessionData, error: sessionError } = await supabaseInstance.auth.getSession();
-        
-        if (sessionError) {
-            console.log('⚠️ Call page: Session error:', sessionError.message);
-        }
-        
-        if (sessionData?.session?.user) {
-            console.log('✅ Call page: Found user via session:', sessionData.session.user.email);
+        if (session?.user) {
+            console.log('✅ Call page: Found user via session:', session.user.email);
             return { 
                 success: true, 
-                user: sessionData.session.user,
-                session: sessionData.session 
+                user: session.user,
+                session: session 
             };
         }
         
-        // If no session, try getUser as fallback
-        console.log('Call page: No session, trying getUser...');
-        const { data: userData, error: userError } = await supabaseInstance.auth.getUser();
+        // Try getUser as fallback
+        const user = await getCallUser();
         
-        if (userError) {
-            console.log('⚠️ Call page: GetUser error:', userError.message);
-        }
-        
-        if (userData?.user) {
-            console.log('✅ Call page: Found user via getUser:', userData.user.email);
+        if (user) {
+            console.log('✅ Call page: Found user via getUser:', user.email);
             return { 
                 success: true, 
-                user: userData.user,
+                user: user,
                 session: null 
             };
         }
         
-        console.log('ℹ️ Call page: No authenticated user found - continuing as guest');
+        console.log('ℹ️ Call page: No authenticated user - continuing as guest');
         return { success: false, user: null, session: null };
         
     } catch (error) {
-        console.log('⚠️ Call page: Auth exception (non-fatal):', error.message);
+        console.log('⚠️ Call page: Auth check failed (non-fatal):', error?.message || 'unknown error');
         return { success: false, user: null, session: null };
     }
 }
 
-// Check if we have a valid session without throwing
+// Check if we have a valid session
 export async function hasValidSession() {
     try {
-        if (!supabaseInstance) {
-            supabaseInstance = await initializeSupabase();
-        }
-        
-        const { data } = await supabaseInstance.auth.getSession();
-        return !!data.session;
+        const session = await getCallSession();
+        return !!session;
     } catch {
         return false;
     }
@@ -82,8 +57,8 @@ export async function hasValidSession() {
 // Get current user ID if available
 export async function getCurrentUserId() {
     try {
-        const result = await getCallUser();
-        return result.success ? result.user.id : null;
+        const user = await getCallUser();
+        return user?.id || null;
     } catch {
         return null;
     }
