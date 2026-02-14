@@ -1,14 +1,15 @@
-// utils/callListener.js - FORCED VISUAL TEST VERSION
+// utils/callListener.js - FINAL PRODUCTION VERSION
 
 import { initializeSupabase, supabase as supabaseClient } from './supabase.js';
 
 let supabase = null;
 let currentUser = null;
 let callSubscription = null;
+let audioPlayer = null;
 
 // Initialize call listener
 export async function initCallListener() {
-    console.log('🔍 DEBUG: initCallListener STARTED');
+    console.log('📞 Initializing call listener...');
     
     try {
         supabase = await initializeSupabase();
@@ -23,12 +24,7 @@ export async function initCallListener() {
         currentUser = session.user;
         console.log('📞 Call listener initialized for:', currentUser.email);
         
-        // SHOW TEST NOTIFICATION AFTER 5 SECONDS (to verify visual works)
-        setTimeout(() => {
-            showTestNotification();
-        }, 5000);
-        
-        // Setup listener
+        setupRingtone();
         setupIncomingCallListener();
         
     } catch (error) {
@@ -36,34 +32,35 @@ export async function initCallListener() {
     }
 }
 
-// TEST FUNCTION - Shows a fake incoming call
-function showTestNotification() {
-    console.log('🔍 DEBUG: Showing TEST notification');
-    
-    const testCall = {
-        id: 'test-call-id',
-        room_name: 'test-room',
-        caller_id: currentUser?.id || 'test-caller',
-        receiver_id: currentUser?.id
-    };
-    
-    const testCaller = {
-        username: 'TEST CALLER',
-        avatar_url: null
-    };
-    
-    showIncomingCallNotification(testCall, testCaller);
-    
-    // Auto-hide after 10 seconds
-    setTimeout(() => {
-        hideIncomingCallNotification();
-    }, 10000);
+// Setup ringtone
+function setupRingtone() {
+    try {
+        audioPlayer = new Audio();
+        audioPlayer.loop = true;
+        audioPlayer.volume = 0.5;
+        audioPlayer.src = 'data:audio/wav;base64,UklGRlwAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YVAAAAA8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PA==';
+    } catch (e) {
+        console.log('Ringtone setup failed:', e);
+    }
+}
+
+// Play ringtone
+function playRingtone() {
+    if (audioPlayer) {
+        audioPlayer.play().catch(e => console.log('Audio play failed:', e));
+    }
+}
+
+// Stop ringtone
+function stopRingtone() {
+    if (audioPlayer) {
+        audioPlayer.pause();
+        audioPlayer.currentTime = 0;
+    }
 }
 
 // Setup incoming call listener
 function setupIncomingCallListener() {
-    console.log('Setting up call listener for user:', currentUser.id);
-    
     callSubscription = supabase
         .channel('incoming-calls')
         .on('postgres_changes', {
@@ -72,29 +69,28 @@ function setupIncomingCallListener() {
             table: 'calls',
             filter: `receiver_id=eq.${currentUser.id}`
         }, (payload) => {
-            console.log('📞 INCOMING CALL DETECTED!', payload.new);
-            
-            // Get caller info
-            getCallerInfo(payload.new.caller_id).then(caller => {
-                // FORCE SHOW NOTIFICATION
-                showIncomingCallNotification(payload.new, caller);
-                
-                // Play simple beep
-                try {
-                    const audio = new Audio();
-                    audio.src = 'data:audio/wav;base64,UklGRlwAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YVAAAAA8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PA==';
-                    audio.loop = true;
-                    audio.volume = 0.5;
-                    audio.play().catch(e => console.log('Audio error:', e));
-                    
-                    // Store audio to stop later
-                    window.currentRingtone = audio;
-                } catch (e) {}
-            });
+            console.log('📞 Incoming call detected!');
+            handleIncomingCall(payload.new);
         })
-        .subscribe((status) => {
-            console.log('Call listener status:', status);
-        });
+        .subscribe();
+}
+
+// Handle incoming call
+async function handleIncomingCall(call) {
+    if (window.location.pathname.includes('/call/')) {
+        return;
+    }
+    
+    const caller = await getCallerInfo(call.caller_id);
+    showIncomingCallNotification(call, caller);
+    playRingtone();
+    
+    sessionStorage.setItem('incomingCall', JSON.stringify({
+        id: call.id,
+        roomName: call.room_name,
+        callerId: call.caller_id,
+        callerName: caller?.username || 'Unknown'
+    }));
 }
 
 // Get caller info
@@ -105,7 +101,7 @@ async function getCallerInfo(callerId) {
             .select('username, avatar_url')
             .eq('id', callerId)
             .single();
-        return data;
+        return data || { username: 'Unknown', avatar_url: null };
     } catch (error) {
         return { username: 'Unknown', avatar_url: null };
     }
@@ -113,95 +109,100 @@ async function getCallerInfo(callerId) {
 
 // Show incoming call notification
 function showIncomingCallNotification(call, caller) {
-    console.log('🔍 DEBUG: showIncomingCallNotification CALLED');
-    
-    // Remove existing notification
     hideIncomingCallNotification();
     
-    // Create notification element
     const notification = document.createElement('div');
     notification.id = 'incomingCallNotification';
-    
-    // VERY VISIBLE STYLES
     notification.style.cssText = `
-        position: fixed !important;
-        top: 0 !important;
-        left: 0 !important;
-        right: 0 !important;
-        background: red !important;
-        color: white !important;
-        padding: 30px !important;
-        z-index: 999999 !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: space-between !important;
-        border-bottom: 5px solid yellow !important;
-        font-size: 20px !important;
-        font-weight: bold !important;
-        font-family: Arial, sans-serif !important;
-        box-shadow: 0 10px 30px black !important;
-        min-height: 120px !important;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        background: linear-gradient(135deg, #1a1a1a, #000);
+        color: white;
+        padding: 16px 20px;
+        z-index: 10000;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-bottom: 3px solid #007acc;
+        animation: slideDown 0.3s ease;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     `;
     
-    const username = caller?.username || 'Unknown';
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes slideDown {
+            from { transform: translateY(-100%); }
+            to { transform: translateY(0); }
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+    `;
+    document.head.appendChild(style);
+    
+    const avatar = caller?.avatar_url 
+        ? `<img src="${caller.avatar_url}" style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover; border: 2px solid #007acc;">`
+        : `<div style="width: 48px; height: 48px; border-radius: 50%; background: #007acc; display: flex; align-items: center; justify-content: center; font-size: 24px;">📞</div>`;
     
     notification.innerHTML = `
-        <div style="display: flex; align-items: center; gap: 20px; flex: 1;">
-            <div style="width: 60px; height: 60px; border-radius: 50%; background: yellow; display: flex; align-items: center; justify-content: center; font-size: 30px;">📞</div>
+        <div style="display: flex; align-items: center; gap: 15px; flex: 1;">
+            ${avatar}
             <div>
-                <div style="font-size: 24px; margin-bottom: 5px;">${username}</div>
-                <div style="color: yellow;">🔊 Incoming call...</div>
-                <div style="font-size: 14px; color: #ccc; margin-top: 5px;">Call ID: ${call.id}</div>
+                <div style="font-weight: 600; font-size: 1.1rem; margin-bottom: 4px;">${caller?.username || 'Incoming Call'}</div>
+                <div style="color: #999; font-size: 0.9rem;">🔊 Incoming voice call...</div>
             </div>
         </div>
-        <div style="display: flex; gap: 20px;">
-            <button id="acceptCallBtn" style="background: green !important; color: white !important; border: none !important; width: 70px !important; height: 70px !important; border-radius: 50% !important; font-size: 30px !important; cursor: pointer !important;">
-                ✅
+        <div style="display: flex; gap: 12px;">
+            <button id="acceptCallBtn" style="background: #28a745; border: none; color: white; width: 48px; height: 48px; border-radius: 50%; font-size: 1.2rem; cursor: pointer; display: flex; align-items: center; justify-content: center; animation: pulse 1.5s infinite;">
+                <i class="fas fa-phone-alt"></i>
             </button>
-            <button id="declineCallBtn" style="background: darkred !important; color: white !important; border: none !important; width: 70px !important; height: 70px !important; border-radius: 50% !important; font-size: 30px !important; cursor: pointer !important;">
-                ❌
+            <button id="declineCallBtn" style="background: #dc3545; border: none; color: white; width: 48px; height: 48px; border-radius: 50%; font-size: 1.2rem; cursor: pointer; display: flex; align-items: center; justify-content: center;">
+                <i class="fas fa-phone-slash"></i>
             </button>
         </div>
     `;
     
     document.body.prepend(notification);
     
-    console.log('🔍 DEBUG: Notification added to DOM');
-    
-    // Add event listeners
-    document.getElementById('acceptCallBtn').addEventListener('click', () => {
-        console.log('Accept clicked');
-        if (window.currentRingtone) {
-            window.currentRingtone.pause();
-        }
+    document.getElementById('acceptCallBtn').addEventListener('click', async () => {
+        stopRingtone();
         hideIncomingCallNotification();
-        alert('Accepting call...');
+        
+        await supabase
+            .from('calls')
+            .update({ status: 'active', answered_at: new Date().toISOString() })
+            .eq('id', call.id);
+        
+        window.location.href = `/pages/call/index.html?incoming=true&room=${call.room_name}&callerId=${call.caller_id}&callId=${call.id}`;
     });
     
-    document.getElementById('declineCallBtn').addEventListener('click', () => {
-        console.log('Decline clicked');
-        if (window.currentRingtone) {
-            window.currentRingtone.pause();
-        }
+    document.getElementById('declineCallBtn').addEventListener('click', async () => {
+        stopRingtone();
         hideIncomingCallNotification();
-        alert('Call rejected');
+        
+        await supabase
+            .from('calls')
+            .update({ status: 'rejected', ended_at: new Date().toISOString() })
+            .eq('id', call.id);
+        
+        sessionStorage.removeItem('incomingCall');
     });
 }
 
-// Hide incoming call notification
+// Hide notification
 function hideIncomingCallNotification() {
     const existing = document.getElementById('incomingCallNotification');
-    if (existing) {
-        existing.remove();
-        console.log('Notification removed');
-    }
+    if (existing) existing.remove();
 }
 
 // Clean up
 export function cleanupCallListener() {
-    if (window.currentRingtone) {
-        window.currentRingtone.pause();
-    }
+    stopRingtone();
     if (callSubscription) {
         callSubscription.unsubscribe();
     }
