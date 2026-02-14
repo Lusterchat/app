@@ -1,65 +1,69 @@
-// utils/call-auth.js - Uses call-supabase for lightweight auth
-import { initCallSupabase, getCallSession, getCallUser } from './call-supabase.js';
+// utils/call-auth.js - Dedicated auth for call page with recovery
+import { initCallSupabase } from './call-supabase.js';
 
 let supabaseInstance = null;
 
-// Lightweight auth check for call page - NEVER redirects
 export async function getCallUser() {
+    console.log('🔍 Call page: Checking authentication...');
+
     try {
-        console.log('🔍 Call page: checking auth with lightweight client');
-        
-        // Initialize call-specific Supabase
+        // Initialize Supabase
         supabaseInstance = await initCallSupabase();
-        
-        // Try to get session
-        const session = await getCallSession();
-        
-        if (session?.user) {
-            console.log('✅ Call page: Found user via session:', session.user.email);
-            return { 
-                success: true, 
-                user: session.user,
-                session: session 
+
+        if (!supabaseInstance || !supabaseInstance.auth) {
+            console.log('⚠️ Call page: Auth not available');
+            return { success: false, user: null };
+        }
+
+        // Try to get user from auth
+        const { data: userData, error: userError } = await supabaseInstance.auth.getUser();
+
+        if (userError) {
+            console.log('⚠️ Call page: GetUser error:', userError.message);
+
+            // Try session as fallback
+            const { data: sessionData } = await supabaseInstance.auth.getSession();
+            if (sessionData.session?.user) {
+                console.log('✅ Call page: Found user via session:', sessionData.session.user.email);
+                return {
+                    success: true,
+                    user: sessionData.session.user,
+                    session: sessionData.session
+                };
+            }
+
+            // Try to recover from localStorage like home page
+            try {
+                const sessionStr = localStorage.getItem('supabase.auth.token');
+                if (sessionStr) {
+                    const session = JSON.parse(sessionStr);
+                    if (session?.user) {
+                        console.log('✅ Call page: Recovered user from localStorage');
+                        return {
+                            success: true,
+                            user: session.user,
+                            session: session
+                        };
+                    }
+                }
+            } catch (e) {}
+
+            return { success: false, user: null };
+        }
+
+        if (userData.user) {
+            console.log('✅ Call page: User found:', userData.user.email);
+            return {
+                success: true,
+                user: userData.user
             };
         }
-        
-        // Try getUser as fallback
-        const user = await getCallUser();
-        
-        if (user) {
-            console.log('✅ Call page: Found user via getUser:', user.email);
-            return { 
-                success: true, 
-                user: user,
-                session: null 
-            };
-        }
-        
-        console.log('ℹ️ Call page: No authenticated user - continuing as guest');
-        return { success: false, user: null, session: null };
-        
+
+        console.log('ℹ️ Call page: No user found - continuing as guest');
+        return { success: false, user: null };
+
     } catch (error) {
-        console.log('⚠️ Call page: Auth check failed (non-fatal):', error?.message || 'unknown error');
-        return { success: false, user: null, session: null };
-    }
-}
-
-// Check if we have a valid session
-export async function hasValidSession() {
-    try {
-        const session = await getCallSession();
-        return !!session;
-    } catch {
-        return false;
-    }
-}
-
-// Get current user ID if available
-export async function getCurrentUserId() {
-    try {
-        const user = await getCallUser();
-        return user?.id || null;
-    } catch {
-        return null;
+        console.log('⚠️ Call page: Auth check failed:', error.message);
+        return { success: false, user: null };
     }
 }
