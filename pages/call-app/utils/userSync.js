@@ -1,4 +1,19 @@
-// pages/call-app/utils/userSync.js - Get user AND friends from old RelayTalk
+// pages/call-app/utils/userSync.js - Get user AND friends from old RelayTalk DATABASE
+
+// Configuration for OLD RelayTalk Supabase
+const OLD_SUPABASE_URL = 'https://blxtldgnssvasuinpyit.supabase.co'
+const OLD_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJseHRsZGduc3N2YXN1aW5weWl0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjcwODIxODIsImV4cCI6MjA4MjY1ODE4Mn0.Dv04IOAY76o2ccu5dzwK3fJjzo93BIoK6C2H3uWrlMw'
+
+let oldSupabase = null
+
+// Initialize old Supabase client
+async function getOldSupabase() {
+    if (oldSupabase) return oldSupabase
+    
+    const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2')
+    oldSupabase = createClient(OLD_SUPABASE_URL, OLD_SUPABASE_ANON_KEY)
+    return oldSupabase
+}
 
 // Get user from old RelayTalk's localStorage
 export function getRelayTalkUser() {
@@ -75,7 +90,9 @@ export async function syncUserToDatabase(supabase, user) {
                 .update({ 
                     status: 'online',
                     last_seen: new Date().toISOString(),
-                    username: existing.username || user.username
+                    username: existing.username || user.username,
+                    email: user.email,
+                    avatar_url: user.avatar_url || existing.avatar_url
                 })
                 .eq('id', user.id)
                 .select()
@@ -112,65 +129,98 @@ export async function syncUserToDatabase(supabase, user) {
     }
 }
 
-// NEW: Sync friends from old RelayTalk to CallApp
-export async function syncFriendsFromRelayTalk(supabase, userId) {
+// NEW: Sync friends from OLD DATABASE directly
+export async function syncFriendsFromOldDatabase(userId) {
     try {
-        console.log('🔄 Syncing friends from RelayTalk...')
+        console.log('🔄 Syncing friends from old RelayTalk DATABASE...')
         
-        // Try to get friends from old app's localStorage
-        let oldFriends = []
+        const oldSupabase = await getOldSupabase()
         
-        // Look for friends data in various possible keys
-        const possibleFriendKeys = [
-            'friends',
-            'relaytalk-friends',
-            'user-friends'
-        ]
+        // 1. Get friends from old database
+        const { data: friendships, error } = await oldSupabase
+            .from('friends')
+            .select('friend_id')
+            .eq('user_id', userId)
         
-        for (const key of possibleFriendKeys) {
-            const data = localStorage.getItem(key)
-            if (data) {
-                try {
-                    oldFriends = JSON.parse(data)
-                    console.log(`✅ Found friends in: ${key}`)
-                    break
-                } catch (e) {}
-            }
+        if (error) {
+            console.error('Error fetching friends from old DB:', error)
+            return []
         }
         
-        // If we have old friends, sync them
-        if (oldFriends && oldFriends.length > 0) {
-            console.log(`📝 Syncing ${oldFriends.length} friends...`)
-            
-            for (const friend of oldFriends) {
-                // Check if friend exists in CallApp DB
-                const { data: existingFriend } = await supabase
-                    .from('profiles')
-                    .select('id')
-                    .eq('id', friend.id || friend.friend_id)
-                    .maybeSingle()
-                
-                if (existingFriend) {
-                    // Add friend relationship
-                    await supabase
-                        .from('friends')
-                        .upsert({
-                            user_id: userId,
-                            friend_id: existingFriend.id,
-                            created_at: new Date().toISOString()
-                        }, { onConflict: 'user_id,friend_id' })
-                }
-            }
+        if (!friendships || friendships.length === 0) {
+            console.log('No friends found in old database')
+            return []
         }
         
-        console.log('✅ Friend sync complete')
+        console.log(`✅ Found ${friendships.length} friends in old database`)
+        
+        // 2. Get friend details
+        const friendIds = friendships.map(f => f.friend_id)
+        
+        const { data: friendProfiles, error: profileError } = await oldSupabase
+            .from('profiles')
+            .select('id, username, avatar_url, status, last_seen')
+            .in('id', friendIds)
+        
+        if (profileError) {
+            console.error('Error fetching friend profiles:', profileError)
+            return []
+        }
+        
+        return friendProfiles || []
         
     } catch (error) {
         console.error('❌ Friend sync failed:', error)
+        return []
     }
 }
 
-// NEW: Get user's friends list
+// NEW: Save friends to CallApp database
+export async function saveFriendsToCallApp(supabase, userId, friends) {
+    try {
+        console.log(`📝 Saving ${friends.length} friends to CallApp DB...`)
+        
+        // First, ensure all friend profiles exist in CallApp DB
+        for (const friend of friends) {
+            // Check if friend exists in CallApp DB
+            const { data: existing } = await supabase
+                .from('profiles')
+                .select('id')
+                .eq('id', friend.id)
+                .maybeSingle()
+            
+            if (!existing) {
+                // Create friend profile in CallApp DB
+                await supabase
+                    .from('profiles')
+                    .insert([{
+                        id: friend.id,
+                        username: friend.username,
+                        avatar_url: friend.avatar_url,
+                        status: friend.status || 'offline',
+                        last_seen: friend.last_seen || new Date().toISOString(),
+                        created_at: new Date().toISOString()
+                    }])
+            }
+            
+            // Create friendship relationship
+            await supabase
+                .from('friends')
+                .upsert({
+                    user_id: userId,
+                    friend_id: friend.id,
+                    created_at: new Date().toISOString()
+                }, { onConflict: 'user_id,friend_id' })
+        }
+        
+        console.log('✅ Friends saved to CallApp DB')
+        
+    } catch (error) {
+        console.error('❌ Error saving friends:', error)
+    }
+}
+
+// Get user's friends list from CallApp
 export async function getUserFriends(supabase, userId) {
     try {
         const { data: friendships } = await supabase
