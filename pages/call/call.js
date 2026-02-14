@@ -2,6 +2,7 @@
 
 import { initializeSupabase, supabase as supabaseClient } from '../../utils/supabase.js';
 import { createCallRoom, getCallUrl, getRoomInfo } from '../../utils/daily.js';
+import { cleanupCallListener } from '../../utils/callListener.js';
 
 let supabase = null;
 let currentUser = null;
@@ -15,6 +16,9 @@ let callInterval = null;
 // Initialize call page
 async function initCallPage() {
     console.log('Initializing call page...');
+    
+    // Clean up any existing listeners from other pages
+    cleanupCallListener();
     
     try {
         supabase = await initializeSupabase();
@@ -40,11 +44,13 @@ async function initCallPage() {
         const friendId = urlParams.get('friendId');
         const roomName = urlParams.get('room');
         const incoming = urlParams.get('incoming');
+        const callerId = urlParams.get('callerId');
+        const callId = urlParams.get('callId');
         
-        if (incoming === 'true' && roomName) {
+        if (incoming === 'true' && roomName && callerId && callId) {
             // Incoming call
             callType = 'incoming';
-            await handleIncomingCall(roomName);
+            await handleIncomingCall(roomName, callerId, callId);
         } else if (friendId) {
             // Outgoing call
             callType = 'outgoing';
@@ -102,7 +108,7 @@ async function startOutgoingCall(friendId) {
         // Hide loading, show calling UI
         document.getElementById('loadingScreen').style.display = 'none';
         
-        // Show outgoing call UI (simplified - just show we're calling)
+        // Show outgoing call UI
         showOutgoingUI(friend);
         
         // Listen for call acceptance/rejection
@@ -115,18 +121,9 @@ async function startOutgoingCall(friendId) {
 }
 
 // Handle incoming call
-async function handleIncomingCall(roomName) {
+async function handleIncomingCall(roomName, callerId, callId) {
     try {
-        document.getElementById('loadingText').textContent = 'Incoming call...';
-        
-        // Get room info from URL params
-        const urlParams = new URLSearchParams(window.location.search);
-        const callerId = urlParams.get('callerId');
-        const callId = urlParams.get('callId');
-        
-        if (!callerId || !callId) {
-            throw new Error('Missing call information');
-        }
+        document.getElementById('loadingText').textContent = 'Connecting...';
         
         // Get caller info
         const { data: caller, error } = await supabase
@@ -142,19 +139,17 @@ async function handleIncomingCall(roomName) {
         callerInfo = caller;
         currentCall = { id: callId, room_name: roomName };
         
-        // Hide loading, show incoming call UI
-        document.getElementById('loadingScreen').style.display = 'none';
-        document.getElementById('incomingCallScreen').style.display = 'flex';
-        document.getElementById('callerName').textContent = caller.username;
+        // Update call status to active
+        await supabase
+            .from('calls')
+            .update({ 
+                status: 'active',
+                answered_at: new Date().toISOString()
+            })
+            .eq('id', callId);
         
-        // Set caller avatar
-        const avatarEl = document.getElementById('callerAvatar');
-        if (caller.avatar_url) {
-            avatarEl.innerHTML = `<img src="${caller.avatar_url}" alt="${caller.username}" style="width:120px; height:120px; border-radius:50%; object-fit:cover;">`;
-        }
-        
-        // Listen for call status changes
-        setupCallListener(callId);
+        // Join the call immediately
+        await joinCall();
         
     } catch (error) {
         console.error('Incoming call error:', error);
@@ -164,7 +159,6 @@ async function handleIncomingCall(roomName) {
 
 // Show outgoing call UI
 function showOutgoingUI(friend) {
-    // Create a simple outgoing call UI
     const outgoingScreen = document.createElement('div');
     outgoingScreen.className = 'incoming-call-screen';
     outgoingScreen.id = 'outgoingCallScreen';
@@ -172,13 +166,13 @@ function showOutgoingUI(friend) {
         <div class="incoming-call-content">
             <div class="caller-avatar">
                 ${friend.avatar_url 
-                    ? `<img src="${friend.avatar_url}" alt="${friend.username}" style="width:120px; height:120px; border-radius:50%; object-fit:cover;">`
-                    : `<i class="fas fa-user-circle"></i>`
+                    ? `<img src="${friend.avatar_url}" alt="${friend.username}" style="width:120px; height:120px; border-radius:50%; object-fit:cover; border: 3px solid #007acc;">`
+                    : `<i class="fas fa-user-circle" style="font-size:120px; color:#007acc;"></i>`
                 }
             </div>
             <div class="caller-info">
                 <h2>${friend.username}</h2>
-                <p>Calling...</p>
+                <p id="callStatusText">Calling...</p>
             </div>
             <div class="call-actions">
                 <button class="call-btn decline-btn" onclick="cancelCall()">
@@ -205,12 +199,14 @@ function setupCallListener(callId) {
             
             if (payload.new.status === 'active' && !dailyIframe) {
                 // Call was accepted
+                document.getElementById('callStatusText').textContent = 'Connecting...';
                 joinCall();
-            } else if (payload.new.status === 'rejected' || payload.new.status === 'ended') {
-                // Call was rejected or ended
-                if (callType === 'outgoing') {
-                    showCallEnded('Call was rejected');
-                } else {
+            } else if (payload.new.status === 'rejected') {
+                // Call was rejected
+                showCallEnded('Call was rejected');
+            } else if (payload.new.status === 'ended') {
+                // Call ended by other user
+                if (dailyIframe) {
                     window.location.href = '../../pages/home/index.html';
                 }
             }
@@ -292,11 +288,6 @@ window.cancelCall = async function() {
             })
             .eq('id', currentCall.id);
         
-        // Delete Daily room
-        if (callRoom) {
-            // Delete room API call would go here
-        }
-        
         window.location.href = '../../pages/home/index.html';
         
     } catch (error) {
@@ -304,7 +295,7 @@ window.cancelCall = async function() {
     }
 };
 
-// Join the call (both outgoing and incoming)
+// Join the call
 async function joinCall() {
     try {
         document.getElementById('loadingScreen').style.display = 'flex';
@@ -336,7 +327,7 @@ async function joinCall() {
         
         // Build URL with parameters
         const dailyUrl = new URL(roomInfo.url);
-        dailyUrl.searchParams.set('t', ''); // No token needed for simple calls
+        dailyUrl.searchParams.set('t', '');
         dailyUrl.searchParams.set('dn', currentUser.user_metadata?.username || 'User');
         dailyUrl.searchParams.set('video', '0');
         dailyUrl.searchParams.set('audio', '1');
@@ -375,10 +366,6 @@ function setupAudioHandling() {
         if (isMuted) {
             muteBtn.innerHTML = '<i class="fas fa-microphone-slash"></i>';
             muteBtn.classList.add('muted');
-            // Send mute command to iframe (simplified)
-            if (dailyIframe) {
-                // Daily iframe handles its own mute
-            }
         } else {
             muteBtn.innerHTML = '<i class="fas fa-microphone"></i>';
             muteBtn.classList.remove('muted');
@@ -427,13 +414,13 @@ function showCallEnded(message) {
     endedScreen.innerHTML = `
         <div class="incoming-call-content">
             <div class="caller-avatar">
-                <i class="fas fa-phone-slash" style="color:#dc3545;"></i>
+                <i class="fas fa-phone-slash" style="font-size:120px; color:#dc3545;"></i>
             </div>
             <div class="caller-info">
                 <h2>Call Ended</h2>
-                <p>${message}</p>
+                <p style="color: #999; margin-bottom: 30px;">${message}</p>
             </div>
-            <button class="back-home-btn" onclick="window.location.href='../../pages/home/index.html'">
+            <button class="back-home-btn" onclick="window.location.href='../../pages/home/index.html'" style="background: #007acc; color: white; border: none; padding: 15px 30px; border-radius: 30px; font-size: 1.1rem; display: inline-flex; align-items: center; gap: 10px; cursor: pointer;">
                 <i class="fas fa-arrow-left"></i> Go Back
             </button>
         </div>
